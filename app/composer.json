@@ -1,0 +1,17 @@
+{
+    "name": "xenxen/app",
+    "autoload": {
+        "psr-4": {
+            "Xenxen\\App\\": "src/",
+            "Controller\\": "src/controllers/",
+            "Service\\": "src/services/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Nagy Xénia",
+            "email": "privateezi19@gmail.com"
+        }
+    ],
+    "require": {}
+}
