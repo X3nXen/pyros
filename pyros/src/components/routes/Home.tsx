@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { LoginCredentials, LoginData } from "../../model/LoginData.model";
-import Header from "../Header";
 import Login from "../Login";
-import { Box, Container } from "@mui/material";
+import { Button } from "@mui/material";
+import { Link } from "react-router-dom";
 
 export default function Home() {
   const [loginData, setLoginData] = useState<LoginData | null>(null);
@@ -17,7 +17,32 @@ export default function Home() {
   return (
     <>
       {loginData != null && loginData?.token ? (
-        <nav></nav>
+        <nav>
+          <Button variant="contained">
+            <Link to="/standings">Mérés</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/complex">Telephely</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/building">Épület</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/system">Rendszer</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/transport">Járművek</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/technology">Technológia</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/specific">Fajlagos</Link>
+          </Button>
+          <Button variant="contained">
+            <Link to="/create">Dokumentáció</Link>
+          </Button>
+        </nav>
       ) : (
         <Login loginFunc={login} />
       )}
