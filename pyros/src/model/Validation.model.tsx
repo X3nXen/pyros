@@ -1,7 +1,8 @@
-import type { StandingsFormData } from "./Sources.model";
+import { MeasurementTypes, type StandingsFormData } from "./Sources.model";
 
 export interface StandingsErrors {
   measurementType: string | null;
+  subTo: string;
   source: string | null;
   measurement: string | null;
   dateFrom: string | null;
@@ -12,6 +13,7 @@ export interface StandingsErrors {
 export function validateStandings(payload: StandingsFormData): StandingsErrors | null{
     const errors: StandingsErrors = {
         measurementType: "",
+        subTo: "",
         source: "",
         measurement: "",
         dateFrom: "",
@@ -21,6 +23,11 @@ export function validateStandings(payload: StandingsFormData): StandingsErrors |
     let hasError = false;
     if(!payload.measurementType){
         errors.measurementType = "A mérés típus megadása kötelező!";
+        hasError = true;
+    }
+
+    if(payload.measurementType && payload.measurementType !== MeasurementTypes.MAIN && !payload.subTo){
+        errors.subTo = "A főmérő hozzárendelése kötelező!";
         hasError = true;
     }
 

@@ -30,7 +30,9 @@ export enum MeasurementTypes{
 }
 
 export interface StandingsFormData{
+    id: string | null,
     measurementType: MeasurementTypes,
+    subTo: string | null,
     source: EnergySources,
     measurement: EnergyMeasurements,
     dateFrom: Dayjs | null,

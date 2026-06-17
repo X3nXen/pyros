@@ -9,4 +9,13 @@ export default class Calls{
             }, 1500);
         });
     }
+
+    static async getMainStandings(): Promise<{success: boolean, payload: Array<{id: string, name: string}>}> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                console.log("Backend mock response ok");
+                resolve({success: true, payload: [{id: "1225", name: "test főmérő"}]});
+            }, 1500)
+        })
+    }
 }

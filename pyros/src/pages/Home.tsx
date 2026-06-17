@@ -1,17 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LoginCredentials, LoginData } from "../model/LoginData.model";
 import Login from "../components/Login";
 import { Box, Button } from "@mui/material";
 import { Link } from "react-router-dom";
+import { useCookies } from "react-cookie";
 
 export default function Home() {
   const [loginData, setLoginData] = useState<LoginData | null>(null);
+  const [cookies, setCookie] = useCookies(['iden']);
+
+  
+  useEffect(() => {
+    function readCookie(){
+      if(cookies.iden){
+        setLoginData(cookies['iden'] as LoginData | null)
+      }
+    }
+
+    readCookie();
+  }, [cookies])
+
 
   function login(payload: LoginCredentials) {
     setLoginData({
+      clickupId: "15",
       userName: payload.userName,
       token: "12",
     });
+      setCookie('iden', {
+      clickupId: "15",
+      userName: payload.userName,
+      token: "12",
+    }, {path: '/'});
   }
 
   return (

@@ -14,7 +14,7 @@ import {
   MeasurementTypes,
   type StandingsFormData,
 } from "../model/Sources.model";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DatePicker } from "@mui/x-date-pickers";
 import type { Dayjs } from "dayjs";
 import Typography from "@mui/material/Typography";
@@ -22,10 +22,13 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useNavigate } from "react-router-dom";
 import FormSendProtocol from "../controllers/Forms.control";
 import type { StandingsErrors } from "../model/Validation.model";
+import Calls from "../controllers/Calls.control";
 
 export default function Standings() {
   const [formData, setFormData] = useState<StandingsFormData>({
+    id: null,
     measurementType: MeasurementTypes.MAIN,
+    subTo: null,
     source: EnergySources.COAL,
     measurement: EnergyMeasurements.MCUBE,
     dateFrom: null,
@@ -35,7 +38,30 @@ export default function Standings() {
 
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<StandingsErrors | null>({} as StandingsErrors);
+  const [errorMessage, setErrorMessage] = useState<StandingsErrors | null>(
+    {} as StandingsErrors,
+  );
+  const [mainMeasurements, setMainMeasurements] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+
+  useEffect(() => {
+    if (formData.measurementType === MeasurementTypes.MAIN) return;
+
+    async function callApi() {
+      return await Calls.getMainStandings();
+    }
+
+    callApi()
+      .then((result) => {
+        if (result.success) {
+          setMainMeasurements(result.payload);
+        }
+      })
+      .catch((error) =>
+        console.error("Probléma a backend hívással a useEffectben", error),
+      );
+  }, [formData.measurementType]);
 
   return (
     <Box
@@ -55,14 +81,50 @@ export default function Standings() {
           labelId="measurement-type-select"
           value={formData.measurementType}
           label="Mérés típusa"
-          onChange={(e) => {setFormData({...formData, measurementType: e.target.value})}}
+          onChange={(e) => {
+            setFormData({ ...formData, measurementType: e.target.value });
+          }}
         >
-            {Object.keys(MeasurementTypes).map((e: string) => {
-                return <MenuItem value={e}>{MeasurementTypes[e as keyof typeof MeasurementTypes]}</MenuItem>
-            })}
+          {Object.keys(MeasurementTypes).map((e: string) => {
+            return (
+              <MenuItem value={e}>
+                {MeasurementTypes[e as keyof typeof MeasurementTypes]}
+              </MenuItem>
+            );
+          })}
         </Select>
-        {errorMessage?.measurementType && <FormHelperText>{errorMessage.measurementType}</FormHelperText>}
+        {errorMessage?.measurementType && (
+          <FormHelperText>{errorMessage.measurementType}</FormHelperText>
+        )}
       </FormControl>
+      {formData.measurementType !== MeasurementTypes.MAIN ? (
+        <FormControl>
+          <InputLabel id="non-main-sub-to-select">
+            Melyik főmérőhöz tartozik
+          </InputLabel>
+          <Select
+            labelId="non-main-sub-to-select"
+            value={formData.subTo}
+            label="Melyik főmérőhöz tartozik"
+            onChange={(e) => {
+              setFormData({ ...formData, subTo: e.target.value });
+            }}
+          >
+            {mainMeasurements.map(
+              (measurement: { id: string; name: string }) => {
+                return (
+                  <MenuItem value={measurement.id}>{measurement.name}</MenuItem>
+                );
+              },
+            )}
+          </Select>
+          {errorMessage?.subTo && (
+            <FormHelperText>{errorMessage.subTo}</FormHelperText>
+          )}
+        </FormControl>
+      ) : (
+        <></>
+      )}
       <FormControl fullWidth>
         <InputLabel id="energy-source-select">Mért jellemző</InputLabel>
         <Select
@@ -74,10 +136,16 @@ export default function Standings() {
           }}
         >
           {Object.keys(EnergySources).map((e: string) => {
-            return <MenuItem value={e}>{EnergySources[e as keyof typeof EnergySources]}</MenuItem>;
+            return (
+              <MenuItem value={e}>
+                {EnergySources[e as keyof typeof EnergySources]}
+              </MenuItem>
+            );
           })}
         </Select>
-        {errorMessage?.source && <FormHelperText>{errorMessage.source}</FormHelperText>}
+        {errorMessage?.source && (
+          <FormHelperText>{errorMessage.source}</FormHelperText>
+        )}
       </FormControl>
       <FormControl fullWidth>
         <InputLabel id="energy-measurement-select">Mértékegység</InputLabel>
@@ -90,10 +158,16 @@ export default function Standings() {
           }}
         >
           {Object.keys(EnergyMeasurements).map((e: string) => {
-            return <MenuItem value={e}>{EnergyMeasurements[e as keyof typeof EnergyMeasurements]}</MenuItem>;
+            return (
+              <MenuItem value={e}>
+                {EnergyMeasurements[e as keyof typeof EnergyMeasurements]}
+              </MenuItem>
+            );
           })}
         </Select>
-        {errorMessage?.measurement && <FormHelperText>{errorMessage.measurement}</FormHelperText>}
+        {errorMessage?.measurement && (
+          <FormHelperText>{errorMessage.measurement}</FormHelperText>
+        )}
       </FormControl>
       <DatePicker
         label="Időszak kezdete (Mettől)"
@@ -165,7 +239,23 @@ export default function Standings() {
           Kiválasztott fájl: <strong>{formData.file.name}</strong>
         </Typography>
       )}
-      <Button variant="contained" disabled={loading} startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null} onClick={() => FormSendProtocol.handleMeasurementForm(formData, navigate, setLoading, setErrorMessage)}>Rögzítés</Button>
+      <Button
+        variant="contained"
+        disabled={loading}
+        startIcon={
+          loading ? <CircularProgress size={20} color="inherit" /> : null
+        }
+        onClick={() =>
+          FormSendProtocol.handleMeasurementForm(
+            formData,
+            navigate,
+            setLoading,
+            setErrorMessage,
+          )
+        }
+      >
+        Rögzítés
+      </Button>
     </Box>
   );
 }
