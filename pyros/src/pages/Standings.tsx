@@ -12,6 +12,7 @@ import {
   EnergyMeasurements,
   EnergySources,
   MeasurementTypes,
+  StringToType,
   type StandingsFormData,
 } from "../model/Sources.model";
 import { useEffect, useState } from "react";
@@ -47,7 +48,6 @@ export default function Standings() {
 
   useEffect(() => {
     if (formData.measurementType === MeasurementTypes.MAIN) return;
-
     async function callApi() {
       return await Calls.getMainStandings();
     }
@@ -82,16 +82,12 @@ export default function Standings() {
           value={formData.measurementType}
           label="Mérés típusa"
           onChange={(e) => {
-            setFormData({ ...formData, measurementType: e.target.value });
+            setFormData({ ...formData, measurementType: StringToType[e.target.value]});
           }}
         >
-          {Object.keys(MeasurementTypes).map((e: string) => {
-            return (
-              <MenuItem value={e}>
-                {MeasurementTypes[e as keyof typeof MeasurementTypes]}
-              </MenuItem>
-            );
-          })}
+          {
+            Object.values(MeasurementTypes).map(val =>  (<MenuItem value={val}>{val}</MenuItem>))
+          }
         </Select>
         {errorMessage?.measurementType && (
           <FormHelperText>{errorMessage.measurementType}</FormHelperText>

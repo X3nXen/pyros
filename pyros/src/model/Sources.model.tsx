@@ -29,6 +29,12 @@ export enum MeasurementTypes{
     VIRT = "Virtuális"
 }
 
+export const StringToType: Record<string, MeasurementTypes> = {
+  "Főmérő": MeasurementTypes.MAIN,
+  "Almérő": MeasurementTypes.SUB,
+  "Virtuális": MeasurementTypes.VIRT
+}
+
 export interface StandingsFormData{
     id: string | null,
     measurementType: MeasurementTypes,
