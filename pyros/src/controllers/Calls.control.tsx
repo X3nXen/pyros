@@ -1,4 +1,4 @@
-import type { StandingsFormData } from "../model/Sources.model";
+import type { StandingsFormData } from "../model/Standings.model";
 
 export default class Calls{
     static async postMeasurement(payload: StandingsFormData): Promise<{ success: boolean; message: string }>{

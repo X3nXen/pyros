@@ -1,4 +1,4 @@
-import { MeasurementTypes, type StandingsFormData } from "./Sources.model";
+import { MeasurementTypes, type StandingsFormData } from "./Standings.model";
 
 export interface StandingsErrors {
   measurementType: string | null;

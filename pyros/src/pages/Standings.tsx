@@ -14,7 +14,7 @@ import {
   MeasurementTypes,
   StringToType,
   type StandingsFormData,
-} from "../model/Sources.model";
+} from "../model/Standings.model";
 import { useEffect, useState } from "react";
 import { DatePicker } from "@mui/x-date-pickers";
 import type { Dayjs } from "dayjs";

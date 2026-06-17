@@ -1,5 +1,5 @@
 import type { NavigateFunction } from "react-router-dom";
-import type { StandingsFormData } from "../model/Sources.model";
+import type { StandingsFormData } from "../model/Standings.model";
 import Calls from "./Calls.control";
 import { validateStandings, type StandingsErrors } from "../model/Validation.model";
 

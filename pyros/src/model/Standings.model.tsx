@@ -35,8 +35,14 @@ export const StringToType: Record<string, MeasurementTypes> = {
   "Virtuális": MeasurementTypes.VIRT
 }
 
+export interface StandingsShort{
+    id: string | null;
+    name: string;
+}
+
 export interface StandingsFormData{
     id: string | null,
+    name: string,
     measurementType: MeasurementTypes,
     subTo: string | null,
     source: EnergySources,
