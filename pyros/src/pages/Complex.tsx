@@ -1,11 +1,31 @@
-import { Box } from "@mui/material";
-import { useState } from "react";
+import { Autocomplete, Box, TextField } from "@mui/material";
+import { useEffect, useState } from "react";
 import { ComplexFormData } from "../model/Complex.model";
+import { StandingsShort } from "../model/Standings.model";
+import Calls from "../controllers/Calls.control";
 
-export default function Complex(){
-    const [formData, setFormData] = useState<ComplexFormData>({} as ComplexFormData);
+export default function Complex() {
+  const [formData, setFormData] = useState<ComplexFormData>(
+    {} as ComplexFormData,
+  );
+  const [mainStandings, setMainStandings] = useState<Array<StandingsShort>>([]);
+  const [settlements, setSettlements] = useState<Array<{label: string, id: number}>>;
 
-    return (
+  useEffect(() => {
+    async function callApi() {
+      return await Calls.getMainStandings();
+    }
+    callApi()
+      .then((result) => {
+        if (result.success) {
+          setMainStandings(result.payload);
+        }
+      })
+      .catch((error) =>
+        console.error("Probléma a backend hívással a useEffectben", error),
+      );
+  });
+  return (
     <Box
       sx={{
         display: "flex",
@@ -16,6 +36,9 @@ export default function Complex(){
         mt: 3,
       }}
     >
-
-    </Box>);
+        <h1>Telephely rögzítése</h1>
+        <TextField label="Cím" variant="standard" onChange={(e) => setFormData({...formData, address: e.target.value})}></TextField>
+        <Autocomplete disablePortal options={} renderInput={(params) => <TextField {...params} label="Település"/>}/>
+    </Box>
+  );
 }
