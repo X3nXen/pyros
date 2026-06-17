@@ -1,4 +1,5 @@
 export interface LoginData{
+    clickupId: string;
     userName: string;
     token: string;
 }

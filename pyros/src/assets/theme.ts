@@ -24,6 +24,7 @@ const theme = createTheme({
           flexDirection: 'column',
           alignItems: 'center',
         },
+        
       },
     },
   },
