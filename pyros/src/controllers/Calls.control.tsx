@@ -2,6 +2,9 @@ import type { ComplexFormData } from "../model/Complex.model";
 import type { StandingsFormData } from "../model/Standings.model";
 
 export default class Calls{
+    /**
+    * TODO: Standings backend call implementation, database implementation
+    **/
     static async postMeasurement(payload: StandingsFormData): Promise<{ success: boolean; message: string }>{
         return new Promise((resolve) => {
             setTimeout(() => {
@@ -11,6 +14,9 @@ export default class Calls{
         });
     }
 
+    /**
+     * TODO: Complex backend call implementation, database implementation
+     */
     static async postComplex(payload: ComplexFormData): Promise<{success: boolean; message: string;}>{
         return new Promise((resolve) => {
             setTimeout(() => {
@@ -20,6 +26,9 @@ export default class Calls{
         })
     }
 
+    /**
+     * TODO: Standings backend call implementation and parsing
+     */
     static async getMainStandings(): Promise<{success: boolean, payload: Array<{id: string, name: string}>}> {
         return new Promise((resolve) => {
             setTimeout(() => {
