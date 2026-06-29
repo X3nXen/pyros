@@ -2,6 +2,7 @@ import { Route, BrowserRouter, Routes } from 'react-router-dom'
 import Home from './pages/Home'
 import Layout from './components/Layout'
 import Standings from './pages/Standings'
+import Complex from './pages/Complex'
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
         <Route element={<Layout/>}>
           <Route path='/' element={<Home/>}/>
           <Route path='/standings' element={<Standings/>}/>
+          <Route path='/complex' element={<Complex/>}/>
         </Route>
       </Routes>
     </BrowserRouter>

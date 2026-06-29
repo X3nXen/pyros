@@ -7,6 +7,7 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  TextField,
 } from "@mui/material";
 import {
   EnergyMeasurements,
@@ -14,7 +15,8 @@ import {
   MeasurementTypes,
   StringToType,
   type StandingsFormData,
-} from "../model/Sources.model";
+  type StandingsShort,
+} from "../model/Standings.model";
 import { useEffect, useState } from "react";
 import { DatePicker } from "@mui/x-date-pickers";
 import type { Dayjs } from "dayjs";
@@ -28,6 +30,7 @@ import Calls from "../controllers/Calls.control";
 export default function Standings() {
   const [formData, setFormData] = useState<StandingsFormData>({
     id: null,
+    name: "",
     measurementType: MeasurementTypes.MAIN,
     subTo: null,
     source: EnergySources.COAL,
@@ -43,7 +46,7 @@ export default function Standings() {
     {} as StandingsErrors,
   );
   const [mainMeasurements, setMainMeasurements] = useState<
-    Array<{ id: string; name: string }>
+    Array<StandingsShort>
   >([]);
 
   useEffect(() => {
@@ -76,6 +79,9 @@ export default function Standings() {
     >
       <h1>Mérés rögzítés</h1>
       <FormControl fullWidth>
+        <TextField label="Megnevezés" variant="standard" onChange={(e) => {setFormData({...formData, name: e.target.value})}}></TextField>
+      </FormControl>
+      <FormControl fullWidth>
         <InputLabel id="measurement-type-select">Mérés típusa</InputLabel>
         <Select
           labelId="measurement-type-select"
@@ -107,9 +113,9 @@ export default function Standings() {
             }}
           >
             {mainMeasurements.map(
-              (measurement: { id: string; name: string }) => {
+              (measurement: StandingsShort) => {
                 return (
-                  <MenuItem value={measurement.id}>{measurement.name}</MenuItem>
+                  <MenuItem value={measurement.id!}>{measurement.name}</MenuItem>
                 );
               },
             )}

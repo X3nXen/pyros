@@ -1,4 +1,5 @@
-import { MeasurementTypes, type StandingsFormData } from "./Sources.model";
+import type { ComplexErrors, ComplexFormData } from "./Complex.model";
+import { MeasurementTypes, type StandingsFormData } from "./Standings.model";
 
 export interface StandingsErrors {
   measurementType: string | null;
@@ -10,62 +11,103 @@ export interface StandingsErrors {
   file: string | null;
 }
 
-export function validateStandings(payload: StandingsFormData): StandingsErrors | null{
-    const errors: StandingsErrors = {
-        measurementType: "",
-        subTo: "",
-        source: "",
-        measurement: "",
-        dateFrom: "",
-        dateTo: "",
-        file: ""
-    };
-    let hasError = false;
-    if(!payload.measurementType){
-        errors.measurementType = "A mérés típus megadása kötelező!";
-        hasError = true;
+export function validateStandings(
+  payload: StandingsFormData,
+): StandingsErrors | null {
+  const errors: StandingsErrors = {
+    measurementType: "",
+    subTo: "",
+    source: "",
+    measurement: "",
+    dateFrom: "",
+    dateTo: "",
+    file: "",
+  };
+  let hasError = false;
+  if (!payload.measurementType) {
+    errors.measurementType = "A mérés típus megadása kötelező!";
+    hasError = true;
+  }
+
+  if (
+    payload.measurementType &&
+    payload.measurementType !== MeasurementTypes.MAIN &&
+    !payload.subTo
+  ) {
+    errors.subTo = "A főmérő hozzárendelése kötelező!";
+    hasError = true;
+  }
+
+  if (!payload.source) {
+    errors.source = "A mért jellemző megadása kötelező!";
+    hasError = true;
+  }
+
+  if (!payload.measurement) {
+    errors.measurement = "A mértékegység megadása kötelező!";
+    hasError = true;
+  }
+
+  if (!payload.dateFrom) {
+    errors.dateFrom = "A -tól dátum megadása kötelező!";
+    hasError = true;
+  }
+
+  if (!payload.dateTo) {
+    errors.dateTo = "A -ig dátum megadása kötelező!";
+    hasError = true;
+  }
+
+  if (payload.dateFrom && payload.dateTo) {
+    if (payload.dateFrom.isAfter(payload.dateTo)) {
+      errors.dateFrom = errors.dateTo =
+        "A kezdő dátum nem lehet később, mint a végdátum!";
+      hasError = true;
+    } else if (payload.dateTo.diff(payload.dateFrom, "month") < 12) {
+      errors.dateFrom = errors.dateTo =
+        "A kezdő és vég dátum között legalább 12 hónapnak kell lennie!";
+      hasError = true;
     }
+  }
 
-    if(payload.measurementType && payload.measurementType !== MeasurementTypes.MAIN && !payload.subTo){
-        errors.subTo = "A főmérő hozzárendelése kötelező!";
-        hasError = true;
-    }
+  if (!payload.file) {
+    errors.file = "A kimutatás fájl feltöltése kötelező!";
+    hasError = true;
+  }
 
-    if(!payload.source){
-        errors.source = "A mért jellemző megadása kötelező!";
-        hasError = true;
-    }
+  return hasError ? errors : null;
+}
 
-    if(!payload.measurement){
-        errors.measurement = "A mértékegység megadása kötelező!";
-        hasError = true;
-    }
+export function validateComplex(payload: ComplexFormData) : ComplexErrors | null {
+  const errors: ComplexErrors = {
+    name: "",
+    address: "",
+    postal: "",
+    parcelNumber: "",
+    meterStandings: "",
+  };
+  let hasError = false;
 
+  if(!payload.name){
+    errors.name = "Adj meg egy nevet a telephelynek!";
+    hasError = true;
+  }
+  if(!payload.address){
+    errors.address = "Add meg az utca, házszám azonosítót a telephelynek!";
+    hasError = true;
+  }
+  if(!payload.postal){
+    errors.postal = "Add meg a telephelyhez tartozó irányítószámot/települést!";
+    hasError = true; 
+  }
+  if(!payload.parcelNumber){
+    errors.parcelNumber = "Add meg a telephely helyrajzi számát!";
+    hasError = true;
+  }
+  if(payload.meterStandings === undefined || payload.meterStandings.length === 0){
+    errors.meterStandings = "Válassz ki legalább egy főmérőt ami a telephelyhez tartozik!";
+    hasError = true;
+  }
 
-    if(!payload.dateFrom){
-        errors.dateFrom = "A -tól dátum megadása kötelező!"
-        hasError = true;
-    }
-
-    if(!payload.dateTo){
-        errors.dateTo = "A -ig dátum megadása kötelező!";
-        hasError = true;
-    }
-
-    if (payload.dateFrom && payload.dateTo) {
-        if (payload.dateFrom.isAfter(payload.dateTo)) {
-            errors.dateFrom = errors.dateTo = "A kezdő dátum nem lehet később, mint a végdátum!";
-            hasError = true;
-        } else if (payload.dateTo.diff(payload.dateFrom, "month") < 12) {
-            errors.dateFrom = errors.dateTo = "A kezdő és vég dátum között legalább 12 hónapnak kell lennie!";
-            hasError = true;
-        }
-    }
-
-    if(!payload.file){
-        errors.file = "A kimutatás fájl feltöltése kötelező!";
-        hasError = true;
-    }
-
-    return hasError ? errors : null;
+  return hasError ? errors : null;
 }
