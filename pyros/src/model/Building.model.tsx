@@ -98,14 +98,14 @@ export enum BuildingRunning {
 export interface BuildingFormData {
   id: string | null;
   name: string;
-  complex: ComplexShortData;
+  complex: ComplexShortData | null;
   standings: Array<StandingsShort>;
   usage: BuildingUsages;
   protected: boolean;
   size: number;
   stories: number;
   height: number;
-  inside_heat: number;
+  insideHeat: number;
   running: BuildingRunning;
   certificate: boolean;
   floorSize: number;
@@ -124,3 +124,52 @@ export interface BuildingFormData {
   hmvCirculation: boolean;
   imageIds: Array<string>;
 };
+
+export const BuildingDefaults: BuildingFormData = {
+    id: null,
+    name: "",
+    complex: null,
+    standings: [],
+    usage: BuildingUsages.OFFICE,
+    protected:false,
+    size: 0,
+    stories: 0,
+    height: 0,
+    insideHeat: 0,
+    running: BuildingRunning.CONTINUOUS,
+    certificate: false,
+    floorSize: 0,
+    doorWallSize: 0,
+    elevation: 0,
+    wallLayers: WallLayerPreset.WALL_A,
+    wallInsulationWidth: 0,
+    ceilingLayers: CeilingLayerPreset.CEIL_A,
+    ceilingInsulationWidth: 0,
+    doorWindowType: DoorWindowPreset.DW_A,
+    floorInsulation: 0,
+    heatingType: TypicalHeatingTypePreset.TH_A,
+    regulationMode: HeatingTypicalRegulationPreset.HTR_A,
+    hmvCreation: WarmWaterCreationPreset.WWC_A,
+    hmvContainment: false,
+    hmvCirculation: false,
+    imageIds: []
+  };
+
+export interface BuildingErrors {
+  name: string;
+  complex: string;
+  standings: string;
+  size: string;
+  stories: string;
+  height: string;
+  insideHeat: string;
+  floorSize: string;
+  doorWallSize: string;
+  elevation: string;
+  imageIds: string;
+}
+
+export interface BuildingShort {
+  id: string;
+  name: string;
+}

@@ -1,3 +1,4 @@
+import type { BuildingErrors, BuildingFormData } from "./Building.model";
 import type { ComplexErrors, ComplexFormData } from "./Complex.model";
 import { MeasurementTypes, type StandingsFormData } from "./Standings.model";
 
@@ -108,6 +109,83 @@ export function validateComplex(payload: ComplexFormData) : ComplexErrors | null
     errors.meterStandings = "Válassz ki legalább egy főmérőt ami a telephelyhez tartozik!";
     hasError = true;
   }
+
+  return hasError ? errors : null;
+}
+
+export function validateBuilding(payload: BuildingFormData) : BuildingErrors | null {
+  const errors: BuildingErrors = {
+    complex: "",
+    standings: "",
+    name: "",
+    size: "",
+    stories: "",
+    height: "",
+    insideHeat: "",
+    floorSize: "",
+    doorWallSize: "",
+    elevation: "",
+    imageIds: ""
+  };
+  
+  let hasError = false;
+
+  if (!payload.complex) {
+    errors.complex = "Válassz ki egy telephelyet, amihez az épület tartozik!";
+    hasError = true;
+  }
+
+  if (!payload.standings || payload.standings.length === 0) {
+    errors.standings = "Válassz ki legalább egy hozzárendelt almérőt!";
+    hasError = true;
+  }
+
+  if (!payload.name || payload.name.trim() === "") {
+    errors.name = "Add meg a nevet az épülethez!";
+    hasError = true;
+  }
+
+  if (payload.size === undefined || payload.size === null || payload.size <= 0) {
+    errors.size = "Az épület területének egy 0-nál nagyobb számot adj meg!";
+    hasError = true;
+  }
+
+  if (payload.stories === undefined || payload.stories === null || payload.stories <= 0 || payload.stories > 163) {
+    errors.stories = "A szintek száma egy 1-163 (Burj Khalifa) közötti szám!";
+    hasError = true;
+  }
+
+  if (payload.height === undefined || payload.height === null || payload.height <= 0 || payload.height > 828) {
+    errors.height = "A belmagasság egy 1-828 (Burj Khalifa) közötti szám!";
+    hasError = true;
+  }
+
+  if (payload.insideHeat === undefined || payload.insideHeat === null || payload.insideHeat <= 0 || payload.insideHeat > 30) {
+    errors.insideHeat = "A belső méretezési hőmérséklet egy 1-30 közötti szám!";
+    hasError = true;
+  }
+
+  if (!payload.certificate) {
+    
+    if (payload.floorSize === undefined || payload.floorSize === null || payload.floorSize <= 0) {
+      errors.floorSize = "A padló kerülete egy 0-nál nagyobb szám!";
+      hasError = true;
+    }
+
+    if (payload.doorWallSize === undefined || payload.doorWallSize === null || payload.doorWallSize <= 0) {
+      errors.doorWallSize = "A nyílászárók összfelülete egy 0-nál nagyobb szám!";
+      hasError = true;
+    }
+
+    if (payload.elevation === undefined || payload.elevation === null || payload.elevation < 0 || payload.elevation > 10) {
+      errors.elevation = "A magasság a talajtól egy 0-10 közötti szám!";
+      hasError = true;
+    }
+  }
+
+  /**
+   * TODO: Validate images
+   */
 
   return hasError ? errors : null;
 }

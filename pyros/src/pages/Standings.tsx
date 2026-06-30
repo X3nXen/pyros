@@ -17,7 +17,7 @@ import {
   type StandingsFormData,
   type StandingsShort,
 } from "../model/Standings.model";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DatePicker } from "@mui/x-date-pickers";
 import type { Dayjs } from "dayjs";
 import Typography from "@mui/material/Typography";
@@ -25,9 +25,11 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useNavigate } from "react-router-dom";
 import FormSendProtocol from "../controllers/Forms.control";
 import type { StandingsErrors } from "../model/Validation.model";
-import Calls from "../controllers/Calls.control";
+import { useAppDispatch, useAppSelector } from "../store";
+import { addMainStandingLocally, addSubStandingLocally } from "../store/projectSlice";
 
 export default function Standings() {
+  const dispatch = useAppDispatch();
   const [formData, setFormData] = useState<StandingsFormData>({
     id: null,
     name: "",
@@ -45,26 +47,21 @@ export default function Standings() {
   const [errorMessage, setErrorMessage] = useState<StandingsErrors | null>(
     {} as StandingsErrors,
   );
-  const [mainMeasurements, setMainMeasurements] = useState<
-    Array<StandingsShort>
-  >([]);
+  const mainMeasurements = useAppSelector((state) => state.project.mainStandings);
 
-  useEffect(() => {
-    if (formData.measurementType === MeasurementTypes.MAIN) return;
-    async function callApi() {
-      return await Calls.getMainStandings();
+  const handleSave = async () => {
+    const result = await FormSendProtocol.handleMeasurementForm(formData, setLoading, setErrorMessage);
+    if (result && result.success){
+      const savedMeasurement: StandingsShort = {id: formData.id, name: formData.name};
+
+      if(formData.measurementType === MeasurementTypes.MAIN){
+        dispatch(addMainStandingLocally(savedMeasurement));
+      } else {
+        dispatch(addSubStandingLocally(savedMeasurement));
+      }
+      navigate("/");
     }
-
-    callApi()
-      .then((result) => {
-        if (result.success) {
-          setMainMeasurements(result.payload);
-        }
-      })
-      .catch((error) =>
-        console.error("Probléma a backend hívással a useEffectben", error),
-      );
-  }, [formData.measurementType]);
+  }
 
   return (
     <Box
@@ -247,15 +244,7 @@ export default function Standings() {
         startIcon={
           loading ? <CircularProgress size={20} color="inherit" /> : null
         }
-        onClick={() =>
-          FormSendProtocol.handleMeasurementForm(
-            formData,
-            navigate,
-            setLoading,
-            setErrorMessage,
-          )
-        }
-      >
+        onClick={handleSave}>
         Rögzítés
       </Button>
     </Box>
