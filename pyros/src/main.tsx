@@ -8,16 +8,20 @@ import { CssBaseline } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { CookiesProvider } from "react-cookie";
+import { Provider } from "react-redux";
+import { store } from "./store/index.ts";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
+      <Provider store={store}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <CookiesProvider defaultSetOptions={{path: "/"}}>
           <CssBaseline />
           <App />
         </CookiesProvider>
       </LocalizationProvider>
+      </Provider>
     </ThemeProvider>
   </StrictMode>,
 );

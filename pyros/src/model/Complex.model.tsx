@@ -8,6 +8,11 @@ export interface ComplexFormData {
     meterStandings: Array<string>
 }
 
+export interface ComplexShortData {
+    id: string;
+    name: string;
+}
+
 export interface ComplexErrors {
     name: string;
     address: string;

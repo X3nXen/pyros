@@ -13,14 +13,14 @@ import {
   type SelectChangeEvent,
   type Theme,
 } from "@mui/material";
-import { useEffect, useState } from "react";
-import type { ComplexErrors, ComplexFormData } from "../model/Complex.model";
-import type { StandingsShort } from "../model/Standings.model";
-import Calls from "../controllers/Calls.control";
+import { useState } from "react";
+import type { ComplexErrors, ComplexFormData, ComplexShortData } from "../model/Complex.model";
 import settlementData from "../model/zipToCity.json";
 import theme from "../assets/theme";
 import FormSendProtocol from "../controllers/Forms.control";
 import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../store";
+import { addComplexLocally } from "../store/projectSlice";
 
 function getStyles(id: string, selectedIds: string[], theme: Theme) {
   return {
@@ -44,6 +44,7 @@ const MenuProps = {
 };
 
 export default function Complex() {
+  const dispatch = useAppDispatch();
   const [formData, setFormData] = useState<ComplexFormData>(
     {
       id: null,
@@ -55,10 +56,8 @@ export default function Complex() {
       meterStandings: new Array<string>()
     }
   );
-  const [mainStandings, setMainStandings] = useState<Array<StandingsShort>>([]);
-  const [settlements, setSettlements] = useState<
-    Array<{ zip: number; city: string }>
-  >([]);
+  const mainStandings = useAppSelector((state) => state.project.mainStandings);
+  const settlements = settlementData;
 
   const handleStandingChange = (event: SelectChangeEvent<string[]>) => {
     const {
@@ -77,22 +76,16 @@ export default function Complex() {
     {} as ComplexErrors,
   );
 
-  useEffect(() => {
-    async function callApi() {
-      return await Calls.getMainStandings();
+  const handleSave = async () => {
+    const result = await FormSendProtocol.handleComplexForm(formData, setLoading, setErrorMessage);
+
+    if(result && result.success){
+      const savedResult: ComplexShortData = {id: formData.id as string, name: formData.name};
+      dispatch(addComplexLocally(savedResult));
+      navigate("/");
     }
-    callApi()
-      .then((result) => {
-        if (result.success) {
-          setMainStandings(result.payload);
-        }
-        setSettlements(settlementData);
-      })
-      .catch((error) =>{
-        console.error("Probléma a backend hívással a useEffectben", error);
-        setSettlements(settlementData);}
-      );
-  });
+  }
+
   return (
     <Box
       sx={{
@@ -212,14 +205,7 @@ export default function Complex() {
         startIcon={
           loading ? <CircularProgress size={20} color="inherit" /> : null
         }
-        onClick={() =>
-          FormSendProtocol.handleComplexForm(
-            formData,
-            navigate,
-            setLoading,
-            setErrorMessage,
-          )
-        }
+        onClick={handleSave}
       >
         Rögzítés
       </Button>
