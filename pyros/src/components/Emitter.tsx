@@ -1,0 +1,301 @@
+import {
+  Box,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+} from "@mui/material";
+import type {
+  BuildingShort,
+  ServicedBuildingShort,
+} from "../model/Building.model";
+import {
+  EMITTER_PURPOSE_TO_TYPE,
+  EMITTER_TYPE_TO_REGULATION,
+  EmitterHmvRegulation,
+  EmitterIndoorUnitPlacement,
+  type EmitterFormData,
+} from "../model/Emitter.model";
+import { SystemPurpose } from "../model/System.model";
+import { useState } from "react";
+import { ElectricCalcRefrigerant } from "../model/Heater.model";
+
+export default function EmitterForm(props: {
+  currentActiveEmitter: EmitterFormData;
+  handleActiveEmitterChange: (
+    field: keyof EmitterFormData,
+    value:
+      | string
+      | number
+      | string[]
+      | boolean
+      | null
+      | ServicedBuildingShort[],
+  ) => void;
+  buildings: Array<BuildingShort>;
+  systemPurpose: SystemPurpose;
+}) {
+  const [currentEmitterType, setCurrentEmitterType] = useState<string | null>(
+    props.currentActiveEmitter.type
+  );
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+      <Typography
+        variant="h6"
+        sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 1 }}
+      >
+        {props.currentActiveEmitter.name || "Névtelen berendezés"} részletes
+        adatai
+      </Typography>
+
+      <FormControl>
+        <TextField
+          label="Megnevezés"
+          variant="outlined"
+          value={props.currentActiveEmitter.name}
+          onChange={(e) => {
+            props.handleActiveEmitterChange("name", e.target.value);
+          }}
+        />
+      </FormControl>
+      <FormControl>
+        <InputLabel id="building-emitter-label">Épület</InputLabel>
+        <Select
+          labelId="building-emitter-label"
+          label="Épület"
+          value={props.currentActiveEmitter.building}
+          onChange={(e) => {
+            props.handleActiveEmitterChange("building", e.target.value);
+          }}
+        >
+          {props.buildings.map((e) => (
+            <MenuItem key={e.id} value={e.id}>
+              {e.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl>
+        <InputLabel id="pump-serviced-label">Kiszolgált épületek</InputLabel>
+        <Select
+          labelId="pump-serviced-label"
+          multiple
+          value={props.currentActiveEmitter.servicedBuilding.map(
+            (s) => s.buildingId,
+          )}
+          label="Kiszolgált épületek"
+          onChange={(e) => {
+            const selectedIds = e.target.value as string[];
+            const objects: Array<ServicedBuildingShort> = props.buildings
+              .filter((e) => selectedIds.includes(e.id))
+              .map((e: BuildingShort) => ({
+                buildingId: e.id,
+                name: e.name,
+                servicedSize: 0,
+              }));
+            props.handleActiveEmitterChange("servicedBuilding", objects);
+          }}
+        >
+          {props.buildings.map((s) => (
+            <MenuItem key={s.id as string} value={s.id as string}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      {props.currentActiveEmitter.servicedBuilding.map(
+        (e: ServicedBuildingShort) => {
+          return (
+            <FormControl>
+              <TextField
+                label={e.name + "-ben kiszolgált terület"}
+                type="number"
+                variant="outlined"
+                value={e.servicedSize}
+                onChange={(event) => {
+                  e.servicedSize = Number(event.target.value);
+                  props.handleActiveEmitterChange(
+                    "servicedBuilding",
+                    props.currentActiveEmitter.servicedBuilding,
+                  );
+                }}
+              />
+            </FormControl>
+          );
+        },
+      )}
+      <FormControl>
+        <InputLabel id="emitter-type-label">Hőleadó típusa</InputLabel>
+        <Select
+          labelId="emitter-type-label"
+          label="Hőleadó típusa"
+          value={props.currentActiveEmitter.type}
+          onChange={(e) => {
+            props.handleActiveEmitterChange("type", e.target.value);
+            setCurrentEmitterType(e.target.value);
+          }}
+        >
+          {(props.systemPurpose === SystemPurpose.BOTH
+            ? EMITTER_PURPOSE_TO_TYPE.cool.concat(EMITTER_PURPOSE_TO_TYPE.heat)
+            : props.systemPurpose === SystemPurpose.COOL
+              ? EMITTER_PURPOSE_TO_TYPE.cool
+              : EMITTER_PURPOSE_TO_TYPE.heat
+          ).map((e) => (
+            <MenuItem key={e} value={e}>
+              {e}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl>
+        <TextField
+          variant="outlined"
+          type="number"
+          label="Mennyiség"
+          value={props.currentActiveEmitter.amount}
+          onChange={(e) =>
+            props.handleActiveEmitterChange("amount", e.target.value)
+          }
+        />
+      </FormControl>
+      <FormControl>
+        <TextField
+          variant="outlined"
+          type="number"
+          label="Rendszer előremenő hőmérséklete (C°)"
+          value={props.currentActiveEmitter.forwardHeat}
+          onChange={(e) =>
+            props.handleActiveEmitterChange("forwardHeat", e.target.value)
+          }
+        />
+      </FormControl>
+      <FormControl>
+        <TextField
+          variant="outlined"
+          type="number"
+          label="Rendszer visszatérő hőmérséklete (C°)"
+          value={props.currentActiveEmitter.backHeat}
+          onChange={(e) =>
+            props.handleActiveEmitterChange("backHeat", e.target.value)
+          }
+        />
+      </FormControl>
+      <FormControl>
+        <InputLabel id="emitter-state-label">Hőleadó leírása</InputLabel>
+        <Select
+          labelId="emitter-state-label"
+          label="Hőleadó állapota"
+          value={props.currentActiveEmitter.state}
+          onChange={(e) =>
+            props.handleActiveEmitterChange("state", e.target.value)
+          }
+        >
+          {currentEmitterType ? EMITTER_TYPE_TO_REGULATION[currentEmitterType].map((e) => (
+            <MenuItem key={e} value={e}>
+              {e}
+            </MenuItem>
+          )): <></>}
+        </Select>
+      </FormControl>
+      {currentEmitterType === "VRV/VRF" ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <FormControl>
+            <InputLabel id="vrv-refrigerant">VRV/VRF hűtőfolyadéka</InputLabel>
+            <Select
+              label="VRV/VRF hűtőfolyadéka"
+              labelId="vrv-refrigerant"
+              value={props.currentActiveEmitter.vrvRefrigerant}
+              onChange={(e) =>
+                props.handleActiveEmitterChange(
+                  "vrvRefrigerant",
+                  e.target.value as ElectricCalcRefrigerant,
+                )
+              }
+            >
+              {Object.values(ElectricCalcRefrigerant).map((e) => (
+                <MenuItem key={e} value={e}>
+                  {e}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="vrv-inside-type">
+              VRV/VRF belső elhelyezés
+            </InputLabel>
+            <Select
+              label="VRV/VRF belső elhelyezés"
+              labelId="vrv-refrigerant"
+              value={props.currentActiveEmitter.vrvInsideType}
+              onChange={(e) =>
+                props.handleActiveEmitterChange(
+                  "vrvInsideType",
+                  e.target.value as EmitterIndoorUnitPlacement,
+                )
+              }
+            >
+              {Object.values(EmitterIndoorUnitPlacement).map((e) => (
+                <MenuItem key={e} value={e}>
+                  {e}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      ) : (
+        <></>
+      )}
+      {currentEmitterType === "HMV" ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <FormControl>
+            <Checkbox
+              checked={props.currentActiveEmitter.insideRoom}
+              onChange={() =>
+                props.handleActiveEmitterChange(
+                  "insideRoom",
+                  !props.currentActiveEmitter.insideRoom,
+                )
+              }
+              slotProps={{
+                input: { "aria-label": "Fűtőtt téren belül" },
+              }}
+            />
+          </FormControl>
+          <FormControl>
+            <Checkbox
+                checked={props.currentActiveEmitter.circulation}
+                onChange={() => props.handleActiveEmitterChange("circulation", !props.currentActiveEmitter.circulation)}
+                slotProps={{
+                input: { "aria-label": "Van cirkuláció" },
+              }}
+            />
+          </FormControl>
+          <FormControl>
+            <InputLabel id="hmv-regulation-label">HMV cirkuláció szabályzása</InputLabel>
+            <Select
+                label="HMV cirkuláció szabályzása"
+                labelId="hmv-regulation-label"
+                value={props.currentActiveEmitter.hmvRegulation}
+                onChange={(e) => props.handleActiveEmitterChange("hmvRegulation", e.target.value as EmitterHmvRegulation)}
+            >
+                {Object.values(EmitterHmvRegulation).map((e) => (
+                    <MenuItem key={e} value={e}>{e}</MenuItem>
+                ))}
+            </Select>
+          </FormControl>
+        </Box>
+      ) : (
+        <></>
+      )}
+    {
+        /**
+         * TODO: Image upload
+         */
+    }
+    </Box>
+  );
+}
