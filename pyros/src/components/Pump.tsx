@@ -1,13 +1,14 @@
 import {
   Box,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
   TextField,
   Typography,
 } from "@mui/material";
-import { PumpSetting, PumpTypes, type PumpFormData } from "../model/Pump.model";
+import { PumpSetting, PumpTypes, type PumpErrors, type PumpFormData } from "../model/Pump.model";
 import type {
   BuildingShort,
   ServicedBuildingShort,
@@ -26,6 +27,7 @@ export default function PumpForm(props: {
       | ServicedBuildingShort[],
   ) => void;
   buildings: Array<BuildingShort>;
+  pumpErrors: PumpErrors | null;
 }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -35,15 +37,16 @@ export default function PumpForm(props: {
       >
         {props.currentActivePump.name || "Névtelen berendezés"} részletes adatai
       </Typography>
-      <FormControl>
+      <FormControl error={!!props.pumpErrors?.name}>
         <TextField
           variant="outlined"
           label="Megnevezés"
           value={props.currentActivePump.name}
           onChange={(e) => props.handleActivePumpChange("name", e.target.value)}
         ></TextField>
+        {props.pumpErrors?.name && <FormHelperText>{props.pumpErrors?.name}</FormHelperText>}
       </FormControl>
-      <FormControl fullWidth size="small">
+      <FormControl fullWidth size="small" error={!!props.pumpErrors?.building}>
         <InputLabel id="pump-building-label">Épület</InputLabel>
         <Select
           labelId="pump-building-label"
@@ -57,8 +60,9 @@ export default function PumpForm(props: {
             return <MenuItem value={e.id}>{e.name}</MenuItem>;
           })}
         </Select>
+        {props.pumpErrors?.building && <FormHelperText>{props.pumpErrors?.building}</FormHelperText>}
       </FormControl>
-      <FormControl>
+      <FormControl error={!!props.pumpErrors?.servicedBuilding}>
         <InputLabel id="pump-serviced-label">Kiszolgált épületek</InputLabel>
         <Select
           labelId="pump-serviced-label"
@@ -79,6 +83,7 @@ export default function PumpForm(props: {
             </MenuItem>
           ))}
         </Select>
+        {props.pumpErrors?.servicedBuilding && <FormHelperText>{props.pumpErrors?.servicedBuilding}</FormHelperText>}
       </FormControl>
       {props.currentActivePump.servicedBuilding.map((e: ServicedBuildingShort) => {
         return (
@@ -96,7 +101,7 @@ export default function PumpForm(props: {
             </FormControl>
         );
       })}
-      <FormControl>
+      <FormControl error={!!props.pumpErrors?.manufacturor}>
         <TextField
             label="Gyártó"
             variant="outlined"
@@ -105,8 +110,9 @@ export default function PumpForm(props: {
                 props.handleActivePumpChange("manufacturor", e.target.value);
             }}
         />
+        {props.pumpErrors?.manufacturor && <FormHelperText>{props.pumpErrors?.manufacturor}</FormHelperText>}
       </FormControl>
-      <FormControl>
+      <FormControl error={!!props.pumpErrors?.type}>
         <TextField
             label="Típus"
             variant="outlined"
@@ -115,6 +121,7 @@ export default function PumpForm(props: {
                 props.handleActivePumpChange("type", e.target.value)
             }}
         />
+        {props.pumpErrors?.type && <FormHelperText>{props.pumpErrors?.type}</FormHelperText>}
       </FormControl>
       <FormControl>
         <InputLabel id="pump-archetype-label">Szivattyú jellege</InputLabel>
@@ -150,7 +157,7 @@ export default function PumpForm(props: {
             }
         </Select>
       </FormControl>
-      <FormControl>
+      <FormControl error={!!props.pumpErrors?.serialNumber}>
         <TextField
             label="Gyári szám"
             variant="outlined"
@@ -159,8 +166,9 @@ export default function PumpForm(props: {
                 props.handleActivePumpChange("serialNumber", e.target.value)
             }}
         />
+        {props.pumpErrors?.serialNumber && <FormHelperText>{props.pumpErrors?.serialNumber}</FormHelperText>}
       </FormControl>
-      <FormControl>
+      <FormControl error={!!props.pumpErrors?.powerUsage}>
         <TextField
             label="Villamos energia felvétel (W)"
             variant="outlined"
@@ -170,6 +178,7 @@ export default function PumpForm(props: {
                 props.handleActivePumpChange("powerUsage", e.target.value)
             }}
         />
+        {props.pumpErrors?.powerUsage && <FormHelperText>{props.pumpErrors?.powerUsage}</FormHelperText>}
       </FormControl>
       {
         /**

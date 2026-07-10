@@ -36,6 +36,16 @@ export interface EmitterFormData {
   imageIds: Array<string>;
 }
 
+export interface EmitterErrors {
+  name: string;
+  building: string;
+  servicedBuilding: string;
+  amount: string;
+  forwardHeat: string;
+  backHeat: string;
+  imageIds: string;
+}
+
 export const EMITTER_PURPOSE_TO_TYPE: HeatCoolStructure = {
   cool: [
     "Fal-mennyezetfűtés",

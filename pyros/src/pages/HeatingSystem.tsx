@@ -1,7 +1,9 @@
 import {
   Box,
+  Button,
   Divider,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
@@ -18,22 +20,26 @@ import {
   HeaterCarrier,
   HeaterDescriptions,
   type HeaterFormData,
+  type HeaterFormErrors,
 } from "../model/Heater.model";
 import CardListing from "../components/CardListing";
 import { useAppSelector } from "../store";
 import type { StandingsShort } from "../model/Standings.model";
 import HeaterForm from "../components/Heater";
 import {
+  type HeatingSystemErrors,
   type HeatingSystemFormData,
   SystemPurpose,
   SystemRegulation,
   SystemRegulationDesc,
 } from "../model/System.model";
-import { PumpSetting, PumpTypes, type PumpFormData } from "../model/Pump.model";
+import { PumpSetting, PumpTypes, type PumpErrors, type PumpFormData } from "../model/Pump.model";
 import PumpForm from "../components/Pump";
 import type { ServicedBuildingShort } from "../model/Building.model";
-import { EmitterHmvRegulation, EmitterIndoorUnitPlacement, type EmitterFormData } from "../model/Emitter.model";
+import { EmitterHmvRegulation, EmitterIndoorUnitPlacement, type EmitterErrors, type EmitterFormData } from "../model/Emitter.model";
 import EmitterForm from "../components/Emitter";
+import FormSendProtocol from "../controllers/Forms.control";
+import { useNavigate } from "react-router-dom";
 
 export default function HeatingSystem() {
   const [formData, setFormData] = useState<HeatingSystemFormData>({
@@ -53,11 +59,14 @@ export default function HeatingSystem() {
   );
   const [activePumpIndex, setActivePumpIndex] = useState<number | null>(null);
   const [activeEmitterIndex, setActiveEmitterIndex] = useState<number | null>(null)
-  
+  const [formErrors, setFormErrors] = useState<HeatingSystemErrors | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
   const buildings = useAppSelector((state) => state.project.buildings);
   const subStandings = useAppSelector((state) => state.project.subStandings);
   const mainStandings = useAppSelector((state) => state.project.mainStandings);
   const allStandings = subStandings.concat(mainStandings);
+  const navigate = useNavigate();
 
   function handleAddHeater() {
     const newHeater: HeaterFormData = {
@@ -181,6 +190,13 @@ export default function HeatingSystem() {
     setFormData({...formData, emitters: updatedEmitters});
   }
 
+  const handleSubmit = async () => {
+    const result = await FormSendProtocol.handleHeatingSystemForm(formData, setLoading, setFormErrors);
+    if (result && result.success) {
+      navigate("/")
+    }
+  }
+
   const currentActiveHeater =
     activeHeaterIndex !== null ? formData.heaters[activeHeaterIndex] : null;
   const currentActivePump =
@@ -200,13 +216,14 @@ export default function HeatingSystem() {
       }}
     >
       <h1>Fűtő/hűtő rendszer rögzítése</h1>
-      <FormControl variant="standard" fullWidth>
+      <FormControl variant="standard" fullWidth error={!!formErrors?.name}>
         <TextField
           label="Megnevezés"
           variant="standard"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
         />
+        {formErrors?.name && <FormHelperText>{formErrors?.name}</FormHelperText>}
       </FormControl>
 
       <FormControl variant="standard" fullWidth>
@@ -230,7 +247,7 @@ export default function HeatingSystem() {
         </Select>
       </FormControl>
 
-      <FormControl variant="standard" fullWidth>
+      <FormControl variant="standard" fullWidth error={!!formErrors?.standing}>
         <InputLabel id="system-standings">Hozzárendelt mérő</InputLabel>
         <Select
           labelId="system-standings"
@@ -246,6 +263,7 @@ export default function HeatingSystem() {
             </MenuItem>
           ))}
         </Select>
+        {formErrors?.standing && <FormHelperText>{formErrors?.standing}</FormHelperText>}
       </FormControl>
 
       <FormControl variant="standard" fullWidth>
@@ -315,6 +333,10 @@ export default function HeatingSystem() {
           buildings={buildings}
           systemPurpose={formData.systemPurpose}
           heaterIndex={activeHeaterIndex}
+          heaterErrors={
+            activeHeaterIndex !== null && formErrors !== null
+              ? (typeof formErrors!.heaters[activeHeaterIndex!] === 'string' ? null : formErrors!.heaters[activeHeaterIndex!] as HeaterFormErrors) 
+              : null}
         />
       )}
 
@@ -334,7 +356,12 @@ export default function HeatingSystem() {
         <PumpForm 
           currentActivePump={currentActivePump} 
           handleActivePumpChange={handleActivePumpChange}
-          buildings={buildings}/>
+          buildings={buildings}
+          pumpErrors={
+            activePumpIndex !== null && formErrors !== null
+              ? (typeof formErrors!.pumps[activePumpIndex!] === 'string' ? null : formErrors!.pumps[activePumpIndex!] as PumpErrors) 
+              : null}
+        />
       )}
 
       <Typography variant="h6" component="h2">
@@ -354,10 +381,21 @@ export default function HeatingSystem() {
             currentActiveEmitter={currentActiveEmitter}
             handleActiveEmitterChange={handleActiveEmitterChange}
             buildings={buildings}
-            systemPurpose={formData.systemPurpose}/>
+            systemPurpose={formData.systemPurpose}
+            emitterErrors={
+              activeEmitterIndex !== null && formErrors !== null 
+                ? (typeof formErrors!.emitters[activeEmitterIndex!] === "string" ? null : formErrors!.emitters[activeEmitterIndex!] as EmitterErrors) 
+                : null}
+            />
         )}
 
-        
+        {/**
+        * TODO: Solve image uploading with linking
+       */}
+
+      <Button variant="contained" disabled={loading} sx={{ mt: 2 }} onClick={handleSubmit}>
+        Mentés
+      </Button>
     </Box>
   );
 }

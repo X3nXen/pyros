@@ -1,6 +1,6 @@
-import type { EmitterFormData } from "./Emitter.model";
-import type { HeaterFormData } from "./Heater.model";
-import type { PumpFormData } from "./Pump.model";
+import type { EmitterErrors, EmitterFormData } from "./Emitter.model";
+import type { HeaterFormData, HeaterFormErrors } from "./Heater.model";
+import type { PumpErrors, PumpFormData } from "./Pump.model";
 
 export enum SystemPurpose {
   HEAT = "Fűtő",
@@ -32,4 +32,12 @@ export interface HeatingSystemFormData {
   heaters: Array<HeaterFormData>;
   pumps: Array<PumpFormData>;
   emitters: Array<EmitterFormData>;
+}
+
+export interface HeatingSystemErrors {
+  name: string;
+  standing: string;
+  heaters: Array<HeaterFormErrors | string>;
+  pumps: Array<PumpErrors | string>;
+  emitters: Array<EmitterErrors | string>;
 }

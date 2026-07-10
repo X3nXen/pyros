@@ -7,8 +7,8 @@ import {
   Select,
   MenuItem,
   OutlinedInput,
-  Divider,
   type Theme,
+  FormHelperText,
 } from "@mui/material";
 import theme from "../assets/theme";
 import {
@@ -23,6 +23,7 @@ import {
   ElectricCalcSource,
   ElectricCalcRefrigerant,
   type HeaterFormData,
+  type HeaterFormErrors,
 } from "../model/Heater.model";
 import type { StandingsShort } from "../model/Standings.model";
 import { useState } from "react";
@@ -57,6 +58,7 @@ export default function HeaterForm(props: {
   buildings: Array<BuildingShort>;
   systemPurpose: SystemPurpose;
   heaterIndex: number | null;
+  heaterErrors: HeaterFormErrors | null;
 }) {
   const [currentCarrier, setCurrentCarrier] = useState<HeaterCarrier>(
     HeaterCarrier.NATURAL_GAS,
@@ -73,8 +75,7 @@ export default function HeaterForm(props: {
         adatai
       </Typography>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <FormControl fullWidth>
+        <FormControl fullWidth error={!!props.heaterErrors?.name}>
           <TextField
             label="Hőtermelő/hűtőberendezés megnevezése"
             variant="outlined"
@@ -84,9 +85,10 @@ export default function HeaterForm(props: {
               props.handleActiveHeaterChange("name", e.target.value)
             }
           />
+          {props.heaterErrors?.name && <FormHelperText>{props.heaterErrors?.name}</FormHelperText>}
         </FormControl>
 
-        <FormControl>
+        <FormControl error={!!props.heaterErrors?.standing}>
           <InputLabel id="heater-standings">Hozzárendelt mérő</InputLabel>
           <Select
             labelId="heater-standings"
@@ -100,8 +102,9 @@ export default function HeaterForm(props: {
               return <MenuItem value={e.id as string}>{e.name}</MenuItem>;
             })}
           </Select>
+          {props.heaterErrors?.standing && <FormHelperText>{props.heaterErrors?.standing}</FormHelperText>}
         </FormControl>
-        <FormControl fullWidth size="small">
+        <FormControl fullWidth size="small" error={!!props.heaterErrors?.building}>
           <InputLabel id="heater-building-label">
             Épület
           </InputLabel>
@@ -118,8 +121,9 @@ export default function HeaterForm(props: {
             })}
             <MenuItem value="-9999">Kültér</MenuItem>
           </Select>
+          {props.heaterErrors?.building && <FormHelperText>{props.heaterErrors?.building}</FormHelperText>}
         </FormControl>
-        <FormControl>
+        <FormControl error={!!props.heaterErrors?.servicedBuilding}>
           <InputLabel id="heater-serviced-label">
             Kiszolgált épületek
           </InputLabel>
@@ -161,11 +165,10 @@ export default function HeaterForm(props: {
               );
             })}
           </Select>
+          {props.heaterErrors?.servicedBuilding && <FormHelperText>{props.heaterErrors?.servicedBuilding}</FormHelperText>}
         </FormControl>
-      </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <FormControl fullWidth>
+        <FormControl fullWidth error={!!props.heaterErrors?.manufacturor}>
           <TextField
             label="Gyártó"
             variant="outlined"
@@ -175,6 +178,7 @@ export default function HeaterForm(props: {
               props.handleActiveHeaterChange("manufacturor", e.target.value)
             }
           />
+          {props.heaterErrors?.manufacturor && <FormHelperText>{props.heaterErrors?.manufacturor}</FormHelperText>}
         </FormControl>
 
         <FormControl fullWidth>
@@ -190,7 +194,7 @@ export default function HeaterForm(props: {
           />
         </FormControl>
 
-        <FormControl fullWidth>
+        <FormControl fullWidth error={!!props.heaterErrors?.serial}>
           <TextField
             label="Gyári szám"
             variant="outlined"
@@ -200,11 +204,10 @@ export default function HeaterForm(props: {
               props.handleActiveHeaterChange("serial", e.target.value)
             }
           />
+          {props.heaterErrors?.serial && <FormHelperText>{props.heaterErrors?.serial}</FormHelperText>}
         </FormControl>
-      </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <FormControl fullWidth>
+        <FormControl fullWidth error={!!props.heaterErrors?.type}>
           <TextField
             label="Típus"
             variant="outlined"
@@ -214,6 +217,7 @@ export default function HeaterForm(props: {
               props.handleActiveHeaterChange("type", e.target.value)
             }
           />
+          {props.heaterErrors?.type && <FormHelperText>{props.heaterErrors?.type}</FormHelperText>}
         </FormControl>
 
         <FormControl fullWidth size="small">
@@ -241,11 +245,7 @@ export default function HeaterForm(props: {
             ))}
           </Select>
         </FormControl>
-      </Box>
 
-      <Divider />
-
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         <FormControl fullWidth size="small">
           <InputLabel id="heater-carrier-label">Energiahordozó</InputLabel>
           <Select
@@ -274,7 +274,7 @@ export default function HeaterForm(props: {
           </Select>
         </FormControl>
 
-        <FormControl fullWidth size="small">
+        <FormControl fullWidth size="small" error={!!props.heaterErrors?.heatingType}>
           <InputLabel id="heater-heatingtype-label">Jellege</InputLabel>
           <Select
             labelId="heater-heatingtype-label"
@@ -290,10 +290,10 @@ export default function HeaterForm(props: {
               </MenuItem>
             ))}
           </Select>
+          {props.heaterErrors?.heatingType && <FormHelperText>{props.heaterErrors?.heatingType}</FormHelperText>}
         </FormControl>
-      </Box>
 
-      <FormControl fullWidth>
+      <FormControl fullWidth error={!!props.heaterErrors?.maxPower}>
         <TextField
           label="Max. bevitt teljesítmény (kW)"
           type="number"
@@ -304,6 +304,7 @@ export default function HeaterForm(props: {
             props.handleActiveHeaterChange("maxPower", Number(e.target.value))
           }
         />
+        {props.heaterErrors?.maxPower && <FormHelperText>{props.heaterErrors?.maxPower}</FormHelperText>}
       </FormControl>
 
       {(() => {
@@ -312,15 +313,8 @@ export default function HeaterForm(props: {
         return (
           <>
             {activeFeatures.includes(HeaterFeature.SYSTEM_HEAT) && (
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 2,
-                  bgcolor: "action.hover",
-                  p: 2,
-                  borderRadius: 1,
-                }}
-              >
+              <>
+              <FormControl error={!!props.heaterErrors?.forwardHeat}>
                 <TextField
                   label="Előremenő hőmérséklet (°C)"
                   type="number"
@@ -334,6 +328,9 @@ export default function HeaterForm(props: {
                     )
                   }
                 />
+                {props.heaterErrors?.forwardHeat && <FormHelperText>{props.heaterErrors?.forwardHeat}</FormHelperText>}
+              </FormControl>
+              <FormControl error={!!props.heaterErrors?.backHeat}>
                 <TextField
                   label="Visszatérő hőmérséklet (°C)"
                   type="number"
@@ -347,24 +344,13 @@ export default function HeaterForm(props: {
                     )
                   }
                 />
-              </Box>
+                {props.heaterErrors?.backHeat && <FormHelperText>{props.heaterErrors?.backHeat}</FormHelperText>}
+              </FormControl>
+                </>
             )}
 
             {activeFeatures.includes(HeaterFeature.ELECTRIC_EFFICIENCY) && (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                  bgcolor: "action.hover",
-                  p: 2,
-                  borderRadius: 1,
-                }}
-              >
-                <Typography variant="subtitle2" color="primary">
-                  Elektromos energetikai hatékonysági adatok
-                </Typography>
-
+              <>
                 <FormControl fullWidth size="small">
                   <InputLabel id="base-type-label">Működési mód</InputLabel>
                   <Select
@@ -475,25 +461,14 @@ export default function HeaterForm(props: {
                     ))}
                   </Select>
                 </FormControl>
-              </Box>
+              </>
             )}
           </>
         );
       })()}
-
-      <Box
-        sx={{
-          bgcolor: "background.default",
-          p: 2,
-          borderRadius: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-        }}
-      >
         {(props.systemPurpose === SystemPurpose.COOL ||
           props.systemPurpose === SystemPurpose.BOTH) && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <>
             <label
               style={{
                 display: "flex",
@@ -531,7 +506,7 @@ export default function HeaterForm(props: {
               />
               Van lehetőség hulladékhő hasznosításra
             </label>
-          </Box>
+          </>
         )}
 
         <label
@@ -553,7 +528,7 @@ export default function HeaterForm(props: {
         </label>
 
         {props.currentActiveHeater.oversized && (
-          <FormControl fullWidth sx={{ mt: 1 }}>
+          <FormControl fullWidth error={!!props.heaterErrors?.oversizeRatio}>
             <TextField
               label="Túlméretezettség mértéke (%)"
               type="number"
@@ -567,9 +542,9 @@ export default function HeaterForm(props: {
                 )
               }
             />
+            {props.heaterErrors?.oversizeRatio && <FormHelperText>{props.heaterErrors?.oversizeRatio}</FormHelperText>}
           </FormControl>
         )}
-      </Box>
       {
         /**
          * TODO: Image upload

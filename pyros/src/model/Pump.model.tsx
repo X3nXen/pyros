@@ -15,6 +15,16 @@ export interface PumpFormData {
   imageIds: Array<string>;
 }
 
+export interface PumpErrors {
+  name: string;
+  building: string;
+  servicedBuilding: string;
+  manufacturor: string;
+  type: string;
+  serialNumber: string;
+  powerUsage: string;
+}
+
 export enum PumpTypes {
   TYPE_A = "Állandó fordulatú",
   TYPE_B = "Változtatható fordulatszámú",

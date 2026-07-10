@@ -5,6 +5,7 @@ import type {
   StandingsFormData,
   StandingsShort,
 } from "../model/Standings.model";
+import type { HeatingSystemFormData } from "../model/System.model";
 
 export default class Calls {
 
@@ -65,6 +66,18 @@ export default class Calls {
             console.log("Backend fogadta az adatokat:", payload);
             resolve({success: true, message: "Sikeres mentés a PHP backendre"});
         }, 1500)
+    })
+  }
+
+  /**
+   * TODO: Heating system backend call implementation, database implementation
+   */
+  static async postHeatingSystem(payload: HeatingSystemFormData): Promise<{success: boolean, message: string}> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log("Backend fogadta az adatokat:", payload);
+        resolve({success: true, message: "Sikeres mentés a PHP backendre!"});
+      }, 1500)
     })
   }
 

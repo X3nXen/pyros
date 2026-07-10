@@ -1,6 +1,18 @@
 import type { BuildingErrors, BuildingFormData } from "./Building.model";
 import type { ComplexErrors, ComplexFormData } from "./Complex.model";
+import type { EmitterErrors, EmitterFormData } from "./Emitter.model";
+import {
+  DEVICE_FEATURES,
+  HeaterFeature,
+  type HeaterFormData,
+  type HeaterFormErrors,
+} from "./Heater.model";
+import type { PumpErrors, PumpFormData } from "./Pump.model";
 import { MeasurementTypes, type StandingsFormData } from "./Standings.model";
+import type {
+  HeatingSystemErrors,
+  HeatingSystemFormData,
+} from "./System.model";
 
 export interface StandingsErrors {
   measurementType: string | null;
@@ -79,7 +91,9 @@ export function validateStandings(
   return hasError ? errors : null;
 }
 
-export function validateComplex(payload: ComplexFormData) : ComplexErrors | null {
+export function validateComplex(
+  payload: ComplexFormData,
+): ComplexErrors | null {
   const errors: ComplexErrors = {
     name: "",
     address: "",
@@ -89,31 +103,37 @@ export function validateComplex(payload: ComplexFormData) : ComplexErrors | null
   };
   let hasError = false;
 
-  if(!payload.name){
+  if (!payload.name) {
     errors.name = "Adj meg egy nevet a telephelynek!";
     hasError = true;
   }
-  if(!payload.address){
+  if (!payload.address) {
     errors.address = "Add meg az utca, házszám azonosítót a telephelynek!";
     hasError = true;
   }
-  if(!payload.postal){
+  if (!payload.postal) {
     errors.postal = "Add meg a telephelyhez tartozó irányítószámot/települést!";
-    hasError = true; 
+    hasError = true;
   }
-  if(!payload.parcelNumber){
+  if (!payload.parcelNumber) {
     errors.parcelNumber = "Add meg a telephely helyrajzi számát!";
     hasError = true;
   }
-  if(payload.meterStandings === undefined || payload.meterStandings.length === 0){
-    errors.meterStandings = "Válassz ki legalább egy főmérőt ami a telephelyhez tartozik!";
+  if (
+    payload.meterStandings === undefined ||
+    payload.meterStandings.length === 0
+  ) {
+    errors.meterStandings =
+      "Válassz ki legalább egy főmérőt ami a telephelyhez tartozik!";
     hasError = true;
   }
 
   return hasError ? errors : null;
 }
 
-export function validateBuilding(payload: BuildingFormData) : BuildingErrors | null {
+export function validateBuilding(
+  payload: BuildingFormData,
+): BuildingErrors | null {
   const errors: BuildingErrors = {
     complex: "",
     standings: "",
@@ -125,9 +145,9 @@ export function validateBuilding(payload: BuildingFormData) : BuildingErrors | n
     floorSize: "",
     doorWallSize: "",
     elevation: "",
-    imageIds: ""
+    imageIds: "",
   };
-  
+
   let hasError = false;
 
   if (!payload.complex) {
@@ -145,39 +165,71 @@ export function validateBuilding(payload: BuildingFormData) : BuildingErrors | n
     hasError = true;
   }
 
-  if (payload.size === undefined || payload.size === null || payload.size <= 0) {
+  if (
+    payload.size === undefined ||
+    payload.size === null ||
+    payload.size <= 0
+  ) {
     errors.size = "Az épület területének egy 0-nál nagyobb számot adj meg!";
     hasError = true;
   }
 
-  if (payload.stories === undefined || payload.stories === null || payload.stories <= 0 || payload.stories > 163) {
+  if (
+    payload.stories === undefined ||
+    payload.stories === null ||
+    payload.stories <= 0 ||
+    payload.stories > 163
+  ) {
     errors.stories = "A szintek száma egy 1-163 (Burj Khalifa) közötti szám!";
     hasError = true;
   }
 
-  if (payload.height === undefined || payload.height === null || payload.height <= 0 || payload.height > 828) {
+  if (
+    payload.height === undefined ||
+    payload.height === null ||
+    payload.height <= 0 ||
+    payload.height > 828
+  ) {
     errors.height = "A belmagasság egy 1-828 (Burj Khalifa) közötti szám!";
     hasError = true;
   }
 
-  if (payload.insideHeat === undefined || payload.insideHeat === null || payload.insideHeat <= 0 || payload.insideHeat > 30) {
+  if (
+    payload.insideHeat === undefined ||
+    payload.insideHeat === null ||
+    payload.insideHeat <= 0 ||
+    payload.insideHeat > 30
+  ) {
     errors.insideHeat = "A belső méretezési hőmérséklet egy 1-30 közötti szám!";
     hasError = true;
   }
 
   if (!payload.certificate) {
-    
-    if (payload.floorSize === undefined || payload.floorSize === null || payload.floorSize <= 0) {
+    if (
+      payload.floorSize === undefined ||
+      payload.floorSize === null ||
+      payload.floorSize <= 0
+    ) {
       errors.floorSize = "A padló kerülete egy 0-nál nagyobb szám!";
       hasError = true;
     }
 
-    if (payload.doorWallSize === undefined || payload.doorWallSize === null || payload.doorWallSize <= 0) {
-      errors.doorWallSize = "A nyílászárók összfelülete egy 0-nál nagyobb szám!";
+    if (
+      payload.doorWallSize === undefined ||
+      payload.doorWallSize === null ||
+      payload.doorWallSize <= 0
+    ) {
+      errors.doorWallSize =
+        "A nyílászárók összfelülete egy 0-nál nagyobb szám!";
       hasError = true;
     }
 
-    if (payload.elevation === undefined || payload.elevation === null || payload.elevation < 0 || payload.elevation > 10) {
+    if (
+      payload.elevation === undefined ||
+      payload.elevation === null ||
+      payload.elevation < 0 ||
+      payload.elevation > 10
+    ) {
       errors.elevation = "A magasság a talajtól egy 0-10 közötti szám!";
       hasError = true;
     }
@@ -187,5 +239,202 @@ export function validateBuilding(payload: BuildingFormData) : BuildingErrors | n
    * TODO: Validate images
    */
 
+  return hasError ? errors : null;
+}
+
+export function validateHeatingSystem(payload: HeatingSystemFormData) {
+  const errors: HeatingSystemErrors = {
+    name: "",
+    standing: "",
+    heaters: [],
+    pumps: [],
+    emitters: [],
+  };
+
+  let hasError = false;
+
+  if (!payload.name || payload.name === "") {
+    errors.name = "Add meg a rendszer megnevezését!";
+    hasError = true;
+  }
+
+  if (!payload.standing || payload.standing === "") {
+    errors.standing = "Add meg a rendszerhez tartozó mérőt!";
+    hasError = true;
+  }
+
+  payload.heaters.forEach((item: HeaterFormData) => {
+    let localHasError = false;
+    const heaterElem: HeaterFormErrors = {
+      name: "",
+      standing: "",
+      building: "",
+      servicedBuilding: "",
+      serial: "",
+      manufacturor: "",
+      type: "",
+      heatingType: "",
+      forwardHeat: "",
+      backHeat: "",
+      maxPower: "",
+      oversizeRatio: "",
+      imageIds: [],
+    };
+    if (!item.name || item.name === "") {
+      heaterElem.name = "Add meg a hőtermelő nevét!";
+      localHasError = true;
+    }
+    if (!item.standing || item.standing === "") {
+      heaterElem.standing = "Add meg a hőtermelőhöz tartozó mérőt!";
+      localHasError = true;
+    }
+    if (!item.building || item.building === "") {
+      heaterElem.building = "Add meg a hőtermelőhöz tartozó épületet!";
+      localHasError = true;
+    }
+    if (!item.servicedBuilding || item.servicedBuilding.length === 0) {
+      heaterElem.servicedBuilding =
+        "Add meg a hőtermelő által kiszolgált épületeket!";
+      localHasError = true;
+    }
+    if (!item.serial || item.serial === "") {
+      heaterElem.serial = "Add meg a hőtermelő gyári számát!";
+      localHasError = true;
+    }
+    if (!item.manufacturor || item.manufacturor === "") {
+      heaterElem.manufacturor = "Add meg a hőtermelő gyártóját!";
+      localHasError = true;
+    }
+    if (!item.type || item.type === "") {
+      heaterElem.type = "Add meg a hőtermelő típusát!";
+      localHasError = true;
+    }
+    if (!item.heatingType || item.heatingType === "") {
+      heaterElem.heatingType = "Válaszd ki a hőtermelés jellegét!";
+      localHasError = true;
+    }
+    if (
+      item.heatingType &&
+      DEVICE_FEATURES[item.heatingType].includes(HeaterFeature.SYSTEM_HEAT)
+    ) {
+      if (!item.forwardHeat || item.forwardHeat === 0) {
+        heaterElem.forwardHeat = "Add meg az előremenő hőmérsékletet!";
+        localHasError = true;
+      }
+      if (!item.backHeat || item.backHeat === 0) {
+        heaterElem.backHeat = "Add meg a visszatérő hőmérsékletet!";
+        localHasError = true;
+      }
+    }
+
+    if (!item.maxPower || item.maxPower === 0) {
+      heaterElem.maxPower = "Add meg a berendezés max. bevitt teljesítményét!";
+      localHasError = true;
+    }
+
+    if (item.oversized && (!item.oversizeRatio || item.oversizeRatio === 0)) {
+      heaterElem.oversizeRatio = "Add meg a túlméretezettség mértékét!";
+      localHasError = true;
+    }
+    if (localHasError) {
+      errors.heaters.push(heaterElem);
+      hasError = true;
+    } else {
+      errors.heaters.push("none");
+    }
+  });
+
+  payload.pumps.forEach((item: PumpFormData) => {
+    let localHasError = false;
+    const pumpElem: PumpErrors = {
+      name: "",
+      building: "",
+      servicedBuilding: "",
+      manufacturor: "",
+      type: "",
+      serialNumber: "",
+      powerUsage: "",
+    };
+
+    if (!item.name || item.name === "") {
+      pumpElem.name = "Add meg a szivattyú nevét!";
+      localHasError = true;
+    }
+    if (!item.building || item.building === "") {
+      pumpElem.building = "Add meg a szivattyúhoz tartozó épületet!";
+      localHasError = true;
+    }
+    if (!item.servicedBuilding || item.servicedBuilding.length === 0) {
+      pumpElem.servicedBuilding =
+        "Add meg a szivattyú által kiszolgált épületeket és területeket!";
+      localHasError = true;
+    }
+    if (!item.manufacturor || item.manufacturor === "") {
+      pumpElem.manufacturor = "Add meg a szivattyú gyártóját!";
+      localHasError = true;
+    }
+    if (!item.type || item.type === "") {
+      pumpElem.type = "Add meg a szivattyú típusát!";
+      localHasError = true;
+    }
+    if (!item.serialNumber || item.serialNumber === "") {
+      pumpElem.serialNumber = "Add meg a szivattyú gyári számát!";
+      localHasError = true;
+    }
+    if (!item.powerUsage || item.powerUsage === 0) {
+      pumpElem.powerUsage = "Add meg a szivattyú villamos energiaigényét!";
+      localHasError = true;
+    }
+    if (localHasError) {
+      errors.pumps.push(pumpElem);
+      hasError = true;
+    } else {
+      errors.pumps.push("none");
+    }
+  });
+
+  payload.emitters.forEach((item: EmitterFormData) => {
+    let localHasError = false;
+    const emitterElem: EmitterErrors = {
+      name: "",
+      building: "",
+      servicedBuilding: "",
+      amount: "",
+      forwardHeat: "",
+      backHeat: "",
+      imageIds: "",
+    };
+
+    if(!item.name || item.name === ""){
+      emitterElem.name = "Add meg a hőleadó megnevezését!";
+      localHasError = true;
+    }
+    if(!item.building || item.building === ""){
+      emitterElem.building = "Add meg a hőleadóhoz tartozó épületet!";
+      localHasError = true;
+    }
+    if(!item.servicedBuilding || item.servicedBuilding.length === 0){
+      emitterElem.servicedBuilding = "Add meg a hőtermelő által kiszolgált épületeket és területeket!";
+      localHasError = true;
+    }
+    if(!item.amount || item.amount === 0){
+      emitterElem.amount = "Add meg a hőleadók darabszámát!";
+      localHasError = true;
+    }
+    if(!item.forwardHeat || item.forwardHeat === 0){
+      emitterElem.forwardHeat = "Add meg a hőleadó rendszerében az előremenő hőmérsékletet!";
+      localHasError = true;
+    }
+    if(!item.backHeat || item.backHeat === 0){
+      emitterElem.backHeat = "Add meg a hőleadó rendszerében a visszatérő hőmérsékletet!";
+      localHasError = true;
+    }
+    if(localHasError){
+      errors.emitters.push(emitterElem);
+      hasError = true;
+    } else {
+      errors.emitters.push("none");
+    }
+  });
   return hasError ? errors : null;
 }
