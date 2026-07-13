@@ -1,4 +1,4 @@
-import type { BuildingErrors, BuildingFormData } from "./Building.model";
+import type { BuildingErrors, BuildingFormData, ServicedBuildingShort } from "./Building.model";
 import type { ComplexErrors, ComplexFormData } from "./Complex.model";
 import type { EmitterErrors, EmitterFormData } from "./Emitter.model";
 import {
@@ -13,6 +13,7 @@ import type {
   HeatingSystemErrors,
   HeatingSystemFormData,
 } from "./System.model";
+import { VentilationBase, VentilationHeatRetrievers, VentilationInsulationMaterial, VentilationTypes, type VentilationFormData, type VentilationFormErrors } from "./Ventilation.model";
 
 export interface StandingsErrors {
   measurementType: string | null;
@@ -436,5 +437,100 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
       errors.emitters.push("none");
     }
   });
+  return hasError ? errors : null;
+}
+
+export function validateVentilationSystem(payload: VentilationFormData){
+  const errors: VentilationFormErrors = {
+    name: "",
+    building: "",
+    servicedBuilding: "",
+    servicedSizes: null,
+    forwardHeat: "",
+    backHeat: "",
+    ventilationOther: "",
+    suckRatio: "",
+    suckPower: "",
+    blowRatio: "",
+    blowPower: "",
+    retrieverYear: "",
+    insulationWidth: "",
+    imageIds: ""
+  };
+  let hasError = false;
+
+  if(!payload.name || payload.name === ""){
+    errors.name = "Add meg a légkezelő rendszer megnevezését!"
+    hasError = true;
+  }
+
+  if(!payload.building || payload.building === ""){
+    errors.building = "Add meg a légkezelő rendszerhez tartozó épületet!"
+    hasError = true;
+  }
+
+  if(!payload.servicedBuilding || payload.servicedBuilding.length === 0){
+    errors.servicedBuilding = "Add meg a légkezelő által kiszolgált épületeket!"
+    hasError = true;
+  }
+
+  if(payload.servicedBuilding.length > 0){
+    payload.servicedBuilding.forEach((e: ServicedBuildingShort) => {
+      if(!e.servicedSize || e.servicedSize === 0){
+        errors.servicedSizes = {...errors.servicedSizes, [e.buildingId]: "Add meg a kiszolgált területet az épületben!"}
+        hasError = true;
+      }
+    })
+  }
+
+  if(payload.type === VentilationBase.WATER){
+    if(!payload.forwardHeat || payload.forwardHeat === 0){
+      errors.forwardHeat = "Add meg a rendszer előremenő hőmérsékletét!";
+      hasError = true;
+    }
+    if(!payload.backHeat || payload.backHeat === 0){
+      errors.backHeat = "Add meg a rendszer visszatérő hőmérsékletét!";
+      hasError = true;
+    }
+  }
+
+  if(payload.ventilatorType === VentilationTypes.OTHER){
+    if(!payload.ventilationOther || payload.ventilationOther === ""){
+      errors.ventilationOther = "Add meg a ventilátor típusát!";
+      hasError = true;
+    }
+  }
+
+  if(!payload.suckPower || payload.suckPower === 0){
+    errors.suckPower = "Add meg az elszívó hálózat teljesítményét!"
+    hasError = true;
+  }
+  if(!payload.suckRatio || payload.suckRatio === 0){
+    errors.suckRatio = "Add meg az elszívó hálózat légszállítását!"
+    hasError = true;
+  }
+  if(!payload.blowPower || payload.blowPower === 0){
+    errors.blowPower = "Add meg a befúvó hálózat teljesítményét!"
+    hasError = true;
+  }
+  if(!payload.blowRatio || payload.blowRatio === 0){
+    errors.blowRatio = "Add meg a befúvó hálózat légszállítását!"
+    hasError = true;
+  }
+
+  if(payload.retriever !== VentilationHeatRetrievers.NONE){
+    if(!payload.retrieverYear || payload.retrieverYear < 0 || payload.retrieverYear > new Date().getFullYear()){
+      errors.retrieverYear = "Add meg a hővisszanyerő gyártási évét!";
+      hasError = true;
+    }
+  }
+
+  if(payload.insulationMaterial !== VentilationInsulationMaterial.NONE){
+    if(!payload.insulationWidth || payload.insulationWidth < 0) {
+      errors.insulationWidth = "Add meg a szigetelés vastagságát!";
+      hasError = true;
+    }
+  }
+
   return hasError ? errors : null;
 }
