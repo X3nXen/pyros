@@ -36,7 +36,7 @@ export const StringToType: Record<string, MeasurementTypes> = {
 }
 
 export interface StandingsShort{
-    id: string | null;
+    id: string;
     name: string;
 }
 

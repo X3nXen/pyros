@@ -1,0 +1,134 @@
+import { useState } from "react";
+import { VehicleCategories, VehicleErrors, VehicleFormData, VehicleFuelCategories, VehicleUsageMetricCategories } from "../model/Vehicles.model";
+import { Box, Button, FormControl, FormHelperText, InputLabel, MenuItem, Select, TextField } from "@mui/material";
+import { useAppSelector } from "../store";
+import type { ComplexShortData } from "../model/Complex.model";
+
+export default function Vehicles(){
+    const [formData, setFormData] = useState<VehicleFormData>({
+        id: null,
+        complex: null,
+        name: "",
+        category: VehicleCategories[0],
+        fuel: VehicleFuelCategories[0],
+        usageMetric: VehicleUsageMetricCategories[0],
+        usageValue: 0,
+        subStanding: null,
+    })
+    const [formErrors, setFormErrors] = useState<VehicleErrors | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+
+    const complexes = useAppSelector((state) => state.project.complexes);
+    const subStandings = useAppSelector((state) => state.project.subStandings);
+
+    return (
+        <Box sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 3,
+        width: "100%",
+        maxWidth: 360,
+        mt: 3,
+      }}>
+        <h1>Jármű rögzítése</h1>
+        <FormControl error={!!formErrors?.name}>
+            <TextField
+                label="Megnevezés"
+                variant="standard"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+            {formErrors?.name && <FormHelperText>{formErrors.name}</FormHelperText>}
+        </FormControl>
+        <FormControl error={!!formErrors?.complex}>
+            <InputLabel id="complex-select">Telephely</InputLabel>
+            <Select
+                label="Telephely"
+                labelId="complex-select"
+                value={formData.complex}
+                onChange={(e) => setFormData({...formData, complex: e.target.value})}
+            >
+                {
+                    complexes.map((e: ComplexShortData) => (
+                        <MenuItem key={e.id} value={e.id}>{e.name}</MenuItem>
+                    ))
+                }
+            </Select>
+            {formErrors?.complex && <FormHelperText>{formErrors.complex}</FormHelperText>}
+        </FormControl>
+        <FormControl>
+            <InputLabel id="category-select">Jármű kategóriája</InputLabel>
+            <Select
+                label="Kategória"
+                labelId="category-select"
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+            >
+                {
+                    VehicleCategories.map((e: string, index: number) => (
+                        <MenuItem key={index+ "-category"} value={e}>{e}</MenuItem>
+                    ))
+                }
+            </Select>
+        </FormControl>
+        <FormControl>
+            <InputLabel id="fuel-select">Üzemanyag</InputLabel>
+            <Select
+                label="Üzemanyag"
+                labelId="fuel-select"
+                value={formData.fuel}
+                onChange={(e) => setFormData({...formData, fuel: e.target.value})}
+            >
+                {
+                    VehicleFuelCategories.map((e: string, index: number) => (
+                        <MenuItem key={index+"-fuel"} value={e}>{e}</MenuItem>
+                    ))
+                }
+            </Select>
+        </FormControl>
+        <FormControl>
+            <InputLabel id="metric-select">Használati jellemző</InputLabel>
+            <Select
+                label="Jellemző"
+                labelId="metric-select"
+                value={formData.usageMetric}
+                onChange={(e) => setFormData({...formData, usageMetric: e.target.value})}
+            >
+                {
+                    VehicleUsageMetricCategories.map((e: string, index: number) => (
+                        <MenuItem key={index+"-metric"} value={e}>{e}</MenuItem>
+                    ))
+                }
+            </Select>
+        </FormControl>
+        <FormControl error={!!formErrors?.usageValue}>
+            <TextField
+                label="Használati érték"
+                variant="standard"
+                type="number"
+                value={formData.usageValue}
+                onChange={(e) => setFormData({...formData, usageValue: Number(e.target.value)})}
+            />
+            {formErrors?.usageValue && <FormHelperText>{formErrors.usageValue}</FormHelperText>}
+        </FormControl>
+        <FormControl error={!!formErrors?.subStanding}>
+            <InputLabel id="standing-select">Almérő</InputLabel>
+            <Select
+                label="Főmérő"
+                labelId="standing-select"
+                value={formData.subStanding}
+                onChange={(e) => setFormData({...formData, subStanding: e.target.value})}
+            >
+                {
+                    subStandings.map((e) => (
+                        <MenuItem key={e.id} value={e.id}>{e.name}</MenuItem>
+                    ))
+                }
+            </Select>
+        </FormControl>
+        <Button variant="contained" disabled={loading} sx={{ mt: 2 }} onClick={handleSubmit}>
+                Mentés
+              </Button>
+        </Box>
+    );
+}
