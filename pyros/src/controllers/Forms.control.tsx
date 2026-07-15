@@ -1,10 +1,11 @@
 import type { StandingsFormData } from "../model/Standings.model";
 import Calls from "./Calls.control";
-import { validateBuilding, validateComplex, validateHeatingSystem, validateStandings, validateVentilationSystem, type StandingsErrors } from "../model/Validation.model";
+import { validateBuilding, validateComplex, validateHeatingSystem, validateLightingSystem, validateStandings, validateVentilationSystem, type StandingsErrors } from "../model/Validation.model";
 import type { ComplexErrors, ComplexFormData } from "../model/Complex.model";
 import type { BuildingErrors, BuildingFormData } from "../model/Building.model";
 import type { HeatingSystemErrors, HeatingSystemFormData } from "../model/System.model";
 import type { VentilationFormData, VentilationFormErrors } from "../model/Ventilation.model";
+import type { LightingErrors, LightingFormData } from "../model/Lighting.model";
 
 export default class FormSendProtocol{
     static async handleMeasurementForm(payload: StandingsFormData, setLoading: (loading: boolean) => void, setErrorMessage: (msg: StandingsErrors | null) => void) : Promise<{success: boolean, reason: string | null}>{
@@ -154,6 +155,36 @@ export default class FormSendProtocol{
             setLoading(true);
             payload.id = crypto.randomUUID();
             const response = await Calls.postVentilationSystem(payload);
+            let success = false;
+            let reason = null;
+            if(response.success){
+                success = true;
+                reason = null;
+            } else {
+                success = false;
+                reason = "Backend call error";
+            }
+            setLoading(false);
+            return {success: success, reason: reason};
+        } catch(error){
+            alert("Valami hiba történt a hálózati kommunikáció során");
+            console.error(error);
+            setLoading(false);
+            return {success: false, reason: "Network error"};
+        }
+    }
+
+    static async handleLightingSystem(payload: Array<LightingFormData>, setLoading: (loading: boolean) => void, setErrorMessage: (msg: Array<string | LightingErrors> | null) => void){
+        setErrorMessage(null);
+        const errors = validateLightingSystem(payload);
+        if(errors){
+            setErrorMessage(errors);
+            return {success: false, reason: "Validation error"};
+        }
+
+        try{
+            setLoading(true);
+            const response = await Calls.postLightingSystem(payload);
             let success = false;
             let reason = null;
             if(response.success){

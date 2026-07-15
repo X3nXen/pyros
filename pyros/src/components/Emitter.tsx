@@ -55,7 +55,7 @@ export default function EmitterForm(props: {
         adatai
       </Typography>
 
-      <FormControl error={!!props.emitterErrors?.name}>
+      <FormControl error={props.emitterErrors !== null && !!props.emitterErrors.name}>
         <TextField
           label="Megnevezés"
           variant="outlined"
@@ -64,9 +64,9 @@ export default function EmitterForm(props: {
             props.handleActiveEmitterChange("name", e.target.value);
           }}
         />
-        {props.emitterErrors?.name && <FormHelperText>{props.emitterErrors?.name}</FormHelperText>}
+        {!!props.emitterErrors && props.emitterErrors.name && <FormHelperText>{props.emitterErrors.name}</FormHelperText>}
       </FormControl>
-      <FormControl error={!!props.emitterErrors?.building}>
+      <FormControl error={props.emitterErrors !== null && !!props.emitterErrors.building}>
         <InputLabel id="building-emitter-label">Épület</InputLabel>
         <Select
           labelId="building-emitter-label"
@@ -82,9 +82,9 @@ export default function EmitterForm(props: {
             </MenuItem>
           ))}
         </Select>
-        {props.emitterErrors?.building && <FormHelperText>{props.emitterErrors?.building}</FormHelperText>}
+        {!!props.emitterErrors && props.emitterErrors.building && <FormHelperText>{props.emitterErrors.building}</FormHelperText>}
       </FormControl>
-      <FormControl error={!!props.emitterErrors?.servicedBuilding}>
+      <FormControl error={props.emitterErrors !== null && !!props.emitterErrors.servicedBuilding}>
         <InputLabel id="pump-serviced-label">Kiszolgált épületek</InputLabel>
         <Select
           labelId="pump-serviced-label"
@@ -111,7 +111,7 @@ export default function EmitterForm(props: {
             </MenuItem>
           ))}
         </Select>
-        {props.emitterErrors?.servicedBuilding && <FormHelperText>{props.emitterErrors?.servicedBuilding}</FormHelperText>}
+        {!!props.emitterErrors && props.emitterErrors.servicedBuilding && <FormHelperText>{props.emitterErrors.servicedBuilding}</FormHelperText>}
       </FormControl>
       {props.currentActiveEmitter.servicedBuilding.map(
         (e: ServicedBuildingShort) => {
@@ -157,7 +157,7 @@ export default function EmitterForm(props: {
           ))}
         </Select>
       </FormControl>
-      <FormControl error={!!props.emitterErrors?.amount}>
+      <FormControl error={props.emitterErrors !== null && !!props.emitterErrors.amount}>
         <TextField
           variant="outlined"
           type="number"
@@ -167,9 +167,9 @@ export default function EmitterForm(props: {
             props.handleActiveEmitterChange("amount", e.target.value)
           }
         />
-        {props.emitterErrors?.amount && <FormHelperText>{props.emitterErrors?.amount}</FormHelperText>}
+        {!!props.emitterErrors && props.emitterErrors.amount && <FormHelperText>{props.emitterErrors.amount}</FormHelperText>}
       </FormControl>
-      <FormControl error={!!props.emitterErrors?.forwardHeat}>
+      <FormControl error={props.emitterErrors !== null && !!props.emitterErrors.forwardHeat}>
         <TextField
           variant="outlined"
           type="number"
@@ -179,9 +179,9 @@ export default function EmitterForm(props: {
             props.handleActiveEmitterChange("forwardHeat", e.target.value)
           }
         />
-        {props.emitterErrors?.forwardHeat && <FormHelperText>{props.emitterErrors?.forwardHeat}</FormHelperText>}
+        {!!props.emitterErrors && props.emitterErrors.forwardHeat && <FormHelperText>{props.emitterErrors.forwardHeat}</FormHelperText>}
       </FormControl>
-      <FormControl error={!!props.emitterErrors?.backHeat}>
+      <FormControl error={props.emitterErrors !== null && !!props.emitterErrors.backHeat}>
         <TextField
           variant="outlined"
           type="number"
@@ -191,7 +191,7 @@ export default function EmitterForm(props: {
             props.handleActiveEmitterChange("backHeat", e.target.value)
           }
         />
-        {props.emitterErrors?.backHeat && <FormHelperText>{props.emitterErrors?.backHeat}</FormHelperText>}
+        {!!props.emitterErrors && props.emitterErrors.backHeat && <FormHelperText>{props.emitterErrors.backHeat}</FormHelperText>}
       </FormControl>
       <FormControl>
         <InputLabel id="emitter-state-label">Hőleadó leírása</InputLabel>

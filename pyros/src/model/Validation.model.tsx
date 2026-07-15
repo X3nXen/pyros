@@ -7,6 +7,7 @@ import {
   type HeaterFormData,
   type HeaterFormErrors,
 } from "./Heater.model";
+import type { LightingErrors, LightingFormData } from "./Lighting.model";
 import type { PumpErrors, PumpFormData } from "./Pump.model";
 import { MeasurementTypes, type StandingsFormData } from "./Standings.model";
 import type {
@@ -533,4 +534,31 @@ export function validateVentilationSystem(payload: VentilationFormData){
   }
 
   return hasError ? errors : null;
+}
+
+export function validateLightingSystem(payload: Array<LightingFormData>) {
+  const errors: Array<string | LightingErrors> = [];
+  let hasError = false;
+  payload.forEach((e) => {
+    let localHasError = false;
+    const localErrors: LightingErrors = {
+      zone: "",
+      size: ""
+    }
+    if(!e.zone || e.zone === ""){
+      localErrors.zone = "Add meg a zóna nevét!";
+      localHasError = true;
+    }
+    if(!e.size || e.size <= 0){
+      localErrors.size = "Add meg a zóna méretét!";
+      localHasError = true;
+    }
+    if(localHasError){
+      hasError = true;
+      errors.push(localErrors);
+    } else {
+      errors.push("none");
+    }
+  })
+  return hasError ? errors : null
 }
