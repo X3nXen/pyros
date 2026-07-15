@@ -173,3 +173,9 @@ export interface BuildingShort {
   id: string;
   name: string;
 }
+
+export interface ServicedBuildingShort {
+  buildingId: string;
+  name: string;
+  servicedSize: number;
+}
