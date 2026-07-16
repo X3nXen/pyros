@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { VehicleCategories, VehicleErrors, VehicleFormData, VehicleFuelCategories, VehicleUsageMetricCategories } from "../model/Vehicles.model";
+import { VehicleCategories, type VehicleErrors, type VehicleFormData, VehicleFuelCategories, VehicleUsageMetricCategories } from "../model/Vehicles.model";
 import { Box, Button, FormControl, FormHelperText, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import { useAppSelector } from "../store";
 import type { ComplexShortData } from "../model/Complex.model";
+import FormSendProtocol from "../controllers/Forms.control";
+import { useNavigate } from "react-router-dom";
 
 export default function Vehicles(){
     const [formData, setFormData] = useState<VehicleFormData>({
@@ -20,6 +22,15 @@ export default function Vehicles(){
 
     const complexes = useAppSelector((state) => state.project.complexes);
     const subStandings = useAppSelector((state) => state.project.subStandings);
+
+    const navigate = useNavigate();
+
+    async function handleSubmit(){
+        const result = await FormSendProtocol.handleVehicle(formData, setLoading, setFormErrors);
+        if(result && result.success){
+            navigate("/")
+        }
+    }
 
     return (
         <Box sx={{

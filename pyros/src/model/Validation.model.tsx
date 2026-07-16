@@ -14,6 +14,7 @@ import type {
   HeatingSystemErrors,
   HeatingSystemFormData,
 } from "./System.model";
+import type { VehicleErrors, VehicleFormData } from "./Vehicles.model";
 import { VentilationBase, VentilationHeatRetrievers, VentilationInsulationMaterial, VentilationTypes, type VentilationFormData, type VentilationFormErrors } from "./Ventilation.model";
 
 export interface StandingsErrors {
@@ -561,4 +562,36 @@ export function validateLightingSystem(payload: Array<LightingFormData>) {
     }
   })
   return hasError ? errors : null
+}
+
+export function validateVehicle(payload: VehicleFormData) {
+  const errors: VehicleErrors = {
+    complex: "",
+    name: "",
+    usageValue: "",
+    subStanding: ""
+  };
+  let hasError = false;
+
+  if(!payload.name || payload.name === ""){
+    errors.name = "Add meg a jármű megnevezését!";
+    hasError = true;
+  }
+
+  if(!payload.complex || payload.complex === ""){
+    errors.complex = "Add meg a telephelyet!";
+    hasError = true;
+  }
+
+  if(!payload.usageValue || payload.usageValue <=0){
+    errors.usageValue = "Add meg a használat mennyiségét!";
+    hasError = true;
+  }
+
+  if(!payload.subStanding || payload.subStanding === ""){
+    errors.subStanding = "Add meg az almérőt!";
+    hasError = true;
+  }
+
+  return hasError ? errors : null;
 }
