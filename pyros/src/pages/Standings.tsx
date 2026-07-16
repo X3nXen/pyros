@@ -13,7 +13,6 @@ import {
   EnergyMeasurements,
   EnergySources,
   MeasurementTypes,
-  StringToType,
   type StandingsFormData,
   type StandingsShort,
 } from "../model/Standings.model";
@@ -33,10 +32,10 @@ export default function Standings() {
   const [formData, setFormData] = useState<StandingsFormData>({
     id: null,
     name: "",
-    measurementType: MeasurementTypes.MAIN,
+    measurementType: 'MAIN' as MeasurementTypes.MAIN,
     subTo: null,
-    source: EnergySources.COAL,
-    measurement: EnergyMeasurements.MCUBE,
+    source: 'COAL' as EnergySources.COAL,
+    measurement: 'MCUBE' as EnergyMeasurements.MCUBE,
     dateFrom: null,
     dateTo: null,
     file: null,
@@ -85,18 +84,24 @@ export default function Standings() {
           value={formData.measurementType}
           label="Mérés típusa"
           onChange={(e) => {
-            setFormData({ ...formData, measurementType: StringToType[e.target.value]});
+            setFormData({ ...formData, measurementType: e.target.value});
+            console.log(formData);
           }}
         >
           {
-            Object.values(MeasurementTypes).map(val =>  (<MenuItem value={val}>{val}</MenuItem>))
-          }
+          Object.keys(MeasurementTypes).map((e: string) => {
+            return (
+              <MenuItem value={e}>
+                {MeasurementTypes[e as keyof typeof MeasurementTypes]}
+              </MenuItem>
+            );
+          })}
         </Select>
         {errorMessage?.measurementType && (
           <FormHelperText>{errorMessage.measurementType}</FormHelperText>
         )}
       </FormControl>
-      {formData.measurementType !== MeasurementTypes.MAIN ? (
+      {formData.measurementType !== 'MAIN' as MeasurementTypes.MAIN ? (
         <FormControl>
           <InputLabel id="non-main-sub-to-select">
             Melyik főmérőhöz tartozik

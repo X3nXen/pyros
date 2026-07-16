@@ -12,10 +12,9 @@ import type { VehicleFormData } from "../model/Vehicles.model";
 import type { VentilationFormData } from "../model/Ventilation.model";
 
 export default class Calls {
-
-/**
- *  TODO: Clickup audit table integration and call implementation
- */
+  /**
+   *  TODO: Clickup audit table integration and call implementation
+   */
   static async getClickupTasks(): Promise<{
     success: boolean;
     payload: Array<ClickupTaskShort>;
@@ -33,18 +32,39 @@ export default class Calls {
     });
   }
 
-  /**
-   * TODO: Standings backend call implementation, database implementation
-   **/
   static async postMeasurement(
     payload: StandingsFormData,
   ): Promise<{ success: boolean; message: string }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log("Backend fogadta az adatokat:", payload);
-        resolve({ success: true, message: "Sikeres mentés a PHP backendre!" });
-      }, 1500);
+    try {
+    const response = await fetch("http://localhost:8000/standings", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(payload),
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Hiba történt a mentés során.",
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || "Sikeres mentés!",
+    };
+  } catch (error) {
+    console.error("Hálózati vagy szerver hiba:", error);
+    return {
+      success: false,
+      message: "Nem sikerült kapcsolódni a szerverhez.",
+    };
+  }
   }
 
   /**
@@ -61,86 +81,110 @@ export default class Calls {
     });
   }
 
-/**
- * TODO: Building backend call implementation, database implementation
- */
-  static async postBuilding(payload: BuildingFormData): Promise<{success: boolean, message: string}> {
+  /**
+   * TODO: Building backend call implementation, database implementation
+   */
+  static async postBuilding(
+    payload: BuildingFormData,
+  ): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
-        setTimeout(() => {
-            console.log("Backend fogadta az adatokat:", payload);
-            resolve({success: true, message: "Sikeres mentés a PHP backendre"});
-        }, 1500)
-    })
+      setTimeout(() => {
+        console.log("Backend fogadta az adatokat:", payload);
+        resolve({ success: true, message: "Sikeres mentés a PHP backendre" });
+      }, 1500);
+    });
   }
 
   /**
    * TODO: Heating system backend call implementation, database implementation
    */
-  static async postHeatingSystem(payload: HeatingSystemFormData): Promise<{success: boolean, message: string}> {
+  static async postHeatingSystem(
+    payload: HeatingSystemFormData,
+  ): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
       setTimeout(() => {
         console.log("Backend fogadta az adatokat:", payload);
-        resolve({success: true, message: "Sikeres mentés a PHP backendre!"});
-      }, 1500)
-    })
+        resolve({ success: true, message: "Sikeres mentés a PHP backendre!" });
+      }, 1500);
+    });
   }
 
-  static async postVentilationSystem(payload: VentilationFormData): Promise<{success: boolean, message: string}>{
+  static async postVentilationSystem(
+    payload: VentilationFormData,
+  ): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
-      setTimeout(()=> {
+      setTimeout(() => {
         console.log("Backend fogadta az adatokat:", payload);
-        resolve({success: true, message: "Sikeres mentés a PHP backendre!"})
-      }, 1500)
-    })
+        resolve({ success: true, message: "Sikeres mentés a PHP backendre!" });
+      }, 1500);
+    });
   }
 
-  static async postLightingSystem(payload: Array<LightingFormData>): Promise<{success: boolean, message: string}>{
+  static async postLightingSystem(
+    payload: Array<LightingFormData>,
+  ): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
-      setTimeout(()=> {
+      setTimeout(() => {
         console.log("Backend fogadta az adatokat:", payload);
-        resolve({success: true, message: "Sikeres mentés a PHP backendre!"})
-      }, 1500)
-    })
+        resolve({ success: true, message: "Sikeres mentés a PHP backendre!" });
+      }, 1500);
+    });
   }
 
-  static async postVehicle(payload: VehicleFormData): Promise<{success: boolean, message: string}>{
+  static async postVehicle(
+    payload: VehicleFormData,
+  ): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
-      setTimeout(()=> {
+      setTimeout(() => {
         console.log("Backend fogadta az adatokat:", payload);
-        resolve({success: true, message: "Sikeres mentés a PHP backendre!"})
-      }, 1500)
-    })
+        resolve({ success: true, message: "Sikeres mentés a PHP backendre!" });
+      }, 1500);
+    });
   }
 
-  static async postProduct(payload: ProductFormData): Promise<{success: boolean, message: string}>{
+  static async postProduct(
+    payload: ProductFormData,
+  ): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
-      setTimeout(()=> {
+      setTimeout(() => {
         console.log("Backend fogadta az adatokat:", payload);
-        resolve({success: true, message: "Sikeres mentés a PHP backendre!"})
-      }, 1500)
-    })
+        resolve({ success: true, message: "Sikeres mentés a PHP backendre!" });
+      }, 1500);
+    });
   }
 
-  /**
-   * TODO: Standings backend call implementation and parsing
-   */
   static async getMainStandings(): Promise<{
     success: boolean;
     payload: Array<StandingsShort>;
   }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log("Backend mock response ok");
-        resolve({
-          success: true,
-          payload: [
-            { id: "1225", name: "test főmérő" },
-            { id: "1223", name: "test főmérő2" },
-            { id: "1224", name: "test főmérő3" },
-          ],
-        });
-      }, 1500);
-    });
+    try {
+      const response = await fetch(
+        "http://localhost:8000/standings?type=MAIN",
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP hiba! Státusz: ${response.status}`);
+      }
+
+      const data: Array<StandingsShort> = await response.json();
+
+      return {
+        success: true,
+        payload: data,
+      };
+    } catch (error) {
+      console.error("Hiba a főmérők lekérése során:", error);
+      return {
+        success: false,
+        payload: [],
+      };
+    }
   }
 
   /**
@@ -150,19 +194,34 @@ export default class Calls {
     success: boolean;
     payload: Array<StandingsShort>;
   }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log("Backend mock response ok");
-        resolve({
-          success: true,
-          payload: [
-            { id: "1333", name: "test almérő" },
-            { id: "1334", name: "test almérő2" },
-            { id: "1335", name: "test virtuális mérő 1" },
-          ],
-        });
-      }, 1500);
-    });
+    try {
+      const response = await fetch(
+        "http://localhost:8000/standings?type=OTHER",
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP hiba! Státusz: ${response.status}`);
+      }
+
+      const data: Array<StandingsShort> = await response.json();
+
+      return {
+        success: true,
+        payload: data,
+      };
+    } catch (error) {
+      console.error("Hiba az almérők lekérése során:", error);
+      return {
+        success: false,
+        payload: [],
+      };
+    }
   }
 
   /**
@@ -172,37 +231,61 @@ export default class Calls {
     success: boolean;
     payload: Array<ComplexShortData>;
   }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log("Backend mock response ok");
-        resolve({
-          success: true,
-          payload: [
-            { id: "17", name: "Martonvásárhelyi teszt telephely" },
-            { id: "18", name: "Budapesti teszt telephely" },
-          ],
-        });
-      }, 1500);
-    });
+    try {
+      const response = await fetch("http://localhost:8000/complex", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP hiba! Státusz: ${response.status}`);
+      }
+
+      const data: Array<ComplexShortData> = await response.json();
+
+      return {
+        success: true,
+        payload: data,
+      };
+    } catch (error) {
+      console.error("Hiba a telephelyek lekérése során:", error);
+      return {
+        success: false,
+        payload: [],
+      };
+    }
   }
-/**
-   * TODO: Building backend call implementation and parsing
-   */
+
   static async getBuildings(): Promise<{
     success: boolean;
     payload: Array<BuildingShort>;
   }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log("Backend mock response ok");
-        resolve({
-          success: true,
-          payload: [
-            { id: "44", name: "A tesz épület" },
-            { id: "45", name: "B teszt épület" },
-          ],
-        });
-      }, 1500);
-    });
+    try {
+      const response = await fetch("http://localhost:8000/buildings", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP hiba! Státusz: ${response.status}`);
+      }
+
+      const data: Array<BuildingShort> = await response.json();
+
+      return {
+        success: true,
+        payload: data,
+      };
+    } catch (error) {
+      console.error("Hiba az épületek lekérése során:", error);
+      return {
+        success: false,
+        payload: [],
+      };
+    }
   }
 }
