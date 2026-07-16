@@ -9,6 +9,7 @@ import HeatingSystem from './pages/HeatingSystem'
 import LightingSystem from './pages/LightingSystem'
 import VentilationSystem from './pages/VentilationSystem'
 import Vehicles from './pages/Vehicles'
+import Product from './pages/Product'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/system/lighting" element={<LightingSystem />} />
           <Route path="/system/ventilation" element={<VentilationSystem />} />
           <Route path="/vehicles" element={<Vehicles/>}/>
+          <Route path="/product" element={<Product/>}/>
         </Route>
       </Routes>
     </BrowserRouter>

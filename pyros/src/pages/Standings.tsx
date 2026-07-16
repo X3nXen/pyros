@@ -52,7 +52,7 @@ export default function Standings() {
   const handleSave = async () => {
     const result = await FormSendProtocol.handleMeasurementForm(formData, setLoading, setErrorMessage);
     if (result && result.success){
-      const savedMeasurement: StandingsShort = {id: formData.id, name: formData.name};
+      const savedMeasurement: StandingsShort = {id: formData.id!, name: formData.name};
 
       if(formData.measurementType === MeasurementTypes.MAIN){
         dispatch(addMainStandingLocally(savedMeasurement));

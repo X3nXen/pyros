@@ -7,6 +7,7 @@ import type { HeatingSystemErrors, HeatingSystemFormData } from "../model/System
 import type { VentilationFormData, VentilationFormErrors } from "../model/Ventilation.model";
 import type { LightingErrors, LightingFormData } from "../model/Lighting.model";
 import type { VehicleErrors, VehicleFormData } from "../model/Vehicles.model";
+import type { ProductFormData } from "../model/Product.model";
 
 export default class FormSendProtocol{
     static async handleMeasurementForm(payload: StandingsFormData, setLoading: (loading: boolean) => void, setErrorMessage: (msg: StandingsErrors | null) => void) : Promise<{success: boolean, reason: string | null}>{
@@ -216,6 +217,36 @@ export default class FormSendProtocol{
         try{
             setLoading(true);
             const response = await Calls.postVehicle(payload);
+            let success = false;
+            let reason = null;
+            if(response.success){
+                success = true;
+                reason = null;
+            } else {
+                success = false;
+                reason = "Backend call error";
+            }
+            setLoading(false);
+            return {success: success, reason: reason};
+        } catch(error){
+            alert("Valami hiba történt a hálózati kommunikáció során");
+            console.error(error);
+            setLoading(false);
+            return {success: false, reason: "Network error"};
+        }
+    }
+
+    static async handleProduct(payload: ProductFormData, setLoading: (loading: boolean) => void, setErrorMessage: (msg: string | null) => void){
+        setErrorMessage(null);
+        const errors = payload.file === null ? "Töltsd fel az adatot!" : null;
+        if(errors){
+            setErrorMessage(errors);
+            return {success: false, reason: "Validation error"};
+        }
+
+        try{
+            setLoading(true);
+            const response = await Calls.postProduct(payload);
             let success = false;
             let reason = null;
             if(response.success){
