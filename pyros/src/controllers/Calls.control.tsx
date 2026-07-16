@@ -2,6 +2,7 @@ import type { BuildingFormData, BuildingShort } from "../model/Building.model";
 import type { ComplexFormData, ComplexShortData } from "../model/Complex.model";
 import type { LightingFormData } from "../model/Lighting.model";
 import type { ClickupTaskShort } from "../model/LoginData.model";
+import type { ProductFormData } from "../model/Product.model";
 import type {
   StandingsFormData,
   StandingsShort,
@@ -103,6 +104,15 @@ export default class Calls {
   }
 
   static async postVehicle(payload: VehicleFormData): Promise<{success: boolean, message: string}>{
+    return new Promise((resolve) => {
+      setTimeout(()=> {
+        console.log("Backend fogadta az adatokat:", payload);
+        resolve({success: true, message: "Sikeres mentés a PHP backendre!"})
+      }, 1500)
+    })
+  }
+
+  static async postProduct(payload: ProductFormData): Promise<{success: boolean, message: string}>{
     return new Promise((resolve) => {
       setTimeout(()=> {
         console.log("Backend fogadta az adatokat:", payload);
