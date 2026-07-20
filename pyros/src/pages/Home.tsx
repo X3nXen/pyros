@@ -87,9 +87,9 @@ export default function Home() {
           <Button variant="contained" component={Link} to="/complex" disabled={!currentTaskId}>Telephely</Button>
           <Button variant="contained" component={Link} to="/building" disabled={!currentTaskId}>Épület</Button>
           <Button variant="contained" component={Link} to="/system" disabled={!currentTaskId}>Rendszer</Button>
-          <Button variant="contained" component={Link} to="/transport" disabled={!currentTaskId}>Járművek</Button>
+          <Button variant="contained" component={Link} to="/vehicles" disabled={!currentTaskId}>Járművek</Button>
           <Button variant="contained" component={Link} to="/technology" disabled={!currentTaskId}>Technológia</Button>
-          <Button variant="contained" component={Link} to="/specific" disabled={!currentTaskId}>Fajlagos</Button>
+          <Button variant="contained" component={Link} to="/product" disabled={!currentTaskId}>Fajlagos</Button>
           <Button variant="contained" component={Link} to="/create" disabled={!currentTaskId}>Dokumentáció</Button>
         </Box>)
       ) : (

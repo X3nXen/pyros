@@ -47,7 +47,7 @@ export function validateStandings(
 
   if (
     payload.measurementType &&
-    payload.measurementType !== MeasurementTypes.MAIN &&
+    payload.measurementType !== 'MAIN' as MeasurementTypes.MAIN &&
     !payload.subTo
   ) {
     errors.subTo = "A főmérő hozzárendelése kötelező!";

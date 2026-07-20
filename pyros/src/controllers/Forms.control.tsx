@@ -15,9 +15,11 @@ export default class FormSendProtocol{
         const errors = validateStandings(payload);
         if(errors){
             setErrorMessage(errors);
+            console.log('Ide jön be inkább csak nem ad errort', errors)
             return {success: false, reason: "Validation error"};
         }
 
+        console.log('Ide bejön')
         
         try{
             setLoading(true);

@@ -26,13 +26,7 @@ export enum EnergyMeasurements{
 export enum MeasurementTypes{
     MAIN = "Főmérő",
     SUB = "Almérő",
-    VIRT = "Virtuális"
-}
-
-export const StringToType: Record<string, MeasurementTypes> = {
-  "Főmérő": MeasurementTypes.MAIN,
-  "Almérő": MeasurementTypes.SUB,
-  "Virtuális": MeasurementTypes.VIRT
+    VIRTUAL = "Virtuális"
 }
 
 export interface StandingsShort{
