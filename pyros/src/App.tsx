@@ -10,6 +10,11 @@ import LightingSystem from './pages/LightingSystem'
 import VentilationSystem from './pages/VentilationSystem'
 import Vehicles from './pages/Vehicles'
 import Product from './pages/Product'
+import Technology from './pages/Technology'
+import Compressed from './pages/Compressed'
+import Steam from './pages/Steam'
+import Cooling from './pages/Cooling'
+import Other from './pages/Other'
 
 function App() {
   return (
@@ -26,6 +31,11 @@ function App() {
           <Route path="/system/ventilation" element={<VentilationSystem />} />
           <Route path="/vehicles" element={<Vehicles/>}/>
           <Route path="/product" element={<Product/>}/>
+          <Route path="/technology" element={<Technology/>}/>
+          <Route path="/technology/compressed" element={<Compressed/>}/>
+          <Route path="/technology/steam" element={<Steam/>}/>
+          <Route path="/technology/cooling" element={<Cooling/>}/>
+          <Route path="/technology/other" element={<Other/>}/>
         </Route>
       </Routes>
     </BrowserRouter>
