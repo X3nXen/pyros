@@ -1,5 +1,6 @@
 import type { BuildingFormData, BuildingShort } from '../model/Building.model'
 import type { ComplexFormData, ComplexShortData } from '../model/Complex.model'
+import type { HeaterShort } from '../model/Heater.model'
 import type { LightingFormData } from '../model/Lighting.model'
 import type { ClickupTaskShort } from '../model/LoginData.model'
 import type { ProductFormData } from '../model/Product.model'
@@ -7,7 +8,10 @@ import type {
     StandingsFormData,
     StandingsShort,
 } from '../model/Standings.model'
-import type { HeatingSystemFormData } from '../model/System.model'
+import {
+    SystemPurpose,
+    type HeatingSystemFormData,
+} from '../model/System.model'
 import type {
     CompressedFormData,
     CoolingFormData,
@@ -337,5 +341,41 @@ export default class Calls {
                 payload: [],
             }
         }
+    }
+
+    static async getHeaters(): Promise<{
+        success: boolean
+        payload: Array<HeaterShort>
+    }> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                console.log('Backend fogadta a kérést')
+                resolve({
+                    success: true,
+                    payload: [
+                        {
+                            id: '122',
+                            name: 'Teszt fűtő 1',
+                            purpose: SystemPurpose.HEAT,
+                        },
+                        {
+                            id: '123',
+                            name: 'Teszt fűtő 2',
+                            purpose: SystemPurpose.HEAT,
+                        },
+                        {
+                            id: '124',
+                            name: 'Teszt hűtő 1',
+                            purpose: SystemPurpose.COOL,
+                        },
+                        {
+                            id: '125',
+                            name: 'Teszt hűtő 2',
+                            purpose: SystemPurpose.COOL,
+                        },
+                    ],
+                })
+            }, 1500)
+        })
     }
 }

@@ -35,7 +35,6 @@ import type {
 } from './Technology.model'
 import type { VehicleErrors, VehicleFormData } from './Vehicles.model'
 import {
-    VentilationBase,
     VentilationHeatRetrievers,
     VentilationInsulationMaterial,
     VentilationTypes,
@@ -370,7 +369,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
 
         if (
             item.oversized &&
-            (!item.oversizeRatio || item.oversizeRatio === 0)
+            (!item.oversizeRatio || item.oversizeRatio <= 0)
         ) {
             heaterElem.oversizeRatio = 'Add meg a túlméretezettség mértékét!'
             localHasError = true
@@ -403,7 +402,11 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             pumpElem.building = 'Add meg a szivattyúhoz tartozó épületet!'
             localHasError = true
         }
-        if (!item.servicedBuilding || item.servicedBuilding.length === 0) {
+        if (
+            !item.servicedBuilding ||
+            item.servicedBuilding.length === 0 ||
+            item.servicedBuilding.some((e) => e.servicedSize <= 0)
+        ) {
             pumpElem.servicedBuilding =
                 'Add meg a szivattyú által kiszolgált épületeket és területeket!'
             localHasError = true
@@ -452,7 +455,11 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             emitterElem.building = 'Add meg a hőleadóhoz tartozó épületet!'
             localHasError = true
         }
-        if (!item.servicedBuilding || item.servicedBuilding.length === 0) {
+        if (
+            !item.servicedBuilding ||
+            item.servicedBuilding.length === 0 ||
+            item.servicedBuilding.some((e) => e.servicedSize <= 0)
+        ) {
             emitterElem.servicedBuilding =
                 'Add meg a hőtermelő által kiszolgált épületeket és területeket!'
             localHasError = true
@@ -496,6 +503,8 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         blowPower: '',
         retrieverYear: '',
         insulationWidth: '',
+        heaterId: '',
+        coolerId: '',
         imageIds: '',
     }
     let hasError = false
@@ -518,7 +527,7 @@ export function validateVentilationSystem(payload: VentilationFormData) {
 
     if (payload.servicedBuilding.length > 0) {
         payload.servicedBuilding.forEach((e: ServicedBuildingShort) => {
-            if (!e.servicedSize || e.servicedSize === 0) {
+            if (!e.servicedSize || e.servicedSize <= 0) {
                 errors.servicedSizes = {
                     ...errors.servicedSizes,
                     [e.buildingId]:
@@ -529,15 +538,13 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         })
     }
 
-    if (payload.type === VentilationBase.WATER) {
-        if (!payload.forwardHeat || payload.forwardHeat === 0) {
-            errors.forwardHeat = 'Add meg a rendszer előremenő hőmérsékletét!'
-            hasError = true
-        }
-        if (!payload.backHeat || payload.backHeat === 0) {
-            errors.backHeat = 'Add meg a rendszer visszatérő hőmérsékletét!'
-            hasError = true
-        }
+    if (!payload.forwardHeat || payload.forwardHeat === 0) {
+        errors.forwardHeat = 'Add meg a rendszer előremenő hőmérsékletét!'
+        hasError = true
+    }
+    if (!payload.backHeat || payload.backHeat === 0) {
+        errors.backHeat = 'Add meg a rendszer visszatérő hőmérsékletét!'
+        hasError = true
     }
 
     if (payload.ventilatorType === VentilationTypes.OTHER) {
@@ -580,6 +587,16 @@ export function validateVentilationSystem(payload: VentilationFormData) {
             errors.insulationWidth = 'Add meg a szigetelés vastagságát!'
             hasError = true
         }
+    }
+
+    if (payload.heating && (payload.heaterId === '' || !payload.heaterId)) {
+        errors.heaterId = 'Add meg az utófűtés hőtermelőjét!'
+        hasError = true
+    }
+
+    if (payload.cooling && (payload.coolingId === '' || !payload.coolingId)) {
+        errors.coolerId = 'Add meg az utóhűtés hűtőberendezését!'
+        hasError = true
     }
 
     return hasError ? errors : null
@@ -834,6 +851,8 @@ export function validateVehicle(payload: VehicleFormData) {
         name: '',
         usageValue: '',
         subStanding: '',
+        motorSize: '',
+        usageValue2: '',
     }
     let hasError = false
 
@@ -854,6 +873,23 @@ export function validateVehicle(payload: VehicleFormData) {
 
     if (!payload.subStanding || payload.subStanding === '') {
         errors.subStanding = 'Add meg az almérőt!'
+        hasError = true
+    }
+
+    if (
+        payload.category === 'Személygépjármű' &&
+        (!payload.motorSize || payload.motorSize <= 0)
+    ) {
+        errors.motorSize = 'Add meg a személygépjármű motor hengerűrtartalmát!'
+        hasError = true
+    }
+
+    if (
+        payload.usageMetric === 'tkm' &&
+        (!payload.usageValue2 || payload.usageValue2 === 0)
+    ) {
+        errors.usageValue2 =
+            'Add meg a használati jellemző második komponensét! (tonna)'
         hasError = true
     }
 
