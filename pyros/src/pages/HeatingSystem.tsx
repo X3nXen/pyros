@@ -110,7 +110,7 @@ export default function HeatingSystem() {
             couldHeatLoss: false,
             oversized: false,
             oversizeRatio: 0,
-            imageIds: [],
+            imageFile: null,
         }
 
         setFormData({
@@ -134,7 +134,7 @@ export default function HeatingSystem() {
             archetypeSetting: PumpSetting.SET_A,
             serialNumber: '',
             powerUsage: 0,
-            imageIds: [],
+            imageFile: null,
         }
 
         setFormData({ ...formData, pumps: [...formData.pumps, newPump] })
@@ -158,7 +158,7 @@ export default function HeatingSystem() {
             circulation: false,
             circulatoryPumps: [],
             hmvRegulation: EmitterHmvRegulation.NONE,
-            imageIds: [],
+            imageFile: null,
         }
 
         setFormData({
@@ -170,7 +170,7 @@ export default function HeatingSystem() {
 
     function handleActiveHeaterChange(
         field: keyof HeaterFormData,
-        value: string | number | string[] | boolean | null
+        value: string | number | string[] | boolean | File | null
     ) {
         if (activeHeaterIndex === null) return
 
@@ -193,6 +193,7 @@ export default function HeatingSystem() {
             | number
             | string[]
             | boolean
+            | File
             | null
             | ServicedBuildingShort[]
     ) {
@@ -212,6 +213,7 @@ export default function HeatingSystem() {
             | number
             | string[]
             | boolean
+            | File
             | null
             | ServicedBuildingShort[]
     ) {

@@ -48,7 +48,7 @@ export default class Calls {
 
     static async postMeasurement(
         payload: StandingsFormData
-    ): Promise<{ success: boolean; message: string }> {
+    ): Promise<{ success: boolean; message: string; id?: string }> {
         try {
             const response = await fetch('http://localhost:8000/standings', {
                 method: 'POST',
@@ -71,6 +71,7 @@ export default class Calls {
             return {
                 success: true,
                 message: data.message || 'Sikeres mentés!',
+                id: data.id,
             }
         } catch (error) {
             console.error('Hálózati vagy szerver hiba:', error)
@@ -81,38 +82,86 @@ export default class Calls {
         }
     }
 
-    /**
-     * TODO: Complex backend call implementation, database implementation
-     */
     static async postComplex(
         payload: ComplexFormData
-    ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+    ): Promise<{ success: boolean; message: string; id?: string }> {
+        try {
+            const response = await fetch('http://localhost:8000/complex', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify(payload),
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: data.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: data.message || 'Sikeres mentés!',
+                id: data.id,
+            }
+        } catch (error) {
+            console.error('Hálózati vagy szerver hiba:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
-    /**
-     * TODO: Building backend call implementation, database implementation
-     */
-    static async postBuilding(
-        payload: BuildingFormData
-    ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre',
-                })
-            }, 1500)
-        })
+    static async postBuilding(payload: BuildingFormData): Promise<{
+        success: boolean
+        message: string
+        id?: string
+    }> {
+        try {
+            const formData = new FormData()
+            const { imageFile, ...restOfPayload } = payload
+
+            formData.append('data', JSON.stringify(restOfPayload))
+
+            if (imageFile instanceof File) {
+                formData.append('imageFile', imageFile)
+            }
+
+            const response = await fetch('http://localhost:8000/buildings', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                },
+                body: formData,
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: data.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: data.message || 'Sikeres mentés!',
+                id: data.id,
+            }
+        } catch (error) {
+            console.error('Hálózati vagy szerver hiba:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     /**

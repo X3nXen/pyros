@@ -111,7 +111,7 @@ export function validateStandings(
         }
     }
 
-    if (!payload.file) {
+    if (!payload.file && payload.measurementType !== MeasurementTypes.VIRTUAL) {
         errors.file = 'A kimutatás fájl feltöltése kötelező!'
         hasError = true
     }
@@ -174,7 +174,9 @@ export function validateBuilding(
         floorSize: '',
         doorWallSize: '',
         elevation: '',
-        imageIds: '',
+        qf: '',
+        heatLoss: '',
+        imageFile: '',
     }
 
     let hasError = false
@@ -191,7 +193,7 @@ export function validateBuilding(
     }
 
     if (!payload.name || payload.name.trim() === '') {
-        errors.name = 'Add meg a nevet az épülethez!'
+        errors.name = 'Add meg az épület nevét!'
         hasError = true
     }
 
@@ -200,7 +202,7 @@ export function validateBuilding(
         payload.size === null ||
         payload.size <= 0
     ) {
-        errors.size = 'Az épület területének egy 0-nál nagyobb számot adj meg!'
+        errors.size = 'Add meg az épület területét!'
         hasError = true
     }
 
@@ -210,8 +212,7 @@ export function validateBuilding(
         payload.stories <= 0 ||
         payload.stories > 163
     ) {
-        errors.stories =
-            'A szintek száma egy 1-163 (Burj Khalifa) közötti szám!'
+        errors.stories = 'Add meg a szintek számát!'
         hasError = true
     }
 
@@ -221,7 +222,7 @@ export function validateBuilding(
         payload.height <= 0 ||
         payload.height > 828
     ) {
-        errors.height = 'A belmagasság egy 1-828 (Burj Khalifa) közötti szám!'
+        errors.height = 'Add meg a belmagasságot!'
         hasError = true
     }
 
@@ -231,8 +232,7 @@ export function validateBuilding(
         payload.insideHeat <= 0 ||
         payload.insideHeat > 30
     ) {
-        errors.insideHeat =
-            'A belső méretezési hőmérséklet egy 1-30 közötti szám!'
+        errors.insideHeat = 'Add meg a belső méretezési hőmérsékletet!'
         hasError = true
     }
 
@@ -242,17 +242,16 @@ export function validateBuilding(
             payload.floorSize === null ||
             payload.floorSize <= 0
         ) {
-            errors.floorSize = 'A padló kerülete egy 0-nál nagyobb szám!'
+            errors.floorSize = 'Add meg a padló kerületét!'
             hasError = true
         }
 
         if (
-            payload.doorWallSize === undefined ||
-            payload.doorWallSize === null ||
-            payload.doorWallSize <= 0
+            payload.doorWindowSize === undefined ||
+            payload.doorWindowSize === null ||
+            payload.doorWindowSize <= 0
         ) {
-            errors.doorWallSize =
-                'A nyílászárók összfelülete egy 0-nál nagyobb szám!'
+            errors.doorWallSize = 'Add meg a nyílászárók összfelületét!'
             hasError = true
         }
 
@@ -262,14 +261,24 @@ export function validateBuilding(
             payload.elevation < 0 ||
             payload.elevation > 10
         ) {
-            errors.elevation = 'A magasság a talajtól egy 0-10 közötti szám!'
+            errors.elevation = 'Add meg a talajtól vett magasságot!'
+            hasError = true
+        }
+    } else {
+        if (!payload.qf || payload.qf <= 0) {
+            errors.qf = 'Add meg az épületnek a fajlagos fűtési igényét (qF)!'
+            hasError = true
+        }
+        if (!payload.heatLoss || payload.heatLoss <= 0) {
+            errors.heatLoss = 'Add meg az épület hőveszteségét!'
             hasError = true
         }
     }
 
-    /**
-     * TODO: Validate images
-     */
+    if (!payload.imageFile) {
+        errors.imageFile = 'Tölts fel egy képet az épületről!'
+        hasError = true
+    }
 
     return hasError ? errors : null
 }
@@ -310,7 +319,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             backHeat: '',
             maxPower: '',
             oversizeRatio: '',
-            imageIds: [],
+            imageFile: '',
         }
         if (!item.name || item.name === '') {
             heaterElem.name = 'Add meg a hőtermelő nevét!'
@@ -374,6 +383,10 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             heaterElem.oversizeRatio = 'Add meg a túlméretezettség mértékét!'
             localHasError = true
         }
+        if (!item.imageFile) {
+            heaterElem.imageFile = 'Tölts fel egy képet a hőtermelőről!'
+            localHasError = true
+        }
         if (localHasError) {
             errors.heaters.push(heaterElem)
             hasError = true
@@ -392,6 +405,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             type: '',
             serialNumber: '',
             powerUsage: '',
+            imageFile: '',
         }
 
         if (!item.name || item.name === '') {
@@ -427,6 +441,10 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             pumpElem.powerUsage = 'Add meg a szivattyú villamos energiaigényét!'
             localHasError = true
         }
+        if (!item.imageFile) {
+            pumpElem.imageFile = 'Tölts fel egy képet a szivattyúról!'
+            localHasError = true
+        }
         if (localHasError) {
             errors.pumps.push(pumpElem)
             hasError = true
@@ -444,7 +462,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             amount: '',
             forwardHeat: '',
             backHeat: '',
-            imageIds: '',
+            imageFile: '',
         }
 
         if (!item.name || item.name === '') {
@@ -476,6 +494,10 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
         if (!item.backHeat || item.backHeat === 0) {
             emitterElem.backHeat =
                 'Add meg a hőleadó rendszerében a visszatérő hőmérsékletet!'
+            localHasError = true
+        }
+        if (!item.imageFile) {
+            emitterElem.imageFile = 'Tölts fel egy képet a hőleadóról!'
             localHasError = true
         }
         if (localHasError) {

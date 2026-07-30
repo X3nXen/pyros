@@ -33,7 +33,7 @@ class StandingsController {
                 $stmt = $db->prepare($sql);
                 $stmt->execute();
 
-            } elseif ($type === 'SUB' || $type === 'OTHER') {
+            } elseif ($type === 'SUB' || $type === 'VIRTUAL') {
                 $sql = "SELECT id, name FROM standings WHERE measurement_type != 'MAIN' ORDER BY name ASC";
                 $stmt = $db->prepare($sql);
                 $stmt->execute();
@@ -113,6 +113,7 @@ class StandingsController {
             echo json_encode([
                 'status'  => 'success',
                 'message' => 'Mérőóra sikeresen elmentve!',
+                'id' => $db->lastInsertId()
             ]);
 
         } catch (PDOException $e) {

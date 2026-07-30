@@ -57,7 +57,6 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            payload.id = crypto.randomUUID()
             const response = await Calls.postMeasurement(payload)
             let success = false
             let reason = null
@@ -69,6 +68,7 @@ export default class FormSendProtocol {
                 reason = 'Backend call error'
             }
             setLoading(false)
+            payload.id = response.id ?? null
             return { success: success, reason: reason }
         } catch (error) {
             alert('Valami hiba történt a hálózati kommunikáció során')
@@ -92,7 +92,6 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            payload.id = crypto.randomUUID()
             const response = await Calls.postComplex(payload)
             let success = false
             let reason = null
@@ -103,6 +102,7 @@ export default class FormSendProtocol {
                 success = false
                 reason = 'Backend call error'
             }
+            payload.id = response.id ?? null
             setLoading(false)
             return { success: success, reason: reason }
         } catch (error) {
@@ -119,9 +119,6 @@ export default class FormSendProtocol {
         setErrorMessage: (msg: BuildingErrors | null) => void
     ): Promise<{ success: boolean; reason: string | null }> {
         setErrorMessage(null)
-        /**
-         * TODO: validate building base data, send image to backend, set local imageids to backend response, then save
-         */
         const errors = validateBuilding(payload)
         if (errors) {
             setErrorMessage(errors)
@@ -130,7 +127,6 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            payload.id = crypto.randomUUID()
             const response = await Calls.postBuilding(payload)
             let success = false
             let reason = null
@@ -141,6 +137,7 @@ export default class FormSendProtocol {
                 success = false
                 reason = 'Backend call error'
             }
+            payload.id = response.id!
             setLoading(false)
             return { success: success, reason: reason }
         } catch (error) {

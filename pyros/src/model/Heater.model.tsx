@@ -195,7 +195,7 @@ export interface HeaterFormData {
     couldHeatLoss: boolean
     oversized: boolean
     oversizeRatio: number
-    imageIds: Array<string>
+    imageFile: File | null
 }
 
 export interface HeaterFormErrors {
@@ -211,7 +211,7 @@ export interface HeaterFormErrors {
     backHeat: string
     maxPower: string
     oversizeRatio: string
-    imageIds: Array<string>
+    imageFile: string
 }
 
 export enum HeaterFeature {
