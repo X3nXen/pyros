@@ -14,8 +14,6 @@ import {
 import theme from '../assets/theme'
 import {
     HeaterDescriptions,
-    HeaterCarrier,
-    HEATER_CARRIER_TO_TYPE,
     DEVICE_FEATURES,
     HeaterFeature,
     ElectricCalcMode,
@@ -25,9 +23,11 @@ import {
     ElectricCalcRefrigerant,
     type HeaterFormData,
     type HeaterFormErrors,
+    PurposeToCarrier,
+    HEAT_CARRIER_TO_TYPE,
+    COOL_CARRIER_TO_TYPE,
 } from '../model/Heater.model'
 import type { StandingsShort } from '../model/Standings.model'
-import { useState } from 'react'
 import { type BuildingShort } from '../model/Building.model'
 import { SystemPurpose } from '../model/System.model'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
@@ -65,11 +65,6 @@ export default function HeaterForm(props: {
     heaterIndex: number | null
     heaterErrors: HeaterFormErrors | null
 }) {
-    const [currentCarrier, setCurrentCarrier] = useState<HeaterCarrier>(
-        HeaterCarrier.NATURAL_GAS
-    )
-    const [heatingTypes, setHeatingTypes] = useState<Array<string>>([])
-
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Typography
@@ -315,14 +310,7 @@ export default function HeaterForm(props: {
                     }
                 >
                     {Object.keys(HeaterDescriptions).map((key) => (
-                        <MenuItem
-                            key={key}
-                            value={
-                                HeaterDescriptions[
-                                    key as keyof typeof HeaterDescriptions
-                                ]
-                            }
-                        >
+                        <MenuItem value={key}>
                             {
                                 HeaterDescriptions[
                                     key as keyof typeof HeaterDescriptions
@@ -341,27 +329,14 @@ export default function HeaterForm(props: {
                     labelId="heater-carrier-label"
                     label="Energiahordozó"
                     value={props.currentActiveHeater.carrier}
-                    onChange={(e) => {
-                        setCurrentCarrier(e.target.value)
+                    onChange={(e) =>
                         props.handleActiveHeaterChange(
                             'carrier',
                             e.target.value
                         )
-                        const availableHeatingTypes =
-                            props.systemPurpose === SystemPurpose.BOTH
-                                ? HEATER_CARRIER_TO_TYPE[
-                                      currentCarrier
-                                  ].heat.concat(
-                                      HEATER_CARRIER_TO_TYPE[currentCarrier]
-                                          .cool
-                                  )
-                                : props.systemPurpose === SystemPurpose.COOL
-                                  ? HEATER_CARRIER_TO_TYPE[currentCarrier].cool
-                                  : HEATER_CARRIER_TO_TYPE[currentCarrier].heat
-                        setHeatingTypes(availableHeatingTypes)
-                    }}
+                    }
                 >
-                    {Object.values(HeaterCarrier).map((val) => (
+                    {PurposeToCarrier[props.systemPurpose].map((val) => (
                         <MenuItem key={val} value={val}>
                             {val}
                         </MenuItem>
@@ -389,7 +364,24 @@ export default function HeaterForm(props: {
                         )
                     }
                 >
-                    {heatingTypes.map((opt) => (
+                    {(props.systemPurpose === SystemPurpose.HEAT
+                        ? HEAT_CARRIER_TO_TYPE[
+                              props.currentActiveHeater.carrier
+                          ]
+                        : props.systemPurpose === SystemPurpose.COOL
+                          ? COOL_CARRIER_TO_TYPE[
+                                props.currentActiveHeater.carrier
+                            ]
+                          : Array.from(
+                                new Set([
+                                    ...(HEAT_CARRIER_TO_TYPE[
+                                        props.currentActiveHeater.carrier
+                                    ] ?? []),
+                                    ...(COOL_CARRIER_TO_TYPE[
+                                        props.currentActiveHeater.carrier
+                                    ] ?? []),
+                                ])
+                            ))!.map((opt) => (
                         <MenuItem key={opt} value={opt}>
                             {opt}
                         </MenuItem>

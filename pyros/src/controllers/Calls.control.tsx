@@ -1,6 +1,6 @@
 import type { BuildingFormData, BuildingShort } from '../model/Building.model'
 import type { ComplexFormData, ComplexShortData } from '../model/Complex.model'
-import type { HeaterShort } from '../model/Heater.model'
+import type { HeaterFormData, HeaterShort } from '../model/Heater.model'
 import type { LightingFormData } from '../model/Lighting.model'
 import type { ClickupTaskShort } from '../model/LoginData.model'
 import type { ProductFormData } from '../model/Product.model'
@@ -164,21 +164,63 @@ export default class Calls {
         }
     }
 
-    /**
-     * TODO: Heating system backend call implementation, database implementation
-     */
     static async postHeatingSystem(
         payload: HeatingSystemFormData
     ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+        try {
+            const formData = new FormData()
+
+            payload.heaters?.forEach((heater, index) => {
+                if (heater.imageFile instanceof File) {
+                    formData.append(
+                        `heaters_${index}_imageFile`,
+                        heater.imageFile
+                    )
+                }
+            })
+
+            payload.pumps?.forEach((pump, index) => {
+                if (pump.imageFile instanceof File) {
+                    formData.append(`pumps_${index}_imageFile`, pump.imageFile)
+                }
+            })
+
+            payload.emitters?.forEach((emitter, index) => {
+                if (emitter.imageFile instanceof File) {
+                    formData.append(
+                        `emitters_${index}_imageFile`,
+                        emitter.imageFile
+                    )
+                }
+            })
+
+            formData.append('data', JSON.stringify(payload))
+
+            const response = await fetch('http://localhost:8000/heating', {
+                method: 'POST',
+                body: formData,
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     static async postVentilationSystem(
@@ -198,15 +240,32 @@ export default class Calls {
     static async postLightingSystem(
         payload: Array<LightingFormData>
     ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+        try {
+            const response = await fetch('http://localhost:8000/lighting', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     static async postVehicle(
@@ -299,7 +358,7 @@ export default class Calls {
     }> {
         try {
             const response = await fetch(
-                'http://localhost:8000/standings?type=OTHER',
+                'http://localhost:8000/standings?type=SUB',
                 {
                     method: 'GET',
                     headers: {
@@ -396,35 +455,54 @@ export default class Calls {
         success: boolean
         payload: Array<HeaterShort>
     }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta a kérést')
-                resolve({
-                    success: true,
-                    payload: [
-                        {
-                            id: '122',
-                            name: 'Teszt fűtő 1',
-                            purpose: SystemPurpose.HEAT,
-                        },
-                        {
-                            id: '123',
-                            name: 'Teszt fűtő 2',
-                            purpose: SystemPurpose.HEAT,
-                        },
-                        {
-                            id: '124',
-                            name: 'Teszt hűtő 1',
-                            purpose: SystemPurpose.COOL,
-                        },
-                        {
-                            id: '125',
-                            name: 'Teszt hűtő 2',
-                            purpose: SystemPurpose.COOL,
-                        },
-                    ],
-                })
-            }, 1500)
-        })
+        try {
+            const response = await fetch('http://localhost:8000/heating', {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            }
+
+            const data = await response.json()
+
+            const purposeMap: Record<string, SystemPurpose> = {
+                HEAT: SystemPurpose.HEAT,
+                COOL: SystemPurpose.COOL,
+                BOTH: SystemPurpose.BOTH,
+            }
+
+            const heaters: Array<HeaterShort> = data.flatMap(
+                (system: {
+                    purpose: SystemPurpose
+                    heaters: string | Array<any>
+                }) => {
+                    const parsedHeaters =
+                        typeof system.heaters === 'string'
+                            ? JSON.parse(system.heaters)
+                            : system.heaters || []
+
+                    return parsedHeaters.map((h: any) => ({
+                        id: h.id,
+                        name: h.name,
+                        purpose: purposeMap[system.purpose] ?? system.purpose,
+                    }))
+                }
+            )
+            console.log(heaters)
+            return {
+                success: true,
+                payload: heaters,
+            }
+        } catch (error) {
+            console.error('Hiba a hőtermelők lekérése során:', error)
+            return {
+                success: false,
+                payload: [],
+            }
+        }
     }
 }

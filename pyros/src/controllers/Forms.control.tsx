@@ -49,11 +49,8 @@ export default class FormSendProtocol {
         const errors = validateStandings(payload)
         if (errors) {
             setErrorMessage(errors)
-            console.log('Ide jön be inkább csak nem ad errort', errors)
             return { success: false, reason: 'Validation error' }
         }
-
-        console.log('Ide bejön')
 
         try {
             setLoading(true)
@@ -154,9 +151,6 @@ export default class FormSendProtocol {
         setErrorMessage: (msg: HeatingSystemErrors | null) => void
     ): Promise<{ success: boolean; reason: string | null }> {
         setErrorMessage(null)
-        /**
-         * TODO: validate heaters pumps emitters base data, send image to backend, set local imageids to backend response, then save
-         */
         const errors = validateHeatingSystem(payload)
         if (errors) {
             setErrorMessage(errors)
@@ -165,7 +159,6 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            payload.id = crypto.randomUUID()
             const response = await Calls.postHeatingSystem(payload)
             let success = false
             let reason = null
@@ -203,7 +196,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            payload.id = crypto.randomUUID()
+            console.log(payload)
             const response = await Calls.postVentilationSystem(payload)
             let success = false
             let reason = null
