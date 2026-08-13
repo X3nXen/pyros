@@ -50,6 +50,7 @@ export default function Cooling() {
 
     function handleAddCoolingMachine() {
         const newMachine: CoolingMachineData = {
+            id: null,
             mode: CoolingMachineModes[0],
             standing: null,
             type: '',
@@ -141,7 +142,7 @@ export default function Cooling() {
                 onSelect={(index) => setActiveCoolingMachineIndex(index)}
                 onAdd={handleAddCoolingMachine}
                 getName={(item) =>
-                    formData.machines.indexOf(item) + '. hűtőberendezés'
+                    formData.machines.indexOf(item) + 1 + '. hűtőberendezés'
                 }
             />
 

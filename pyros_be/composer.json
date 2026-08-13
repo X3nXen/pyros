@@ -1,0 +1,19 @@
+{
+    "name": "nx/pyros",
+    "description": "pyros web",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Nx\\Pyros\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Nagy Xénia",
+            "email": "privateezi19@gmail.com"
+        }
+    ],
+    "require": {
+        "phpoffice/phpspreadsheet": "^5.9"
+    }
+}

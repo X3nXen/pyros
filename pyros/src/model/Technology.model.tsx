@@ -2,7 +2,7 @@ export interface CompressedFormData {
     id: string | null
     name: string
     pressure: number
-    compressors: Array<CompressorData>
+    machines: Array<CompressorData>
 }
 
 export interface CompressorFormErrors {
@@ -20,6 +20,7 @@ export interface CompressorErrors {
 }
 
 export interface CompressorData {
+    id: string | null
     mode: string
     standing: string | null
     hours: number
@@ -40,6 +41,7 @@ export interface SteamFormData {
 }
 
 export interface SteamMachineData {
+    id: string | null
     standing: string | null
     mode: string
     type: string
@@ -68,6 +70,7 @@ export interface CoolingFormData {
 }
 
 export interface CoolingMachineData {
+    id: string | null
     mode: string
     standing: string | null
     type: string
@@ -94,6 +97,7 @@ export interface OtherFormData {
 }
 
 export interface OtherDeviceData {
+    id: string | null
     mode: string
     standing: string | null
     type: string

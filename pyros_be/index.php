@@ -3,6 +3,7 @@ header('Access-Control-Allow-Origin: *'); // Fejlesztéskor mehet a *, élesben 
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Content-Type: application/json; charset=UTF-8');
+require_once __DIR__ . '/vendor/autoload.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -11,11 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 define('CONTROLLER_PATH', __DIR__ . '/controllers/');
 
-function handleRequest($url) {
+function handleRequest($url)
+{
     $url = preg_replace('/[^a-zA-Z0-9\/]/', '', $url);
     $url = ltrim($url, '/');
     $parts = explode('/', $url);
-    
+
     $controller = !empty($parts[0]) ? ucfirst($parts[0]) . 'Controller' : 'IndexController';
     $method = !empty($parts[1]) ? $parts[1] : 'index';
     $args = array_slice($parts, 2);

@@ -1,4 +1,4 @@
-import type { SystemPurpose } from './System.model'
+import { SystemPurpose } from './System.model'
 
 export enum HeaterCarrier {
     NATURAL_GAS = 'Földgáz',
@@ -16,110 +16,246 @@ export enum HeaterCarrier {
     OTHER = 'Egyéb',
 }
 
-export interface HeatCoolStructure {
-    heat: string[]
-    cool: string[]
-}
-
-export type HeaterCarrierToTypeMap = Record<HeaterCarrier, HeatCoolStructure>
-
-const gasStructure: HeatCoolStructure = {
-    heat: [
-        'Állandó hőmérsékletű gázkazán',
-        'Alacsony hőmérsékletű gázkazán',
-        'Kondenzációs gázkazán',
-        'Gázégő',
-        'Egyedi gázkonvektor',
-        'Sugárzóernyő',
-        'Hőszivattyú',
-        'Termoventilátor',
-        'Rooftop',
-        'Egyéb',
+export const PurposeToCarrier: Record<SystemPurpose, Array<HeaterCarrier>> = {
+    [SystemPurpose.HEAT]: [
+        HeaterCarrier.NATURAL_GAS,
+        HeaterCarrier.PB_GAS,
+        HeaterCarrier.BIO_GAS,
+        HeaterCarrier.ELECTRICITY,
+        HeaterCarrier.OFF_PEAK_ELECTRICITY,
+        HeaterCarrier.HEAT_PUMP_ELECTRICITY,
+        HeaterCarrier.DISTRICT_HEATING,
+        HeaterCarrier.FUEL_OIL,
+        HeaterCarrier.COAL,
+        HeaterCarrier.FIREWOOD,
+        HeaterCarrier.PELLET,
+        HeaterCarrier.BIOMASS,
+        HeaterCarrier.OTHER,
     ],
-    cool: [
-        'Hőszivattyú',
-        'Technológiai hűtés (hőszivattyú)',
-        'Technológiai hűtés (folyadékhűtő)',
-        'Folyadékhűtő',
-        'Egyéb',
-    ],
-}
 
-const electricityStructure: HeatCoolStructure = {
-    heat: [
-        'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)',
-        'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)',
-        'Elektromos üzemű hőszivattyú talajhő hőforrással',
-        'Elektromos üzemű hőszivattyú víz hőforrással',
-        'VRV/VRF',
-        'Egyedi elektromos fűtés',
-        'Elektromos üzemű kazán',
-        'Split klíma',
-        'Termoventilátor',
-        'Rooftop',
-        'Egyéb',
+    [SystemPurpose.COOL]: [
+        HeaterCarrier.NATURAL_GAS,
+        HeaterCarrier.PB_GAS,
+        HeaterCarrier.BIO_GAS,
+        HeaterCarrier.ELECTRICITY,
+        HeaterCarrier.HEAT_PUMP_ELECTRICITY,
+        HeaterCarrier.OTHER,
     ],
-    cool: [
-        'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)',
-        'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)',
-        'Elektromos üzemű hőszivattyú talajhő hőforrással',
-        'Elektromos üzemű hőszivattyú víz hőforrással',
-        'VRV/VRF',
-        'Split klíma',
-        'Technológiai hűtés',
-        'Folyadékhűtő',
-        'Egyéb',
+
+    [SystemPurpose.BOTH]: [
+        HeaterCarrier.NATURAL_GAS,
+        HeaterCarrier.PB_GAS,
+        HeaterCarrier.BIO_GAS,
+        HeaterCarrier.ELECTRICITY,
+        HeaterCarrier.OFF_PEAK_ELECTRICITY,
+        HeaterCarrier.HEAT_PUMP_ELECTRICITY,
+        HeaterCarrier.DISTRICT_HEATING,
+        HeaterCarrier.FUEL_OIL,
+        HeaterCarrier.COAL,
+        HeaterCarrier.FIREWOOD,
+        HeaterCarrier.PELLET,
+        HeaterCarrier.BIOMASS,
+        HeaterCarrier.OTHER,
     ],
 }
 
-const pelletStructure: HeatCoolStructure = {
-    heat: ['Kazán', 'Kandalló'],
-    cool: [],
+export enum HeaterType {
+    CONSTANT_TEMP_GAS_BOILER = 'Állandó hőmérsékletű gázkazán',
+    LOW_TEMP_GAS_BOILER = 'Alacsony hőmérsékletű gázkazán',
+    CONDENSING_GAS_BOILER = 'Kondenzációs gázkazán',
+    GAS_BURNER = 'Gázégő',
+    INDIVIDUAL_GAS_HEATER = 'Egyedi gázkonvektor',
+    RADIANT_HEATER = 'Sugárzóernyő',
+
+    HEAT_PUMP_AIR_WATER = 'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)',
+    HEAT_PUMP_AIR_GAS = 'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)',
+    HEAT_PUMP_GROUND = 'Elektromos üzemű hőszivattyú talajhő hőforrással',
+    HEAT_PUMP_WATER = 'Elektromos üzemű hőszivattyú víz hőforrással',
+    VRV_VRF = 'VRV/VRF',
+    SPLIT_AC = 'Split klíma',
+    ELECTRIC_BOILER = 'Elektromos üzemű kazán',
+    INDIVIDUAL_ELECTRIC_HEATER = 'Egyedi elektromos fűtés',
+    HEAT_PUMP_GENERIC = 'Hőszivattyú',
+
+    THERMO_VENTILATOR = 'Termoventilátor',
+    ROOFTOP = 'Rooftop',
+    TECH_COOLING_HP = 'Technológiai hűtés (hőszivattyú)',
+    TECH_COOLING_CHILLER = 'Technológiai hűtés (folyadékhűtő)',
+    TECH_COOLING = 'Technológiai hűtés',
+    CHILLER = 'Folyadékhűtő',
+
+    DISTRICT_PLATE_HEX = 'Lemezes hőcserélős leválasztás',
+    DISTRICT_TUBE_HEX = 'Csőköteges hőcserélős leválasztás',
+    DISTRICT_MIXING_3WAY = 'Keverőszelepes leválasztás, 3 járatú',
+    DISTRICT_MIXING_4WAY = 'Keverőszelepes leválasztás, 4 járatú',
+    DISTRICT_MIXING_MANUAL = 'Keverőszelepes leválasztás, kézi',
+    DISTRICT_HYDRAULIC_SWITCH = 'Hidraulikus váltós leválasztás',
+
+    OIL_BURNER = 'Olajégő',
+    OIL_STOVE = 'Olajkályha',
+    OIL_BOILER = 'Olajkazán',
+    COAL_BOILER = 'Szénkazán',
+    STOVE = 'Kályha',
+    FIREWOOD_GASIFIER_BOILER = 'Faelgázosító kazán',
+    FIREWOOD_BOILER = 'Fatüzelésű kazán',
+    FIREPLACE = 'Kandalló',
+    BOILER = 'Kazán',
+
+    OTHER = 'Egyéb',
 }
 
-export const HEATER_CARRIER_TO_TYPE: HeaterCarrierToTypeMap = {
-    [HeaterCarrier.NATURAL_GAS]: gasStructure,
-    [HeaterCarrier.PB_GAS]: gasStructure,
-    [HeaterCarrier.BIO_GAS]: gasStructure,
+export const HEAT_CARRIER_TO_TYPE: Record<HeaterCarrier, HeaterType[]> = {
+    [HeaterCarrier.NATURAL_GAS]: [
+        HeaterType.CONSTANT_TEMP_GAS_BOILER,
+        HeaterType.LOW_TEMP_GAS_BOILER,
+        HeaterType.CONDENSING_GAS_BOILER,
+        HeaterType.GAS_BURNER,
+        HeaterType.INDIVIDUAL_GAS_HEATER,
+        HeaterType.RADIANT_HEATER,
+        HeaterType.HEAT_PUMP_GENERIC,
+        HeaterType.THERMO_VENTILATOR,
+        HeaterType.ROOFTOP,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.PB_GAS]: [
+        HeaterType.CONSTANT_TEMP_GAS_BOILER,
+        HeaterType.LOW_TEMP_GAS_BOILER,
+        HeaterType.CONDENSING_GAS_BOILER,
+        HeaterType.GAS_BURNER,
+        HeaterType.INDIVIDUAL_GAS_HEATER,
+        HeaterType.RADIANT_HEATER,
+        HeaterType.HEAT_PUMP_GENERIC,
+        HeaterType.THERMO_VENTILATOR,
+        HeaterType.ROOFTOP,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.BIO_GAS]: [
+        HeaterType.CONSTANT_TEMP_GAS_BOILER,
+        HeaterType.LOW_TEMP_GAS_BOILER,
+        HeaterType.CONDENSING_GAS_BOILER,
+        HeaterType.GAS_BURNER,
+        HeaterType.INDIVIDUAL_GAS_HEATER,
+        HeaterType.RADIANT_HEATER,
+        HeaterType.HEAT_PUMP_GENERIC,
+        HeaterType.THERMO_VENTILATOR,
+        HeaterType.ROOFTOP,
+        HeaterType.OTHER,
+    ],
 
-    [HeaterCarrier.ELECTRICITY]: electricityStructure,
-    [HeaterCarrier.OFF_PEAK_ELECTRICITY]: electricityStructure,
-    [HeaterCarrier.HEAT_PUMP_ELECTRICITY]: electricityStructure,
+    [HeaterCarrier.ELECTRICITY]: [
+        HeaterType.HEAT_PUMP_AIR_WATER,
+        HeaterType.HEAT_PUMP_AIR_GAS,
+        HeaterType.HEAT_PUMP_GROUND,
+        HeaterType.HEAT_PUMP_WATER,
+        HeaterType.VRV_VRF,
+        HeaterType.INDIVIDUAL_ELECTRIC_HEATER,
+        HeaterType.ELECTRIC_BOILER,
+        HeaterType.SPLIT_AC,
+        HeaterType.THERMO_VENTILATOR,
+        HeaterType.ROOFTOP,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.OFF_PEAK_ELECTRICITY]: [
+        HeaterType.HEAT_PUMP_AIR_WATER,
+        HeaterType.HEAT_PUMP_AIR_GAS,
+        HeaterType.HEAT_PUMP_GROUND,
+        HeaterType.HEAT_PUMP_WATER,
+        HeaterType.VRV_VRF,
+        HeaterType.INDIVIDUAL_ELECTRIC_HEATER,
+        HeaterType.ELECTRIC_BOILER,
+        HeaterType.SPLIT_AC,
+        HeaterType.THERMO_VENTILATOR,
+        HeaterType.ROOFTOP,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.HEAT_PUMP_ELECTRICITY]: [
+        HeaterType.HEAT_PUMP_AIR_WATER,
+        HeaterType.HEAT_PUMP_AIR_GAS,
+        HeaterType.HEAT_PUMP_GROUND,
+        HeaterType.HEAT_PUMP_WATER,
+        HeaterType.VRV_VRF,
+        HeaterType.INDIVIDUAL_ELECTRIC_HEATER,
+        HeaterType.ELECTRIC_BOILER,
+        HeaterType.SPLIT_AC,
+        HeaterType.THERMO_VENTILATOR,
+        HeaterType.ROOFTOP,
+        HeaterType.OTHER,
+    ],
 
-    [HeaterCarrier.DISTRICT_HEATING]: {
-        heat: [
-            'Lemezes hőcserélős leválasztás',
-            'Csőköteges hőcserélős leválasztás',
-            'Keverőszelepes leválasztás, 3 járatú',
-            'Keverőszelepes leválasztás, 4 járatú',
-            'Keverőszelepes leválasztás, kézi',
-            'Hidraulikus váltós leválasztás',
-        ],
-        cool: [],
-    },
+    [HeaterCarrier.DISTRICT_HEATING]: [
+        HeaterType.DISTRICT_PLATE_HEX,
+        HeaterType.DISTRICT_TUBE_HEX,
+        HeaterType.DISTRICT_MIXING_3WAY,
+        HeaterType.DISTRICT_MIXING_4WAY,
+        HeaterType.DISTRICT_MIXING_MANUAL,
+        HeaterType.DISTRICT_HYDRAULIC_SWITCH,
+    ],
 
-    [HeaterCarrier.FUEL_OIL]: {
-        heat: ['Olajégő', 'Olajkályha', 'Olajkazán'],
-        cool: [],
-    },
+    [HeaterCarrier.FUEL_OIL]: [
+        HeaterType.OIL_BURNER,
+        HeaterType.OIL_STOVE,
+        HeaterType.OIL_BOILER,
+    ],
+    [HeaterCarrier.COAL]: [HeaterType.BOILER, HeaterType.STOVE],
+    [HeaterCarrier.FIREWOOD]: [
+        HeaterType.FIREWOOD_GASIFIER_BOILER,
+        HeaterType.FIREWOOD_BOILER,
+        HeaterType.STOVE,
+        HeaterType.FIREPLACE,
+    ],
+    [HeaterCarrier.PELLET]: [HeaterType.BOILER, HeaterType.FIREPLACE],
+    [HeaterCarrier.BIOMASS]: [HeaterType.BOILER, HeaterType.FIREPLACE],
+    [HeaterCarrier.OTHER]: [HeaterType.OTHER],
+}
 
-    [HeaterCarrier.COAL]: {
-        heat: ['Kazán', 'Kályha'],
-        cool: [],
-    },
+export const COOL_CARRIER_TO_TYPE: Partial<
+    Record<HeaterCarrier, HeaterType[]>
+> = {
+    [HeaterCarrier.NATURAL_GAS]: [
+        HeaterType.HEAT_PUMP_GENERIC,
+        HeaterType.TECH_COOLING_HP,
+        HeaterType.TECH_COOLING_CHILLER,
+        HeaterType.CHILLER,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.PB_GAS]: [
+        HeaterType.HEAT_PUMP_GENERIC,
+        HeaterType.TECH_COOLING_HP,
+        HeaterType.TECH_COOLING_CHILLER,
+        HeaterType.CHILLER,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.BIO_GAS]: [
+        HeaterType.HEAT_PUMP_GENERIC,
+        HeaterType.TECH_COOLING_HP,
+        HeaterType.TECH_COOLING_CHILLER,
+        HeaterType.CHILLER,
+        HeaterType.OTHER,
+    ],
 
-    [HeaterCarrier.FIREWOOD]: {
-        heat: ['Faelgázosító kazán', 'Fatüzelésű kazán', 'Kályha', 'Kandalló'],
-        cool: [],
-    },
-
-    [HeaterCarrier.PELLET]: pelletStructure,
-    [HeaterCarrier.BIOMASS]: pelletStructure,
-
-    [HeaterCarrier.OTHER]: {
-        heat: ['Egyéb'],
-        cool: [],
-    },
+    [HeaterCarrier.ELECTRICITY]: [
+        HeaterType.HEAT_PUMP_AIR_WATER,
+        HeaterType.HEAT_PUMP_AIR_GAS,
+        HeaterType.HEAT_PUMP_GROUND,
+        HeaterType.HEAT_PUMP_WATER,
+        HeaterType.VRV_VRF,
+        HeaterType.SPLIT_AC,
+        HeaterType.TECH_COOLING,
+        HeaterType.CHILLER,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.HEAT_PUMP_ELECTRICITY]: [
+        HeaterType.HEAT_PUMP_AIR_WATER,
+        HeaterType.HEAT_PUMP_AIR_GAS,
+        HeaterType.HEAT_PUMP_GROUND,
+        HeaterType.HEAT_PUMP_WATER,
+        HeaterType.VRV_VRF,
+        HeaterType.SPLIT_AC,
+        HeaterType.TECH_COOLING,
+        HeaterType.CHILLER,
+        HeaterType.OTHER,
+    ],
+    [HeaterCarrier.OTHER]: [HeaterType.OTHER],
 }
 
 export enum HeaterDescriptions {
@@ -181,7 +317,7 @@ export interface HeaterFormData {
     year: number
     type: string
     carrier: HeaterCarrier
-    heatingType: string
+    heatingType: HeaterType
     state: HeaterDescriptions
     forwardHeat: number
     backHeat: number
@@ -195,7 +331,7 @@ export interface HeaterFormData {
     couldHeatLoss: boolean
     oversized: boolean
     oversizeRatio: number
-    imageIds: Array<string>
+    imageFile: File | null
 }
 
 export interface HeaterFormErrors {
@@ -211,7 +347,7 @@ export interface HeaterFormErrors {
     backHeat: string
     maxPower: string
     oversizeRatio: string
-    imageIds: Array<string>
+    imageFile: string
 }
 
 export enum HeaterFeature {
@@ -237,39 +373,49 @@ const districtHeatingFeatures: HeaterFeature[] = [
     HeaterFeature.REMOTE,
 ]
 
-export const DEVICE_FEATURES: Record<string, HeaterFeature[]> = {
-    'Kondenzációs gázkazán': condensationGasFeatures,
-    'Alacsony hőmérsékletű gázkazán': condensationGasFeatures,
-    'Állandó hőmérsékletű gázkazán': condensationGasFeatures,
-    Sugárzóernyő: radiantFeatures,
-    Hőszivattyú: heatPumpFeatures,
-    Termoventilátor: radiantFeatures,
-    'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)':
-        electricHeatPumpFeatures,
-    'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)':
-        heatPumpFeatures,
-    'Elektromos üzemű hőszivattyú talajhő hőforrással':
-        electricHeatPumpFeatures,
-    'Elektromos üzemű hőszivattyú víz hőforrással': electricHeatPumpFeatures,
-    'VRV/VRF': heatPumpFeatures,
-    'Egyedi elektromos fűtés': radiantFeatures,
-    'Elektromos üzemű kazán': electricBoilerFeatures,
-    'Split klíma': heatPumpFeatures,
-    Olajkazán: electricBoilerFeatures,
-    Kazán: electricBoilerFeatures,
-    'Faelgázosító kazán': condensationGasFeatures,
-    'Fatüzelésű kazán': condensationGasFeatures,
-    Kandalló: [],
-    'Lemezes hőcserélős leválasztás': districtHeatingFeatures,
-    'Csőköteges hőcserélős leválasztás': districtHeatingFeatures,
-    'Keverőszelepes leválasztás, 3 járatú': districtHeatingFeatures,
-    'Keverőszelepes leválasztás, 4 járatú': districtHeatingFeatures,
-    'Keverőszelepes leválasztás, kézi': districtHeatingFeatures,
-    'Hidraulikus váltós leválasztás': districtHeatingFeatures,
-    Folyadékhűtő: electricHeatPumpFeatures,
-    'Technológiai hűtés (hőszivattyú)': heatPumpFeatures,
-    'Technológiai hűtés (folyadékhűtő)': heatPumpFeatures,
-    Egyéb: [],
+export const DEVICE_FEATURES: Record<HeaterType, HeaterFeature[]> = {
+    [HeaterType.CONDENSING_GAS_BOILER]: condensationGasFeatures,
+    [HeaterType.LOW_TEMP_GAS_BOILER]: condensationGasFeatures,
+    [HeaterType.CONSTANT_TEMP_GAS_BOILER]: condensationGasFeatures,
+    [HeaterType.GAS_BURNER]: condensationGasFeatures,
+    [HeaterType.INDIVIDUAL_GAS_HEATER]: [],
+    [HeaterType.RADIANT_HEATER]: radiantFeatures,
+
+    [HeaterType.HEAT_PUMP_AIR_WATER]: electricHeatPumpFeatures,
+    [HeaterType.HEAT_PUMP_AIR_GAS]: heatPumpFeatures,
+    [HeaterType.HEAT_PUMP_GROUND]: electricHeatPumpFeatures,
+    [HeaterType.HEAT_PUMP_WATER]: electricHeatPumpFeatures,
+    [HeaterType.VRV_VRF]: heatPumpFeatures,
+    [HeaterType.INDIVIDUAL_ELECTRIC_HEATER]: radiantFeatures,
+    [HeaterType.ELECTRIC_BOILER]: electricBoilerFeatures,
+    [HeaterType.SPLIT_AC]: heatPumpFeatures,
+    [HeaterType.HEAT_PUMP_GENERIC]: heatPumpFeatures,
+
+    [HeaterType.THERMO_VENTILATOR]: radiantFeatures,
+    [HeaterType.ROOFTOP]: radiantFeatures,
+    [HeaterType.TECH_COOLING_HP]: heatPumpFeatures,
+    [HeaterType.TECH_COOLING_CHILLER]: heatPumpFeatures,
+    [HeaterType.TECH_COOLING]: heatPumpFeatures,
+    [HeaterType.CHILLER]: electricHeatPumpFeatures,
+
+    [HeaterType.DISTRICT_PLATE_HEX]: districtHeatingFeatures,
+    [HeaterType.DISTRICT_TUBE_HEX]: districtHeatingFeatures,
+    [HeaterType.DISTRICT_MIXING_3WAY]: districtHeatingFeatures,
+    [HeaterType.DISTRICT_MIXING_4WAY]: districtHeatingFeatures,
+    [HeaterType.DISTRICT_MIXING_MANUAL]: districtHeatingFeatures,
+    [HeaterType.DISTRICT_HYDRAULIC_SWITCH]: districtHeatingFeatures,
+
+    [HeaterType.OIL_BURNER]: electricBoilerFeatures,
+    [HeaterType.OIL_STOVE]: [],
+    [HeaterType.OIL_BOILER]: electricBoilerFeatures,
+    [HeaterType.COAL_BOILER]: electricBoilerFeatures,
+    [HeaterType.STOVE]: [],
+    [HeaterType.FIREWOOD_GASIFIER_BOILER]: condensationGasFeatures,
+    [HeaterType.FIREWOOD_BOILER]: condensationGasFeatures,
+    [HeaterType.FIREPLACE]: [],
+    [HeaterType.BOILER]: electricBoilerFeatures,
+
+    [HeaterType.OTHER]: [],
 }
 
 export interface HeaterShort {

@@ -12,13 +12,17 @@ import {
 } from '@mui/material'
 import { useState } from 'react'
 import {
+    COOL_CARRIER_TO_TYPE,
     ElectricCalcInstallation,
     ElectricCalcMedium,
     ElectricCalcMode,
     ElectricCalcRefrigerant,
     ElectricCalcSource,
+    HEAT_CARRIER_TO_TYPE,
     HeaterCarrier,
     HeaterDescriptions,
+    HeaterType,
+    PurposeToCarrier,
     type HeaterFormData,
     type HeaterFormErrors,
 } from '../model/Heater.model'
@@ -58,8 +62,8 @@ export default function HeatingSystem() {
         name: '',
         standing: null,
         systemPurpose: SystemPurpose.HEAT,
-        systemRegulation: SystemRegulation.NONE,
-        systemRegulationDesc: SystemRegulationDesc.NONE,
+        systemRegulation: 'NONE' as SystemRegulation,
+        systemRegulationDesc: 'NONE' as SystemRegulationDesc,
         heaters: [],
         pumps: [],
         emitters: [],
@@ -85,6 +89,24 @@ export default function HeatingSystem() {
     const dispatch = useAppDispatch()
 
     function handleAddHeater() {
+        const currentPurpose = formData.systemPurpose
+        const defaultCarrier =
+            PurposeToCarrier[currentPurpose]?.[0] ?? HeaterCarrier.NATURAL_GAS
+
+        const defaultHeatingType: HeaterType =
+            formData.systemPurpose === SystemPurpose.BOTH
+                ? (Array.from(
+                      new Set([
+                          ...(HEAT_CARRIER_TO_TYPE[defaultCarrier] ?? []),
+                          ...(COOL_CARRIER_TO_TYPE[defaultCarrier] ?? []),
+                      ])
+                  )[0] ?? HeaterType.OTHER)
+                : formData.systemPurpose === SystemPurpose.HEAT
+                  ? (HEAT_CARRIER_TO_TYPE[defaultCarrier]?.[0] ??
+                    HeaterType.OTHER)
+                  : (COOL_CARRIER_TO_TYPE[defaultCarrier]?.[0] ??
+                    COOL_CARRIER_TO_TYPE[HeaterCarrier.NATURAL_GAS]?.[0] ??
+                    HeaterType.OTHER)
         const newHeater: HeaterFormData = {
             id: null,
             name: `Hőtermelő ${formData.heaters.length + 1}`,
@@ -95,22 +117,22 @@ export default function HeatingSystem() {
             manufacturor: '',
             year: new Date().getFullYear(),
             type: '',
-            carrier: HeaterCarrier.NATURAL_GAS,
-            heatingType: '',
-            state: HeaterDescriptions.SERVICED,
+            carrier: defaultCarrier,
+            heatingType: defaultHeatingType,
+            state: 'SERVICED' as HeaterDescriptions,
             forwardHeat: 0,
             backHeat: 0,
             maxPower: 0,
-            baseType: ElectricCalcMode.UNKNOWN,
-            placementType: ElectricCalcInstallation.UNKNOWN,
-            ambientMedium: ElectricCalcMedium.UNKNOWN,
-            heatTransfer: ElectricCalcSource.UNKNOWN,
-            refrigerant: ElectricCalcRefrigerant.UNKNOWN,
+            baseType: 'UNKNOWN' as ElectricCalcMode,
+            placementType: 'UNKNOWN' as ElectricCalcInstallation,
+            ambientMedium: 'UNKNOWN' as ElectricCalcMedium,
+            heatTransfer: 'UNKNOWN' as ElectricCalcSource,
+            refrigerant: 'UNKNOWN' as ElectricCalcRefrigerant,
             heatLoss: false,
             couldHeatLoss: false,
             oversized: false,
             oversizeRatio: 0,
-            imageIds: [],
+            imageFile: null,
         }
 
         setFormData({
@@ -130,11 +152,11 @@ export default function HeatingSystem() {
             manufacturor: '',
             type: '',
             year: new Date().getFullYear(),
-            archetype: PumpTypes.TYPE_A,
-            archetypeSetting: PumpSetting.SET_A,
+            archetype: 'TYPE_A' as PumpTypes,
+            archetypeSetting: 'SET_A' as PumpSetting,
             serialNumber: '',
             powerUsage: 0,
-            imageIds: [],
+            imageFile: null,
         }
 
         setFormData({ ...formData, pumps: [...formData.pumps, newPump] })
@@ -152,13 +174,13 @@ export default function HeatingSystem() {
             forwardHeat: 0,
             backHeat: 0,
             state: '',
-            vrvRefrigerant: ElectricCalcRefrigerant.UNKNOWN,
-            vrvInsideType: EmitterIndoorUnitPlacement.CEILING,
+            vrvRefrigerant: 'UNKNOWN' as ElectricCalcRefrigerant,
+            vrvInsideType: 'CEILING' as EmitterIndoorUnitPlacement,
             insideRoom: false,
             circulation: false,
             circulatoryPumps: [],
-            hmvRegulation: EmitterHmvRegulation.NONE,
-            imageIds: [],
+            hmvRegulation: 'NONE' as EmitterHmvRegulation,
+            imageFile: null,
         }
 
         setFormData({
@@ -170,7 +192,7 @@ export default function HeatingSystem() {
 
     function handleActiveHeaterChange(
         field: keyof HeaterFormData,
-        value: string | number | string[] | boolean | null
+        value: string | number | string[] | boolean | File | null
     ) {
         if (activeHeaterIndex === null) return
 
@@ -193,6 +215,7 @@ export default function HeatingSystem() {
             | number
             | string[]
             | boolean
+            | File
             | null
             | ServicedBuildingShort[]
     ) {
@@ -212,6 +235,7 @@ export default function HeatingSystem() {
             | number
             | string[]
             | boolean
+            | File
             | null
             | ServicedBuildingShort[]
     ) {
@@ -230,6 +254,7 @@ export default function HeatingSystem() {
             setLoading,
             setFormErrors
         )
+        console.log(formData)
         if (result && result.success) {
             formData.heaters.forEach((e: HeaterFormData) => {
                 dispatch(
@@ -300,7 +325,7 @@ export default function HeatingSystem() {
                 >
                     {Object.values(SystemPurpose).map((value) => (
                         <MenuItem key={value} value={value}>
-                            {value}
+                            {value}{' '}
                         </MenuItem>
                     ))}
                 </Select>
@@ -321,7 +346,10 @@ export default function HeatingSystem() {
                     }
                 >
                     {allStandings.map((e: StandingsShort) => (
-                        <MenuItem key={e.id} value={e.id as string}>
+                        <MenuItem
+                            key={'standing-' + e.id}
+                            value={e.id as string}
+                        >
                             {e.name}
                         </MenuItem>
                     ))}
@@ -342,14 +370,17 @@ export default function HeatingSystem() {
                     onChange={(e) =>
                         setFormData({
                             ...formData,
-                            systemRegulation: e.target
-                                .value as SystemRegulation,
+                            systemRegulation: e.target.value,
                         })
                     }
                 >
-                    {Object.values(SystemRegulation).map((value) => (
-                        <MenuItem key={value} value={value}>
-                            {value}
+                    {Object.keys(SystemRegulation).map((value: string) => (
+                        <MenuItem value={value}>
+                            {
+                                SystemRegulation[
+                                    value as keyof typeof SystemRegulation
+                                ]
+                            }
                         </MenuItem>
                     ))}
                 </Select>
@@ -366,14 +397,17 @@ export default function HeatingSystem() {
                     onChange={(e) =>
                         setFormData({
                             ...formData,
-                            systemRegulationDesc: e.target
-                                .value as SystemRegulationDesc,
+                            systemRegulationDesc: e.target.value,
                         })
                     }
                 >
-                    {Object.values(SystemRegulationDesc).map((value) => (
-                        <MenuItem key={value} value={value}>
-                            {value}
+                    {Object.keys(SystemRegulationDesc).map((value: string) => (
+                        <MenuItem value={value}>
+                            {
+                                SystemRegulationDesc[
+                                    value as keyof typeof SystemRegulationDesc
+                                ]
+                            }
                         </MenuItem>
                     ))}
                 </Select>

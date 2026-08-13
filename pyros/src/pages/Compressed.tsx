@@ -28,7 +28,7 @@ export default function Compressed() {
         id: null,
         name: '',
         pressure: 0,
-        compressors: [],
+        machines: [],
     })
     const [activeCompressorIndex, setActiveCompressorIndex] = useState<
         number | null
@@ -44,8 +44,9 @@ export default function Compressed() {
 
     function handleAddCompressor() {
         const newCompressors = [
-            ...formData.compressors,
+            ...formData.machines,
             {
+                id: null,
                 mode: CompressorModes[0],
                 standing: null,
                 hours: 0,
@@ -57,27 +58,28 @@ export default function Compressed() {
             },
         ]
 
-        setFormData({ ...formData, compressors: newCompressors })
+        setFormData({ ...formData, machines: newCompressors })
         setActiveCompressorIndex(newCompressors.length)
+        console.log(formData)
     }
 
     function handleActiveCompressorChange(
         field: keyof CompressorData,
         value: string | number | boolean | null
     ) {
-        const compressors = [...formData.compressors]
+        const compressors = [...formData.machines]
         compressors[activeCompressorIndex!] = {
             ...compressors[activeCompressorIndex!],
             [field]: value,
         }
 
-        setFormData({ ...formData, compressors: compressors })
+        setFormData({ ...formData, machines: compressors })
     }
 
     const currentActiveCompressor =
         activeCompressorIndex === null
             ? null
-            : formData.compressors[activeCompressorIndex]
+            : formData.machines[activeCompressorIndex]
 
     async function handleSubmit() {
         const result = await FormSendProtocol.handleCompressor(
@@ -106,7 +108,7 @@ export default function Compressed() {
                 <TextField
                     label="Megnevezés"
                     variant="standard"
-                    value={formData.pressure}
+                    value={formData.name}
                     onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                     }
@@ -134,12 +136,12 @@ export default function Compressed() {
             </FormControl>
 
             <CardListing<CompressorData>
-                items={formData.compressors}
+                items={formData.machines}
                 activeIndex={activeCompressorIndex}
                 onSelect={(index) => setActiveCompressorIndex(index)}
                 onAdd={handleAddCompressor}
                 getName={(item) =>
-                    formData.compressors.indexOf(item) + 1 + '. kompresszor'
+                    formData.machines.indexOf(item) + 1 + '. kompresszor'
                 }
             />
 
