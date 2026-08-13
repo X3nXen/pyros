@@ -48,6 +48,7 @@ export default function Other() {
 
     function handleAddOtherMachine() {
         const newMachine: OtherDeviceData = {
+            id: null,
             mode: OtherMachineModes[0],
             standing: null,
             type: '',
@@ -121,7 +122,7 @@ export default function Other() {
                 onSelect={(index) => setActiveOtherMachineIndex(index)}
                 onAdd={handleAddOtherMachine}
                 getName={(item) =>
-                    formData.machines.indexOf(item) + '. berendezés'
+                    formData.machines.indexOf(item) + 1 + '. berendezés'
                 }
             />
 

@@ -196,7 +196,6 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            console.log(payload)
             const response = await Calls.postVentilationSystem(payload)
             let success = false
             let reason = null
@@ -262,6 +261,7 @@ export default class FormSendProtocol {
             setErrorMessage(errors)
             return { success: false, reason: 'Validation error' }
         }
+        console.log(payload)
 
         try {
             setLoading(true)

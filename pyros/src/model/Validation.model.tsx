@@ -350,7 +350,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             heaterElem.type = 'Add meg a hőtermelő típusát!'
             localHasError = true
         }
-        if (!item.heatingType || item.heatingType === '') {
+        if (!item.heatingType) {
             heaterElem.heatingType = 'Válaszd ki a hőtermelés jellegét!'
             localHasError = true
         }
@@ -527,7 +527,7 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         insulationWidth: '',
         heaterId: '',
         coolerId: '',
-        imageIds: '',
+        images: '',
     }
     let hasError = false
 
@@ -621,6 +621,11 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         hasError = true
     }
 
+    if (!payload.firstImage || !payload.secondImage || !payload.thirdImage) {
+        errors.images = 'Töltsd fel a kért képeket a légkezelőről!'
+        hasError = true
+    }
+
     return hasError ? errors : null
 }
 
@@ -669,7 +674,7 @@ export function validateCompressed(payload: CompressedFormData) {
         hasError = true
     }
 
-    payload.compressors.forEach((compressor: CompressorData) => {
+    payload.machines.forEach((compressor: CompressorData) => {
         let localHasError = false
         const localErrors: CompressorErrors = {
             compressorType: '',

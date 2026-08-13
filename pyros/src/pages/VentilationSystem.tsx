@@ -20,6 +20,7 @@ import {
     MenuItem,
     Select,
     TextField,
+    Typography,
 } from '@mui/material'
 import type {
     BuildingShort,
@@ -28,6 +29,7 @@ import type {
 import { useNavigate } from 'react-router-dom'
 import FormSendProtocol from '../controllers/Forms.control'
 import { SystemPurpose } from '../model/System.model'
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 
 export default function VentilationSystem() {
     const [formData, setFormData] = useState<VentilationFormData>({
@@ -55,7 +57,9 @@ export default function VentilationSystem() {
         heaterId: null,
         cooling: false,
         coolingId: null,
-        imageIds: [],
+        firstImage: null,
+        secondImage: null,
+        thirdImage: null,
     })
     const [loading, setLoading] = useState<boolean>(false)
     const [formErrors, setFormErrors] = useState<VentilationFormErrors | null>(
@@ -327,7 +331,7 @@ export default function VentilationSystem() {
             </FormControl>
             <FormControl error={!!formErrors?.blowPower}>
                 <TextField
-                    label="Befúvó hálózat légszállítása (m3)"
+                    label="Befúvó hálózat teljesítménye (W)"
                     variant="standard"
                     type="number"
                     value={formData.blowPower}
@@ -551,6 +555,120 @@ export default function VentilationSystem() {
                 </FormControl>
             ) : (
                 <></>
+            )}
+            <Button
+                component="label"
+                variant="contained"
+                color="inherit"
+                startIcon={<CloudUploadIcon />}
+                sx={{ mt: 1 }}
+            >
+                Fotó a ventilátorról
+                <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                            setFormData({
+                                ...formData,
+                                firstImage: e.target.files[0],
+                            })
+                        }
+                    }}
+                />
+            </Button>
+            {formData && formData.firstImage && (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        textAlign: 'center',
+                        color: 'text.secondary',
+                        mt: -1,
+                    }}
+                >
+                    Kiválasztott fájl:{' '}
+                    <strong>{formData.firstImage.name}</strong>
+                </Typography>
+            )}
+            <Button
+                component="label"
+                variant="contained"
+                color="inherit"
+                startIcon={<CloudUploadIcon />}
+                sx={{ mt: 1 }}
+            >
+                Fotó a hővisszanyerésről
+                <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                            setFormData({
+                                ...formData,
+                                secondImage: e.target.files[0],
+                            })
+                        }
+                    }}
+                />
+            </Button>
+            {formData && formData.secondImage && (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        textAlign: 'center',
+                        color: 'text.secondary',
+                        mt: -1,
+                    }}
+                >
+                    Kiválasztott fájl:{' '}
+                    <strong>{formData.secondImage.name}</strong>
+                </Typography>
+            )}
+            <Button
+                component="label"
+                variant="contained"
+                color="inherit"
+                startIcon={<CloudUploadIcon />}
+                sx={{ mt: 1 }}
+            >
+                Fotó a szigetelésről
+                <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                            setFormData({
+                                ...formData,
+                                thirdImage: e.target.files[0],
+                            })
+                        }
+                    }}
+                />
+            </Button>
+            {formData && formData.thirdImage && (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        textAlign: 'center',
+                        color: 'text.secondary',
+                        mt: -1,
+                    }}
+                >
+                    Kiválasztott fájl:{' '}
+                    <strong>{formData.thirdImage.name}</strong>
+                </Typography>
+            )}
+            {!!formErrors && formErrors.images && (
+                <Typography
+                    variant="caption"
+                    color="error"
+                    sx={{ mt: -2, pl: 2 }}
+                >
+                    {formErrors.images}
+                </Typography>
             )}
             <Button
                 variant="contained"

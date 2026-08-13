@@ -83,7 +83,9 @@ export interface VentilationFormData {
     heaterId: string | null
     cooling: boolean
     coolingId: string | null
-    imageIds: Array<string>
+    firstImage: File | null
+    secondImage: File | null
+    thirdImage: File | null
 }
 
 export interface VentilationFormErrors {
@@ -102,5 +104,5 @@ export interface VentilationFormErrors {
     insulationWidth: string
     heaterId: string
     coolerId: string
-    imageIds: string
+    images: string
 }

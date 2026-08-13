@@ -12,12 +12,12 @@ import {
     SystemPurpose,
     type HeatingSystemFormData,
 } from '../model/System.model'
-import type {
-    CompressedFormData,
-    CoolingFormData,
-    OtherFormData,
-    SteamFormData,
+import {
     TechnologyType,
+    type CompressedFormData,
+    type CoolingFormData,
+    type OtherFormData,
+    type SteamFormData,
 } from '../model/Technology.model'
 import type { VehicleFormData } from '../model/Vehicles.model'
 import type { VentilationFormData } from '../model/Ventilation.model'
@@ -47,16 +47,29 @@ export default class Calls {
     }
 
     static async postMeasurement(
-        payload: StandingsFormData
+        payload: StandingsFormData & {
+            excelFile?: File | null
+            file?: File | null
+        }
     ): Promise<{ success: boolean; message: string; id?: string }> {
         try {
+            const formData = new FormData()
+
+            const { excelFile, file, ...restPayload } = payload
+            const targetFile = excelFile || file
+
+            if (targetFile) {
+                formData.append('excel', targetFile)
+            }
+
+            formData.append('data', JSON.stringify(restPayload))
+
             const response = await fetch('http://localhost:8000/standings', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },
-                body: JSON.stringify(payload),
+                body: formData,
             })
 
             const data = await response.json()
@@ -226,15 +239,45 @@ export default class Calls {
     static async postVentilationSystem(
         payload: VentilationFormData
     ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+        try {
+            const formData = new FormData()
+
+            if (payload.firstImage instanceof File) {
+                formData.append(`ventilation_0_imageFile`, payload.firstImage)
+            }
+            if (payload.secondImage instanceof File) {
+                formData.append(`ventilation_1_imageFile`, payload.secondImage)
+            }
+            if (payload.thirdImage instanceof File) {
+                formData.append(`ventilation_2_imageFile`, payload.thirdImage)
+            }
+            formData.append('data', JSON.stringify(payload))
+
+            const response = await fetch('http://localhost:8000/ventilation', {
+                method: 'POST',
+                body: formData,
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     static async postLightingSystem(
@@ -271,15 +314,32 @@ export default class Calls {
     static async postVehicle(
         payload: VehicleFormData
     ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+        try {
+            const response = await fetch('http://localhost:8000/vehicle', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     static async postTechnology(
@@ -290,29 +350,85 @@ export default class Calls {
             | OtherFormData,
         type: TechnologyType
     ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload, type)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+        const appendedPayload = {
+            ...payload,
+            technologyType: type,
+        }
+        try {
+            const response = await fetch('http://localhost:8000/technology', {
+                method: 'POST',
+                body: JSON.stringify(appendedPayload),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     static async postProduct(
-        payload: ProductFormData
-    ): Promise<{ success: boolean; message: string }> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Backend fogadta az adatokat:', payload)
-                resolve({
-                    success: true,
-                    message: 'Sikeres mentés a PHP backendre!',
-                })
-            }, 1500)
-        })
+        payload: ProductFormData & {
+            excelFile?: File | null
+            file?: File | null
+        }
+    ): Promise<{ success: boolean; message: string; id?: string }> {
+        try {
+            const formData = new FormData()
+
+            const { excelFile, file, ...restPayload } = payload
+            const targetFile = excelFile || file
+
+            if (targetFile) {
+                formData.append('excel', targetFile)
+            }
+
+            formData.append('data', JSON.stringify(restPayload))
+
+            const response = await fetch('http://localhost:8000/product', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                },
+                body: formData,
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: data.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: data.message || 'Sikeres mentés!',
+                id: data.id,
+            }
+        } catch (error) {
+            console.error('Hálózati vagy szerver hiba:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
     }
 
     static async getMainStandings(): Promise<{
@@ -476,16 +592,13 @@ export default class Calls {
             }
 
             const heaters: Array<HeaterShort> = data.flatMap(
-                (system: {
-                    purpose: SystemPurpose
-                    heaters: string | Array<any>
-                }) => {
+                (system: { purpose: SystemPurpose; heaters: string | [] }) => {
                     const parsedHeaters =
                         typeof system.heaters === 'string'
                             ? JSON.parse(system.heaters)
                             : system.heaters || []
 
-                    return parsedHeaters.map((h: any) => ({
+                    return parsedHeaters.map((h: HeaterFormData) => ({
                         id: h.id,
                         name: h.name,
                         purpose: purposeMap[system.purpose] ?? system.purpose,

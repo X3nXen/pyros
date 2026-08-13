@@ -134,7 +134,7 @@ export default function Vehicles() {
                 </Select>
             </FormControl>
             {formData.category === 'Személygépjármű' ? (
-                <Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <FormControl error={!!formErrors?.motorSize}>
                         <TextField
                             label="Motor hengerűrtartalma (cm3)"
@@ -204,9 +204,11 @@ export default function Vehicles() {
             <FormControl error={!!formErrors?.usageValue}>
                 <TextField
                     label={
-                        'Használati érték (' + formData.usageMetric === 'tkm'
-                            ? 'km)'
-                            : formData.usageMetric + ')'
+                        'Használati érték (' +
+                        (formData.usageMetric === 'tkm'
+                            ? 'km'
+                            : formData.usageMetric) +
+                        ')'
                     }
                     variant="standard"
                     type="number"

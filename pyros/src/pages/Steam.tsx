@@ -52,6 +52,7 @@ export default function Steam() {
 
     function handleAddSteamMachine() {
         const newSteamMachine: SteamMachineData = {
+            id: null,
             standing: null,
             mode: SteamMachineModes[0],
             type: '',
@@ -180,7 +181,7 @@ export default function Steam() {
                 onAdd={handleAddSteamMachine}
                 onSelect={(index) => setActiveSteamMachineIndex(index)}
                 getName={(item) =>
-                    formData.machines.indexOf(item) + '. gőzfejlesztő'
+                    formData.machines.indexOf(item) + 1 + '. gőzfejlesztő'
                 }
             />
 
