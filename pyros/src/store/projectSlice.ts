@@ -1,3 +1,4 @@
+import type { RootState } from '.'
 import Calls from '../controllers/Calls.control'
 import type { BuildingShort } from '../model/Building.model'
 import type { ComplexShortData } from '../model/Complex.model'
@@ -50,15 +51,21 @@ export const fetchClickupData = createAsyncThunk(
 
 export const fetchProjectData = createAsyncThunk(
     'project/fetchData',
-    async (_, { rejectWithValue }) => {
+    async (_, { getState, rejectWithValue }) => {
         try {
+            const state = getState() as RootState
+            const taskId = state.project.currentTaskId
+
+            if (!taskId) {
+                return rejectWithValue('Nincs kiválasztva aktív projekt!')
+            }
             const [mainRes, subRes, complexRes, buildingRes, heaterRes] =
                 await Promise.all([
-                    Calls.getMainStandings(),
-                    Calls.getSubStandings(),
-                    Calls.getComplexes(),
-                    Calls.getBuildings(),
-                    Calls.getHeaters(),
+                    Calls.getMainStandings(taskId),
+                    Calls.getSubStandings(taskId),
+                    Calls.getComplexes(taskId),
+                    Calls.getBuildings(taskId),
+                    Calls.getHeaters(taskId),
                 ])
             return {
                 mainStandings: mainRes.success ? mainRes.payload : [],

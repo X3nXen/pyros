@@ -40,6 +40,8 @@ export default function Other() {
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
     ]
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     const currentActiveOtherMachine =
         activeOtherMachineIndex !== null
@@ -83,7 +85,8 @@ export default function Other() {
         const result = await FormSendProtocol.handleOther(
             formData,
             setLoading,
-            setErrors
+            setErrors,
+            projectId
         )
         if (result && result.success) {
             navigate('/')

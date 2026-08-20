@@ -23,34 +23,49 @@ import type { VehicleFormData } from '../model/Vehicles.model'
 import type { VentilationFormData } from '../model/Ventilation.model'
 
 export default class Calls {
-    /**
-     *  TODO: Clickup audit table integration and call implementation
-     */
+    static getApiLink() {
+        return 'http://localhost:8000'
+    }
+
     static async getClickupTasks(): Promise<{
         success: boolean
         payload: Array<ClickupTaskShort>
     }> {
-        const MOCK_CLICKUP_TASKS = [
-            { id: 'task_budapest_01', name: 'Budapest irodaház audit (#1234)' },
-            { id: 'task_gyor_02', name: 'Győri gyáregység energetika (#5678)' },
-            {
-                id: 'task_debrecen_03',
-                name: 'Debreceni iskola felmérés (#9012)',
-            },
-        ]
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Clickup fogadta a kérést')
-                resolve({ success: true, payload: MOCK_CLICKUP_TASKS })
-            }, 1500)
-        })
+        try {
+            const response = await fetch(Calls.getApiLink() + '/clickup', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    Accept: 'application/json',
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            }
+
+            const data: Array<{ id: string; name: string }> =
+                await response.json()
+
+            return {
+                success: true,
+                payload: data,
+            }
+        } catch (error) {
+            console.error('Hiba a taskok lekérése során:', error)
+            return {
+                success: false,
+                payload: [],
+            }
+        }
     }
 
     static async postMeasurement(
         payload: StandingsFormData & {
             excelFile?: File | null
             file?: File | null
-        }
+        },
+        projectId: string
     ): Promise<{ success: boolean; message: string; id?: string }> {
         try {
             const formData = new FormData()
@@ -62,9 +77,12 @@ export default class Calls {
                 formData.append('excel', targetFile)
             }
 
-            formData.append('data', JSON.stringify(restPayload))
+            formData.append(
+                'data',
+                JSON.stringify({ ...restPayload, project_id: projectId })
+            )
 
-            const response = await fetch('http://localhost:8000/standings', {
+            const response = await fetch(Calls.getApiLink() + '/standings', {
                 method: 'POST',
                 headers: {
                     Accept: 'application/json',
@@ -96,16 +114,17 @@ export default class Calls {
     }
 
     static async postComplex(
-        payload: ComplexFormData
+        payload: ComplexFormData,
+        projectId: string
     ): Promise<{ success: boolean; message: string; id?: string }> {
         try {
-            const response = await fetch('http://localhost:8000/complex', {
+            const response = await fetch(Calls.getApiLink() + '/complex', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, project_id: projectId }),
             })
 
             const data = await response.json()
@@ -131,7 +150,10 @@ export default class Calls {
         }
     }
 
-    static async postBuilding(payload: BuildingFormData): Promise<{
+    static async postBuilding(
+        payload: BuildingFormData,
+        projectId: string
+    ): Promise<{
         success: boolean
         message: string
         id?: string
@@ -140,13 +162,16 @@ export default class Calls {
             const formData = new FormData()
             const { imageFile, ...restOfPayload } = payload
 
-            formData.append('data', JSON.stringify(restOfPayload))
+            formData.append(
+                'data',
+                JSON.stringify({ ...restOfPayload, project_id: projectId })
+            )
 
             if (imageFile instanceof File) {
                 formData.append('imageFile', imageFile)
             }
 
-            const response = await fetch('http://localhost:8000/buildings', {
+            const response = await fetch(Calls.getApiLink() + '/buildings', {
                 method: 'POST',
                 headers: {
                     Accept: 'application/json',
@@ -178,7 +203,8 @@ export default class Calls {
     }
 
     static async postHeatingSystem(
-        payload: HeatingSystemFormData
+        payload: HeatingSystemFormData,
+        projectId: string
     ): Promise<{ success: boolean; message: string }> {
         try {
             const formData = new FormData()
@@ -207,9 +233,12 @@ export default class Calls {
                 }
             })
 
-            formData.append('data', JSON.stringify(payload))
+            formData.append(
+                'data',
+                JSON.stringify({ ...payload, project_id: projectId })
+            )
 
-            const response = await fetch('http://localhost:8000/heating', {
+            const response = await fetch(Calls.getApiLink() + '/heating', {
                 method: 'POST',
                 body: formData,
             })
@@ -237,7 +266,8 @@ export default class Calls {
     }
 
     static async postVentilationSystem(
-        payload: VentilationFormData
+        payload: VentilationFormData,
+        projectId: string
     ): Promise<{ success: boolean; message: string }> {
         try {
             const formData = new FormData()
@@ -251,9 +281,12 @@ export default class Calls {
             if (payload.thirdImage instanceof File) {
                 formData.append(`ventilation_2_imageFile`, payload.thirdImage)
             }
-            formData.append('data', JSON.stringify(payload))
+            formData.append(
+                'data',
+                JSON.stringify({ ...payload, project_id: projectId })
+            )
 
-            const response = await fetch('http://localhost:8000/ventilation', {
+            const response = await fetch(Calls.getApiLink() + '/ventilation', {
                 method: 'POST',
                 body: formData,
             })
@@ -281,12 +314,13 @@ export default class Calls {
     }
 
     static async postLightingSystem(
-        payload: Array<LightingFormData>
+        payload: Array<LightingFormData>,
+        projectId: string
     ): Promise<{ success: boolean; message: string }> {
         try {
-            const response = await fetch('http://localhost:8000/lighting', {
+            const response = await fetch(Calls.getApiLink() + '/lighting', {
                 method: 'POST',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, project_id: projectId }),
             })
 
             const result = await response.json()
@@ -312,12 +346,13 @@ export default class Calls {
     }
 
     static async postVehicle(
-        payload: VehicleFormData
+        payload: VehicleFormData,
+        projectId: string
     ): Promise<{ success: boolean; message: string }> {
         try {
-            const response = await fetch('http://localhost:8000/vehicle', {
+            const response = await fetch(Calls.getApiLink() + '/vehicle', {
                 method: 'POST',
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, project_id: projectId }),
             })
 
             const result = await response.json()
@@ -348,14 +383,16 @@ export default class Calls {
             | SteamFormData
             | CoolingFormData
             | OtherFormData,
-        type: TechnologyType
+        type: TechnologyType,
+        projectId: string
     ): Promise<{ success: boolean; message: string }> {
         const appendedPayload = {
             ...payload,
             technologyType: type,
+            project_id: projectId,
         }
         try {
-            const response = await fetch('http://localhost:8000/technology', {
+            const response = await fetch(Calls.getApiLink() + '/technology', {
                 method: 'POST',
                 body: JSON.stringify(appendedPayload),
             })
@@ -386,7 +423,8 @@ export default class Calls {
         payload: ProductFormData & {
             excelFile?: File | null
             file?: File | null
-        }
+        },
+        projectId: string
     ): Promise<{ success: boolean; message: string; id?: string }> {
         try {
             const formData = new FormData()
@@ -398,9 +436,12 @@ export default class Calls {
                 formData.append('excel', targetFile)
             }
 
-            formData.append('data', JSON.stringify(restPayload))
+            formData.append(
+                'data',
+                JSON.stringify({ ...restPayload, project_id: projectId })
+            )
 
-            const response = await fetch('http://localhost:8000/product', {
+            const response = await fetch(Calls.getApiLink() + '/product', {
                 method: 'POST',
                 headers: {
                     Accept: 'application/json',
@@ -431,13 +472,15 @@ export default class Calls {
         }
     }
 
-    static async getMainStandings(): Promise<{
+    static async getMainStandings(projectId: string): Promise<{
         success: boolean
         payload: Array<StandingsShort>
     }> {
         try {
             const response = await fetch(
-                'http://localhost:8000/standings?type=MAIN',
+                Calls.getApiLink() +
+                    '/standings?type=MAIN&project_id=' +
+                    projectId,
                 {
                     method: 'GET',
                     headers: {
@@ -468,13 +511,15 @@ export default class Calls {
     /**
      * TODO: Standings backend call implementation and parsing
      */
-    static async getSubStandings(): Promise<{
+    static async getSubStandings(projectId: string): Promise<{
         success: boolean
         payload: Array<StandingsShort>
     }> {
         try {
             const response = await fetch(
-                'http://localhost:8000/standings?type=SUB',
+                Calls.getApiLink() +
+                    '/standings?type=SUB&project_id=' +
+                    projectId,
                 {
                     method: 'GET',
                     headers: {
@@ -505,17 +550,20 @@ export default class Calls {
     /**
      * TODO: Complex backend call implementation and parsing
      */
-    static async getComplexes(): Promise<{
+    static async getComplexes(projectId: string): Promise<{
         success: boolean
         payload: Array<ComplexShortData>
     }> {
         try {
-            const response = await fetch('http://localhost:8000/complex', {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                },
-            })
+            const response = await fetch(
+                Calls.getApiLink() + '/complex?project_id=' + projectId,
+                {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                }
+            )
 
             if (!response.ok) {
                 throw new Error(`HTTP hiba! Státusz: ${response.status}`)
@@ -536,17 +584,20 @@ export default class Calls {
         }
     }
 
-    static async getBuildings(): Promise<{
+    static async getBuildings(projectId: string): Promise<{
         success: boolean
         payload: Array<BuildingShort>
     }> {
         try {
-            const response = await fetch('http://localhost:8000/buildings', {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                },
-            })
+            const response = await fetch(
+                Calls.getApiLink() + '/buildings?project_id=' + projectId,
+                {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                }
+            )
 
             if (!response.ok) {
                 throw new Error(`HTTP hiba! Státusz: ${response.status}`)
@@ -567,17 +618,20 @@ export default class Calls {
         }
     }
 
-    static async getHeaters(): Promise<{
+    static async getHeaters(projectId: string): Promise<{
         success: boolean
         payload: Array<HeaterShort>
     }> {
         try {
-            const response = await fetch('http://localhost:8000/heating', {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                },
-            })
+            const response = await fetch(
+                Calls.getApiLink() + '/heating?project_id=' + projectId,
+                {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                }
+            )
 
             if (!response.ok) {
                 throw new Error(`HTTP hiba! Státusz: ${response.status}`)

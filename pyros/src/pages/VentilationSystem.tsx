@@ -70,6 +70,8 @@ export default function VentilationSystem() {
     const heaters = useAppSelector((state) => state.project.heaters)
 
     const navigate = useNavigate()
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     function handleChange(
         field: keyof VentilationFormData,
@@ -82,7 +84,8 @@ export default function VentilationSystem() {
         const result = await FormSendProtocol.handleVentilationSystem(
             formData,
             setLoading,
-            setFormErrors
+            setFormErrors,
+            projectId
         )
         if (result && result.success) {
             navigate('/')

@@ -40,6 +40,8 @@ export default function Steam() {
         number | null
     >(null)
     const navigate = useNavigate()
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     const standings = [
         ...useAppSelector((state) => state.project.mainStandings),
@@ -85,7 +87,8 @@ export default function Steam() {
         const result = await FormSendProtocol.handleSteam(
             formData,
             setLoading,
-            setErrors
+            setErrors,
+            projectId
         )
         if (result && result.success) {
             navigate('/')

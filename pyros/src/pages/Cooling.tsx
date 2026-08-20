@@ -42,6 +42,8 @@ export default function Cooling() {
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
     ]
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     const currentActiveCoolingMachine =
         activeCoolingMachineIndex !== null
@@ -83,7 +85,8 @@ export default function Cooling() {
         const result = await FormSendProtocol.handleCooling(
             formData,
             setLoading,
-            setErrors
+            setErrors,
+            projectId
         )
         if (result && result.success) {
             navigate('/')

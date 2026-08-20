@@ -87,6 +87,8 @@ export default function HeatingSystem() {
     const allStandings = subStandings.concat(mainStandings)
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     function handleAddHeater() {
         const currentPurpose = formData.systemPurpose
@@ -252,7 +254,8 @@ export default function HeatingSystem() {
         const result = await FormSendProtocol.handleHeatingSystemForm(
             formData,
             setLoading,
-            setFormErrors
+            setFormErrors,
+            projectId
         )
         console.log(formData)
         if (result && result.success) {

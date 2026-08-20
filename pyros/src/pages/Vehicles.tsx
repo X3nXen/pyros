@@ -42,12 +42,15 @@ export default function Vehicles() {
     const subStandings = useAppSelector((state) => state.project.subStandings)
 
     const navigate = useNavigate()
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     async function handleSubmit() {
         const result = await FormSendProtocol.handleVehicle(
             formData,
             setLoading,
-            setFormErrors
+            setFormErrors,
+            projectId
         )
         if (result && result.success) {
             navigate('/')

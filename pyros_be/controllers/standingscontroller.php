@@ -30,22 +30,28 @@ class StandingsController
         try {
             $db = Database::getConnection();
 
+            if (!isset($_GET['project_id']) || empty($_GET['project_id'])) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Nincs megadva projekt!']);
+            }
+            $projectId = $_GET['project_id'];
+
             $type = isset($_GET['type']) ? strtoupper(trim($_GET['type'])) : null;
 
             if ($type === 'MAIN') {
-                $sql = "SELECT id, name FROM standings WHERE measurement_type = 'MAIN' ORDER BY name ASC";
+                $sql = "SELECT id, name FROM standings WHERE measurement_type = 'MAIN' AND project_id=:projectId";
                 $stmt = $db->prepare($sql);
-                $stmt->execute();
+                $stmt->execute(['projectId' => $projectId]);
 
             } elseif ($type === 'SUB' || $type === 'VIRTUAL') {
-                $sql = "SELECT id, name FROM standings WHERE measurement_type != 'MAIN' ORDER BY name ASC";
+                $sql = "SELECT id, name FROM standings WHERE measurement_type != 'MAIN' AND project_id=:projectId";
                 $stmt = $db->prepare($sql);
-                $stmt->execute();
+                $stmt->execute(['projectId' => $projectId]);
 
             } else {
-                $sql = "SELECT id, name FROM standings ORDER BY name ASC";
+                $sql = "SELECT id, name FROM standings WHERE project_id=:projectId";
                 $stmt = $db->prepare($sql);
-                $stmt->execute();
+                $stmt->execute(['projectId' => $projectId]);
             }
 
             $standings = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -92,6 +98,14 @@ class StandingsController
 
         $dateFrom = !empty($data['dateFrom']) ? date('Y-m-d', strtotime($data['dateFrom'])) : null;
         $dateTo = !empty($data['dateTo']) ? date('Y-m-d', strtotime($data['dateTo'])) : null;
+        $projectId = $data['project_id'] ?? null;
+        if (!$projectId) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Nincs megadott projekt'
+            ]);
+        }
 
         if (!$name || !$measurementType || !$source || !$measurement) {
             http_response_code(422);
@@ -119,9 +133,9 @@ class StandingsController
             $db = Database::getConnection();
 
             $sql = "INSERT INTO standings 
-                    (name, measurement_type, sub_to, source, measurement, date_from, date_to, consumption) 
+                    (name, measurement_type, sub_to, source, measurement, date_from, date_to, consumption, project_id) 
                 VALUES 
-                    (:name, :measurement_type, :sub_to, :source, :measurement, :date_from, :date_to, :consumption)";
+                    (:name, :measurement_type, :sub_to, :source, :measurement, :date_from, :date_to, :consumption, :projectId)";
 
             $stmt = $db->prepare($sql);
 
@@ -133,7 +147,8 @@ class StandingsController
                 ':measurement' => $measurement,
                 ':date_from' => $dateFrom,
                 ':date_to' => $dateTo,
-                ':consumption' => $consumptionJson
+                ':consumption' => $consumptionJson,
+                ':projectId' => $projectId
             ]);
 
             http_response_code(201);

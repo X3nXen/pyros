@@ -40,6 +40,8 @@ export default function Compressed() {
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
     ]
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
     const navigate = useNavigate()
 
     function handleAddCompressor() {
@@ -85,7 +87,8 @@ export default function Compressed() {
         const result = await FormSendProtocol.handleCompressor(
             formData,
             setLoading,
-            setErrors
+            setErrors,
+            projectId
         )
         if (result && result.success) {
             navigate('/')
