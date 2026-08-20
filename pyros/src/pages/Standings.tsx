@@ -52,12 +52,15 @@ export default function Standings() {
     const mainMeasurements = useAppSelector(
         (state) => state.project.mainStandings
     )
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     const handleSave = async () => {
         const result = await FormSendProtocol.handleMeasurementForm(
             formData,
             setLoading,
-            setErrorMessage
+            setErrorMessage,
+            projectId
         )
         if (result && result.success) {
             const savedMeasurement: StandingsShort = {

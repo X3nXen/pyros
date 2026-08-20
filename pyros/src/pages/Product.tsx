@@ -13,6 +13,7 @@ import {
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
+import { useAppSelector } from '../store'
 
 export default function Product() {
     const [formData, setFormData] = useState<ProductFormData>({
@@ -23,12 +24,15 @@ export default function Product() {
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState<boolean>(false)
     const navigate = useNavigate()
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     async function handleSubmit() {
         const result = await FormSendProtocol.handleProduct(
             formData,
             setLoading,
-            setError
+            setError,
+            projectId
         )
         if (result && result.success) {
             navigate('/')

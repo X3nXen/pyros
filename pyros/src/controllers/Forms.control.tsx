@@ -43,7 +43,8 @@ export default class FormSendProtocol {
     static async handleMeasurementForm(
         payload: StandingsFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: StandingsErrors | null) => void
+        setErrorMessage: (msg: StandingsErrors | null) => void,
+        projectId: string
     ): Promise<{ success: boolean; reason: string | null }> {
         setErrorMessage(null)
         const errors = validateStandings(payload)
@@ -54,7 +55,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postMeasurement(payload)
+            const response = await Calls.postMeasurement(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {
@@ -78,7 +79,8 @@ export default class FormSendProtocol {
     static async handleComplexForm(
         payload: ComplexFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: ComplexErrors | null) => void
+        setErrorMessage: (msg: ComplexErrors | null) => void,
+        projectId: string
     ): Promise<{ success: boolean; reason: string | null }> {
         setErrorMessage(null)
         const errors = validateComplex(payload)
@@ -89,7 +91,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postComplex(payload)
+            const response = await Calls.postComplex(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {
@@ -113,7 +115,8 @@ export default class FormSendProtocol {
     static async handleBuildingForm(
         payload: BuildingFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: BuildingErrors | null) => void
+        setErrorMessage: (msg: BuildingErrors | null) => void,
+        projectId: string
     ): Promise<{ success: boolean; reason: string | null }> {
         setErrorMessage(null)
         const errors = validateBuilding(payload)
@@ -124,7 +127,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postBuilding(payload)
+            const response = await Calls.postBuilding(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {
@@ -148,7 +151,8 @@ export default class FormSendProtocol {
     static async handleHeatingSystemForm(
         payload: HeatingSystemFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: HeatingSystemErrors | null) => void
+        setErrorMessage: (msg: HeatingSystemErrors | null) => void,
+        projectId: string
     ): Promise<{ success: boolean; reason: string | null }> {
         setErrorMessage(null)
         const errors = validateHeatingSystem(payload)
@@ -159,7 +163,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postHeatingSystem(payload)
+            const response = await Calls.postHeatingSystem(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {
@@ -182,7 +186,8 @@ export default class FormSendProtocol {
     static async handleVentilationSystem(
         payload: VentilationFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: VentilationFormErrors | null) => void
+        setErrorMessage: (msg: VentilationFormErrors | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         /**
@@ -196,7 +201,10 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postVentilationSystem(payload)
+            const response = await Calls.postVentilationSystem(
+                payload,
+                projectId
+            )
             let success = false
             let reason = null
             if (response.success) {
@@ -219,7 +227,8 @@ export default class FormSendProtocol {
     static async handleLightingSystem(
         payload: Array<LightingFormData>,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: Array<string | LightingErrors> | null) => void
+        setErrorMessage: (msg: Array<string | LightingErrors> | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = validateLightingSystem(payload)
@@ -230,7 +239,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postLightingSystem(payload)
+            const response = await Calls.postLightingSystem(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {
@@ -253,7 +262,8 @@ export default class FormSendProtocol {
     static async handleVehicle(
         payload: VehicleFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: VehicleErrors | null) => void
+        setErrorMessage: (msg: VehicleErrors | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = validateVehicle(payload)
@@ -265,7 +275,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postVehicle(payload)
+            const response = await Calls.postVehicle(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {
@@ -288,7 +298,8 @@ export default class FormSendProtocol {
     static async handleCompressor(
         payload: CompressedFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: CompressorFormErrors | null) => void
+        setErrorMessage: (msg: CompressorFormErrors | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = validateCompressed(payload)
@@ -301,7 +312,8 @@ export default class FormSendProtocol {
             setLoading(true)
             const response = await Calls.postTechnology(
                 payload,
-                TechnologyType.COMPRESSED_AIR
+                TechnologyType.COMPRESSED_AIR,
+                projectId
             )
             let success = false
             let reason = null
@@ -325,7 +337,8 @@ export default class FormSendProtocol {
     static async handleSteam(
         payload: SteamFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: SteamErrors | null) => void
+        setErrorMessage: (msg: SteamErrors | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = validateSteam(payload)
@@ -338,7 +351,8 @@ export default class FormSendProtocol {
             setLoading(true)
             const response = await Calls.postTechnology(
                 payload,
-                TechnologyType.STEAM
+                TechnologyType.STEAM,
+                projectId
             )
             let success = false
             let reason = null
@@ -362,7 +376,8 @@ export default class FormSendProtocol {
     static async handleCooling(
         payload: CoolingFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: CoolingErrors | null) => void
+        setErrorMessage: (msg: CoolingErrors | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = validateCooling(payload)
@@ -375,7 +390,8 @@ export default class FormSendProtocol {
             setLoading(true)
             const response = await Calls.postTechnology(
                 payload,
-                TechnologyType.COOLING
+                TechnologyType.COOLING,
+                projectId
             )
             let success = false
             let reason = null
@@ -399,7 +415,8 @@ export default class FormSendProtocol {
     static async handleOther(
         payload: OtherFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: OtherErrors | null) => void
+        setErrorMessage: (msg: OtherErrors | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = validateOther(payload)
@@ -412,7 +429,8 @@ export default class FormSendProtocol {
             setLoading(true)
             const response = await Calls.postTechnology(
                 payload,
-                TechnologyType.OTHER
+                TechnologyType.OTHER,
+                projectId
             )
             let success = false
             let reason = null
@@ -435,7 +453,8 @@ export default class FormSendProtocol {
     static async handleProduct(
         payload: ProductFormData,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: string | null) => void
+        setErrorMessage: (msg: string | null) => void,
+        projectId: string
     ) {
         setErrorMessage(null)
         const errors = payload.file === null ? 'Töltsd fel az adatot!' : null
@@ -446,7 +465,7 @@ export default class FormSendProtocol {
 
         try {
             setLoading(true)
-            const response = await Calls.postProduct(payload)
+            const response = await Calls.postProduct(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {

@@ -28,10 +28,18 @@ class ProductController
     private function handleGet()
     {
         try {
+            if (!isset($_GET['project_id']) || empty($_GET['project_id'])) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Nincs megadva projekt!']);
+            }
+            $projectId = $_GET['project_id'];
             $db = Database::getConnection();
 
-            $sql = "SELECT id, product_name FROM products";
-            $stmt = $db->query($sql);
+            $sql = "SELECT id, product_name FROM products WHERE project_id=:projectId";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':projectId' => $projectId
+            ]);
             $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             http_response_code(200);
@@ -55,8 +63,17 @@ class ProductController
             $data = json_decode($rawInput, true);
         }
 
+        $projectId = $data['project_id'] ?? null;
+        if (!$projectId) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Nincs megadott projekt'
+            ]);
+        }
+
         if (!$data) {
-            http_response_code(400);
+            http_response_code(500);
             echo json_encode(['status' => 'error', 'message' => 'Érvénytelen adatok!']);
             return;
         }
@@ -85,12 +102,13 @@ class ProductController
 
             $db = Database::getConnection();
 
-            $sql = "INSERT INTO product (product_name, metric, json) VALUES (:product_name, :metric, :json)";
+            $sql = "INSERT INTO product (product_name, metric, json, project_id) VALUES (:product_name, :metric, :json, :projectId)";
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':product_name' => $productName,
                 ':metric' => $metric,
-                ':json' => $productionJson
+                ':json' => $productionJson,
+                ':projectId' => $projectId
             ]);
 
             http_response_code(200);

@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../database.php';
 
-class ComplexController {
+class ComplexController
+{
 
-    public function index() {
+    public function index()
+    {
         $method = $_SERVER['REQUEST_METHOD'];
 
         switch ($method) {
@@ -22,18 +24,27 @@ class ComplexController {
         }
     }
 
-    private function handleGet() {
+    private function handleGet()
+    {
         try {
+            if (!isset($_GET['project_id']) || empty($_GET['project_id'])) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Nincs megadva projekt!']);
+            }
+            $projectId = $_GET['project_id'];
             $db = Database::getConnection();
 
-                $sql = "SELECT id, name FROM complex ORDER BY name ASC";
-                $stmt = $db->prepare($sql);
-                $stmt->execute();
+
+            $sql = "SELECT id, name FROM complex WHERE project_id=:projectId";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':projectId' => $projectId
+            ]);
 
             $standings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($standings as &$item) {
-                $item['id'] = (string)$item['id'];
+                $item['id'] = (string) $item['id'];
             }
 
             http_response_code(200);
@@ -48,19 +59,21 @@ class ComplexController {
         }
     }
 
-    private function handlePost() {
+    private function handlePost()
+    {
         $rawInput = file_get_contents('php://input');
         $data = json_decode($rawInput, true);
 
-        $name            = $data['name'] ?? null;
+        $name = $data['name'] ?? null;
         $address = $data['address'] ?? null;
-        $postal           = $data['postal'] ?? null;
-        $city          = $data['city'] ?? null;
-        $parcelNumber     = $data['parcelNumber'] ?? null;
-        
+        $postal = $data['postal'] ?? null;
+        $city = $data['city'] ?? null;
+        $parcelNumber = $data['parcelNumber'] ?? null;
+        $projectId = $data['project_id'] ?? null;
+
         $standingIds = $data['meterStandings'] ?? [];
 
-        if (!$name || !$address || !$postal || !$city || !$parcelNumber || count($standingIds) === 0) {
+        if (!$projectId || !$name || !$address || !$postal || !$city || !$parcelNumber || count($standingIds) === 0) {
             http_response_code(422);
             echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
             return;
@@ -74,29 +87,30 @@ class ComplexController {
             $db->beginTransaction();
 
             $sql = "INSERT INTO complex 
-                        (name, address, postal, city, parcelNumber) 
+                        (name, address, postal, city, parcelNumber, project_id) 
                     VALUES 
-                        (:name, :address, :postal, :city, :parcelNumber)";
+                        (:name, :address, :postal, :city, :parcelNumber, :project_id)";
 
             $stmt = $db->prepare($sql);
 
             $stmt->execute([
-                ':name'             => $name,
-                ':address'          => $address,
-                ':postal'           => $postal,
-                ':city'             => $city,
-                ':parcelNumber'     => $parcelNumber
+                ':name' => $name,
+                ':address' => $address,
+                ':postal' => $postal,
+                ':city' => $city,
+                ':parcelNumber' => $parcelNumber,
+                ':project_id' => $projectId
             ]);
 
             $insertedId = $db->lastInsertId();
 
-            foreach($standingIds as $standingId){
+            foreach ($standingIds as $standingId) {
                 $sql = "INSERT INTO standings_to_other(standing, reference, type) VALUES (:standingId, :complexId, :complexType)";
                 $stmt = $db->prepare($sql);
                 $stmt->execute([
-                ':standingId' => (int) $standingId,
-                ':complexId' => (int) $insertedId,
-                ':complexType' => 'COMPLEX' 
+                    ':standingId' => (int) $standingId,
+                    ':complexId' => (int) $insertedId,
+                    ':complexType' => 'COMPLEX'
                 ]);
             }
 
@@ -104,7 +118,7 @@ class ComplexController {
 
             http_response_code(201);
             echo json_encode([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Telephely sikeresen elmentve!',
                 'id' => $insertedId
             ]);
@@ -115,7 +129,7 @@ class ComplexController {
             }
             http_response_code(500);
             echo json_encode([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Adatbázis hiba: ' . $e->getMessage()
             ]);
         }

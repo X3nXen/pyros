@@ -43,12 +43,15 @@ export default function Building() {
     const [loading, setLoading] = useState<boolean>(false)
     const complexes = useAppSelector((state) => state.project.complexes)
     const subStandings = useAppSelector((state) => state.project.subStandings)
+    const projectId =
+        useAppSelector((state) => state.project.currentTaskId) ?? ''
 
     const handleSubmit = async () => {
         const result = await FormSendProtocol.handleBuildingForm(
             formData,
             setLoading,
-            setFormErrors
+            setFormErrors,
+            projectId
         )
         console.log(formData)
         console.log(formErrors)

@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../database.php';
 
-class HeatingController {
+class HeatingController
+{
 
-    public function index() {
+    public function index()
+    {
         $method = $_SERVER['REQUEST_METHOD'];
 
         switch ($method) {
@@ -22,17 +24,25 @@ class HeatingController {
         }
     }
 
-    private function handleGet(){
-        try{
+    private function handleGet()
+    {
+        try {
+            if (!isset($_GET['project_id']) || empty($_GET['project_id'])) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Nincs megadva projekt!']);
+            }
+            $projectId = $_GET['project_id'];
             $db = Database::getConnection();
-            $sql = "SELECT purpose, heaters FROM heating_systems";
+            $sql = "SELECT purpose, heaters FROM heating_systems WHERE project_id=:projectId";
             $stmt = $db->prepare($sql);
-    
-            $stmt->execute();
+
+            $stmt->execute([
+                ':projectId' => $projectId
+            ]);
             $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
             http_response_code(200);
             echo json_encode($data);
-        } catch(PDOException $e){
+        } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
@@ -41,7 +51,8 @@ class HeatingController {
         }
     }
 
-    private function handlePost(){
+    private function handlePost()
+    {
         $rawInput = null;
         $data = null;
         if (isset($_POST['data'])) {
@@ -51,7 +62,9 @@ class HeatingController {
             $data = json_decode($rawInput, true);
         }
 
-        if (!$data) {
+        $projectId = $data['project_id'] ?? null;
+
+        if (!$data || !$projectId) {
             http_response_code(400);
             echo json_encode([
                 'status' => 'error',
@@ -84,7 +97,7 @@ class HeatingController {
             }
 
             // Segédfüggvény a képek kétlépcsős mentéséhez (image_info -> move -> update img_<id>)
-            $processImage = function($fileKey, $referenceType, $referenceId) use ($db, $uploadDir) {
+            $processImage = function ($fileKey, $referenceType, $referenceId) use ($db, $uploadDir) {
                 if (!isset($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
                     return null;
                 }
@@ -98,9 +111,9 @@ class HeatingController {
                             VALUES (:fileName, :referenceType, :referenceId)";
                 $stmtImage = $db->prepare($sqlImage);
                 $stmtImage->execute([
-                    ':fileName'      => $originalName,
+                    ':fileName' => $originalName,
                     ':referenceType' => $referenceType,
-                    ':referenceId'   => (int)$referenceId
+                    ':referenceId' => (int) $referenceId
                 ]);
 
                 $imageId = $db->lastInsertId();
@@ -117,11 +130,11 @@ class HeatingController {
                 $stmtUpdateImg = $db->prepare($sqlUpdateImg);
                 $stmtUpdateImg->execute([
                     ':fileName' => $newFileName,
-                    ':id'       => $imageId
+                    ':id' => $imageId
                 ]);
 
                 return [
-                    'id'        => $imageId,
+                    'id' => $imageId,
                     'file_name' => $newFileName
                 ];
             };
@@ -135,7 +148,7 @@ class HeatingController {
                 if (empty($heater['id'])) {
                     $heater['id'] = mt_rand(1000000, 99999999);
                 } else {
-                    $heater['id'] = (int)$heater['id'];
+                    $heater['id'] = (int) $heater['id'];
                 }
 
                 // Kép feldolgozása
@@ -150,8 +163,8 @@ class HeatingController {
                 // Mérőóra elmentése
                 if (!empty($heater['standing'])) {
                     $heaterStandings[] = [
-                        'standing'  => (int)$heater['standing'],
-                        'reference' => (int)$heater['id']
+                        'standing' => (int) $heater['standing'],
+                        'reference' => (int) $heater['id']
                     ];
                 }
             }
@@ -163,7 +176,7 @@ class HeatingController {
                 if (empty($pump['id'])) {
                     $pump['id'] = mt_rand(100000000, 199999999);
                 } else {
-                    $pump['id'] = (int)$pump['id'];
+                    $pump['id'] = (int) $pump['id'];
                 }
 
                 $fileKey = "pumps_{$index}_imageFile";
@@ -182,7 +195,7 @@ class HeatingController {
                 if (empty($emitter['id'])) {
                     $emitter['id'] = mt_rand(200000000, 299999999);
                 } else {
-                    $emitter['id'] = (int)$emitter['id'];
+                    $emitter['id'] = (int) $emitter['id'];
                 }
 
                 $fileKey = "emitters_{$index}_imageFile";
@@ -196,17 +209,18 @@ class HeatingController {
             unset($emitter);
 
             // 5. Beszúrás a heating_systems táblába
-            $sqlSystem = "INSERT INTO heating_systems (name, purpose, regulation, description, heaters, pumps, emitters) 
-                          VALUES (:name, :purpose, :regulation, :description, :heaters, :pumps, :emitters)";
+            $sqlSystem = "INSERT INTO heating_systems (name, purpose, regulation, description, heaters, pumps, emitters, project_id) 
+                          VALUES (:name, :purpose, :regulation, :description, :heaters, :pumps, :emitters, :projectId)";
             $stmtSystem = $db->prepare($sqlSystem);
             $stmtSystem->execute([
-                ':name'        => $data['name'] ?? '',
-                ':purpose'     => $purpose,
-                ':regulation'  => $regulation,
+                ':name' => $data['name'] ?? '',
+                ':purpose' => $purpose,
+                ':regulation' => $regulation,
                 ':description' => $regulationDesc,
-                ':heaters'     => json_encode($heaters, JSON_UNESCAPED_UNICODE),
-                ':pumps'       => json_encode($pumps, JSON_UNESCAPED_UNICODE),
-                ':emitters'    => json_encode($emitters, JSON_UNESCAPED_UNICODE)
+                ':heaters' => json_encode($heaters, JSON_UNESCAPED_UNICODE),
+                ':pumps' => json_encode($pumps, JSON_UNESCAPED_UNICODE),
+                ':emitters' => json_encode($emitters, JSON_UNESCAPED_UNICODE),
+                ':projectId' => $projectId
             ]);
 
             $systemId = $db->lastInsertId();
@@ -217,8 +231,8 @@ class HeatingController {
                                 VALUES (:standing, :reference, 'SYSTEM')";
                 $stmtStanding = $db->prepare($sqlStanding);
                 $stmtStanding->execute([
-                    ':standing'  => (int)$data['standing'],
-                    ':reference' => (int)$systemId
+                    ':standing' => (int) $data['standing'],
+                    ':reference' => (int) $systemId
                 ]);
             }
 
@@ -229,7 +243,7 @@ class HeatingController {
                 $stmtHeaterStanding = $db->prepare($sqlHeaterStanding);
                 foreach ($heaterStandings as $hs) {
                     $stmtHeaterStanding->execute([
-                        ':standing'  => $hs['standing'],
+                        ':standing' => $hs['standing'],
                         ':reference' => $hs['reference']
                     ]);
                 }
@@ -239,9 +253,9 @@ class HeatingController {
 
             http_response_code(201);
             echo json_encode([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Fűtési rendszer sikeresen elmentve!',
-                'id'      => $systemId
+                'id' => $systemId
             ]);
 
         } catch (Exception $e) {
@@ -250,7 +264,7 @@ class HeatingController {
             }
             http_response_code(500);
             echo json_encode([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Adatbázis lekérdezési hiba: ' . $e->getMessage()
             ]);
         }

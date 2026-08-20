@@ -2,9 +2,11 @@
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/../services/buildingcalculation.php';
 
-class BuildingsController {
+class BuildingsController
+{
 
-    public function index() {
+    public function index()
+    {
         $method = $_SERVER['REQUEST_METHOD'];
 
         switch ($method) {
@@ -23,24 +25,32 @@ class BuildingsController {
         }
     }
 
-    private function handleGet() {
-        try{
+    private function handleGet()
+    {
+        try {
+            if (!isset($_GET['project_id']) || empty($_GET['project_id'])) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Nincs megadva projekt!']);
+            }
 
+            $projectId = $_GET['project_id'];
             $db = Database::getConnection();
 
-            $sql = "SELECT id, name FROM buildings";
+            $sql = "SELECT id, name FROM buildings WHERE project_id=:projectId";
             $stmt = $db->prepare($sql);
-            $stmt->execute();
+            $stmt->execute([
+                ':projectId' => $projectId
+            ]);
 
             $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach($data as &$item){
-                $item['id'] = (string)$item['id'];
+            foreach ($data as &$item) {
+                $item['id'] = (string) $item['id'];
             }
-            
+
             http_response_code(200);
             echo json_encode($data);
-        } catch(PDOException $e) {
+        } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
@@ -49,7 +59,8 @@ class BuildingsController {
         }
     }
 
-    private function handlePost() {
+    private function handlePost()
+    {
         $rawInput = null;
         $data = null;
         if (isset($_POST['data'])) {
@@ -62,10 +73,11 @@ class BuildingsController {
         $name = $data['name'] ?? null;
         $complex = $data['complex'] ?? null;
         $standingIds = $data['standings'] ?? [];
+        $projectId = $data['project_id'] ?? '';
         $res = null;
         $db = null;
 
-        if(!$complex || !$name){
+        if (!$complex || !$name || $projectId === '') {
             http_response_code(400);
             echo json_encode([
                 'status' => 'error',
@@ -73,7 +85,7 @@ class BuildingsController {
             ]);
         }
 
-        try{
+        try {
             $db = Database::getConnection();
             $db->beginTransaction();
             $sql = "SELECT postal FROM complex WHERE id=:complexId";
@@ -90,7 +102,7 @@ class BuildingsController {
             $qf = $data['qf'] ?? round($res['q_f'], 2);
             $heatLoss = $data['heatLoss'] ?? round($res['total_loss_watt'] / 1000, 2);
 
-            $sql = "INSERT INTO buildings(name, json_data, calculated_values, qf, heat_loss, image_id, complex) VALUES (:name, :json_data, :calculated_values, :qf, :heat_loss, :image_id, :complex)";
+            $sql = "INSERT INTO buildings(name, json_data, calculated_values, qf, heat_loss, image_id, complex, project_id) VALUES (:name, :json_data, :calculated_values, :qf, :heat_loss, :image_id, :complex, :project_id)";
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':name' => $name,
@@ -99,32 +111,33 @@ class BuildingsController {
                 ':qf' => $qf,
                 ':heat_loss' => $heatLoss,
                 ':image_id' => null,
-                ':complex' => $complex
+                ':complex' => $complex,
+                ':project_id' => $projectId
             ]);
 
             $insertedId = $db->lastInsertId();
 
-            foreach($standingIds as $standingId){
+            foreach ($standingIds as $standingId) {
                 $sql = "INSERT INTO standings_to_other(standing, reference, type) VALUES (:standingId, :buildingId, :buildingType)";
                 $stmt = $db->prepare($sql);
                 $stmt->execute([
-                ':standingId' => (int) $standingId,
-                ':buildingId' => (int) $insertedId,
-                ':buildingType' => 'BUILDING' 
+                    ':standingId' => (int) $standingId,
+                    ':buildingId' => (int) $insertedId,
+                    ':buildingType' => 'BUILDING'
                 ]);
             }
 
             if (isset($_FILES['imageFile']) && $_FILES['imageFile']['error'] === UPLOAD_ERR_OK) {
                 $tmpName = $_FILES['imageFile']['tmp_name'];
                 $originalName = $_FILES['imageFile']['name'];
-    
+
                 $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
                 $sqlImage = "INSERT INTO image_info (file_name, reference_type, reference_id) 
                             VALUES (:fileName, 'BUILDING', :referenceId)";
                 $stmtImage = $db->prepare($sqlImage);
                 $stmtImage->execute([
-                    ':fileName'    => $originalName,
+                    ':fileName' => $originalName,
                     ':referenceId' => (int) $insertedId
                 ]);
 
@@ -146,13 +159,13 @@ class BuildingsController {
                 $stmtUpdateImg = $db->prepare($sqlUpdateImg);
                 $stmtUpdateImg->execute([
                     ':fileName' => $newFileName,
-                    ':id'       => $imageId
+                    ':id' => $imageId
                 ]);
 
                 $sqlUpdateBuilding = "UPDATE buildings SET image_id = :imageId WHERE id = :buildingId";
                 $stmtUpdateBuilding = $db->prepare($sqlUpdateBuilding);
                 $stmtUpdateBuilding->execute([
-                    ':imageId'    => $imageId,
+                    ':imageId' => $imageId,
                     ':buildingId' => $insertedId
                 ]);
             }
@@ -160,13 +173,13 @@ class BuildingsController {
             $db->commit();
             http_response_code(201);
             echo json_encode([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Épület sikeresen elmentve!',
                 'id' => $insertedId,
                 'calculated' => $res
             ]);
 
-        } catch(PDOException $e){
+        } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
