@@ -14,7 +14,9 @@ class ComposerStaticInitd6ce6163c659d859bdcbeeb549500866
         'P' =>
         array (
             'Psr\\SimpleCache\\' => 16,
+            'PhpOffice\\PhpWord\\' => 18,
             'PhpOffice\\PhpSpreadsheet\\' => 25,
+            'PhpOffice\\Math\\' => 15,
         ),
         'N' =>
         array (
@@ -40,9 +42,17 @@ class ComposerStaticInitd6ce6163c659d859bdcbeeb549500866
         array (
             0 => __DIR__ . '/..' . '/psr/simple-cache/src',
         ),
+        'PhpOffice\\PhpWord\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord',
+        ),
         'PhpOffice\\PhpSpreadsheet\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet',
+        ),
+        'PhpOffice\\Math\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/math/src/Math',
         ),
         'Nx\\Pyros\\' =>
         array (
