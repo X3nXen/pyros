@@ -14,10 +14,12 @@ import {
     type Theme,
 } from '@mui/material'
 import { useState } from 'react'
-import type {
-    ComplexErrors,
-    ComplexFormData,
-    ComplexShortData,
+import {
+    type ComplexErrors,
+    type ComplexFormData,
+    type ComplexShortData,
+    type ComplexWorkingData,
+    defaultHours,
 } from '../model/Complex.model'
 import settlementData from '../model/zipToCity.json'
 import theme from '../assets/theme'
@@ -25,6 +27,8 @@ import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store'
 import { addComplexLocally } from '../store/projectSlice'
+import CardListing from '../components/CardListing'
+import workTypes from '../model/workTypes.json'
 
 function getStyles(id: string, selectedIds: string[], theme: Theme) {
     return {
@@ -57,7 +61,9 @@ export default function Complex() {
         city: '',
         parcelNumber: '',
         meterStandings: new Array<string>(),
+        working: [],
     })
+    const [activeIndex, setActiveIndex] = useState<number | null>(null)
     const mainStandings = useAppSelector((state) => state.project.mainStandings)
     const settlements = settlementData
     const projectId =
@@ -97,6 +103,32 @@ export default function Complex() {
             navigate('/')
         }
     }
+
+    function addWorkingHours() {
+        const newHours = [
+            ...formData.working,
+            { workType: workTypes[0], workHours: defaultHours[0] },
+        ]
+
+        setFormData({ ...formData, working: newHours })
+        setActiveIndex(newHours.length - 1)
+    }
+
+    function handleActiveChange(
+        field: keyof ComplexWorkingData,
+        value: string | null
+    ) {
+        const newWorking = [...formData.working]
+        newWorking[activeIndex!] = {
+            ...newWorking[activeIndex!],
+            [field]: value,
+        }
+
+        setFormData({ ...formData, working: newWorking })
+    }
+
+    const currentActiveWorking =
+        activeIndex !== null ? formData.working[activeIndex] : null
 
     return (
         <Box
@@ -227,6 +259,58 @@ export default function Complex() {
                     </FormHelperText>
                 )}
             </FormControl>
+            <CardListing<ComplexWorkingData>
+                items={formData.working}
+                activeIndex={activeIndex}
+                onSelect={(index) => setActiveIndex(index)}
+                onAdd={addWorkingHours}
+                getName={(e) =>
+                    'Munkatevékenység ' + (formData.working.indexOf(e) + 1)
+                }
+            />
+            {currentActiveWorking && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <FormControl>
+                        <Autocomplete
+                            disablePortal
+                            options={workTypes}
+                            getOptionLabel={(option) => `${option}`}
+                            renderInput={(params) => (
+                                <TextField {...params} label="Tevékenység" />
+                            )}
+                            filterOptions={(options, state) => {
+                                const inputValue =
+                                    state.inputValue.toLowerCase()
+                                return options.filter((option) =>
+                                    option.toLowerCase().includes(inputValue)
+                                )
+                            }}
+                            onChange={(_, newValue) => {
+                                handleActiveChange('workType', newValue)
+                            }}
+                            value={currentActiveWorking.workType}
+                        />
+                    </FormControl>
+                    <FormControl>
+                        <InputLabel id="work-hours-label">Munkarend</InputLabel>
+                        <Select
+                            label="Munkarend"
+                            labelId="work-hours-label"
+                            value={currentActiveWorking.workHours}
+                            onChange={(e) =>
+                                handleActiveChange('workHours', e.target.value)
+                            }
+                        >
+                            {defaultHours.map((e: string, index: number) => (
+                                <MenuItem key={index} value={e}>
+                                    {e}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+            )}
+
             <Button
                 variant="contained"
                 disabled={loading}

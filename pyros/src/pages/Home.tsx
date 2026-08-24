@@ -139,6 +139,14 @@ export default function Home() {
                     <Button
                         variant="contained"
                         component={Link}
+                        to="/variables"
+                        disabled={!currentTaskId}
+                    >
+                        Változók
+                    </Button>
+                    <Button
+                        variant="contained"
+                        component={Link}
                         to="/create"
                         disabled={!currentTaskId}
                     >

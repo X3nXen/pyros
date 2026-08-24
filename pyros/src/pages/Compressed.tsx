@@ -62,7 +62,6 @@ export default function Compressed() {
 
         setFormData({ ...formData, machines: newCompressors })
         setActiveCompressorIndex(newCompressors.length)
-        console.log(formData)
     }
 
     function handleActiveCompressorChange(

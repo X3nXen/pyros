@@ -38,6 +38,7 @@ import {
     type SteamErrors,
     type SteamFormData,
 } from '../model/Technology.model'
+import type { VariableData } from '../model/Variables.model'
 
 export default class FormSendProtocol {
     static async handleMeasurementForm(
@@ -466,6 +467,32 @@ export default class FormSendProtocol {
         try {
             setLoading(true)
             const response = await Calls.postProduct(payload, projectId)
+            let success = false
+            let reason = null
+            if (response.success) {
+                success = true
+                reason = null
+            } else {
+                success = false
+                reason = 'Backend call error'
+            }
+            setLoading(false)
+            return { success: success, reason: reason }
+        } catch (error) {
+            alert('Valami hiba történt a hálózati kommunikáció során')
+            console.error(error)
+            setLoading(false)
+            return { success: false, reason: 'Network error' }
+        }
+    }
+    static async handleVariables(
+        payload: VariableData,
+        setLoading: (loading: boolean) => void,
+        projectId: string
+    ) {
+        try {
+            setLoading(true)
+            const response = await Calls.postVariables(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {

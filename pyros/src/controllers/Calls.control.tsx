@@ -19,6 +19,7 @@ import {
     type OtherFormData,
     type SteamFormData,
 } from '../model/Technology.model'
+import type { VariableData } from '../model/Variables.model'
 import type { VehicleFormData } from '../model/Vehicles.model'
 import type { VentilationFormData } from '../model/Ventilation.model'
 
@@ -472,6 +473,42 @@ export default class Calls {
         }
     }
 
+    static async postVariables(
+        payload: VariableData,
+        projectId: string
+    ): Promise<{ success: boolean; message: string; id?: string }> {
+        const appendedPayload = {
+            ...payload,
+            project_id: projectId,
+        }
+        try {
+            const response = await fetch(Calls.getApiLink() + '/variables', {
+                method: 'POST',
+                body: JSON.stringify(appendedPayload),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
+    }
+
     static async getMainStandings(projectId: string): Promise<{
         success: boolean
         payload: Array<StandingsShort>
@@ -669,6 +706,39 @@ export default class Calls {
             return {
                 success: false,
                 payload: [],
+            }
+        }
+    }
+
+    static async getDocument(): Promise<{
+        success: boolean
+        payload?: Blob
+        message?: string
+    }> {
+        try {
+            const response = await fetch(Calls.getApiLink() + '/document', {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            }
+
+            // JSON helyett Blob-ként kérjük le a bináris fájlt
+            const blob = await response.blob()
+
+            return {
+                success: true,
+                payload: blob,
+            }
+        } catch (error) {
+            console.error('Hiba a dokumentum lekérése során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült letölteni a dokumentumot.',
             }
         }
     }
