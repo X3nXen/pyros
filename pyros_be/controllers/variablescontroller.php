@@ -48,19 +48,12 @@ class VariablesController
         try {
             $db = Database::getConnection();
 
-            $sql = "INSERT INTO variables (project_id, full_name, foundation_year, is_foreign, foreign_percent, main_activity, bubor, mnb, bond) 
-                    VALUES (:projectId, :fullName, :foundationYear, :isForeign, :foreignPercent, :mainActivity, :bubor, :mnb, :bond)";
+            $sql = "INSERT INTO variables (project_id, json) 
+                    VALUES (:projectId, :jsonData)";
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':projectId' => $data['project_id'],
-                ':fullName' => $data['fullName'],
-                ':foundationYear' => $data['foundationYear'],
-                ':isForeign' => (bool) $data['foreign'],
-                ':foreignPercent' => (float) $data['percent'],
-                ':mainActivity' => $data['mainActivity'],
-                ':bubor' => (float) $data['buborPercent'],
-                ':mnb' => (float) $data['mnbPercent'],
-                ':bond' => (float) $data['bondPercent']
+                ':jsonData' => json_encode($data)
             ]);
 
             http_response_code(200);

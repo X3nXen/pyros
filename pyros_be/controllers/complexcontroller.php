@@ -70,6 +70,7 @@ class ComplexController
         $city = $data['city'] ?? null;
         $parcelNumber = $data['parcelNumber'] ?? null;
         $projectId = $data['project_id'] ?? null;
+        $podId = $data['podId'] ?? null;
 
         $standingIds = $data['meterStandings'] ?? [];
 
@@ -87,9 +88,9 @@ class ComplexController
             $db->beginTransaction();
 
             $sql = "INSERT INTO complex 
-                        (name, address, postal, city, parcelNumber, project_id, complex_json) 
+                        (name, address, postal, city, parcelNumber, project_id, complex_json, pod_id) 
                     VALUES 
-                        (:name, :address, :postal, :city, :parcelNumber, :project_id, :complexJson)";
+                        (:name, :address, :postal, :city, :parcelNumber, :project_id, :complexJson, :podId)";
 
             $stmt = $db->prepare($sql);
 
@@ -100,7 +101,8 @@ class ComplexController
                 ':city' => $city,
                 ':parcelNumber' => $parcelNumber,
                 ':project_id' => $projectId,
-                ':complexJson' => json_encode($data)
+                ':complexJson' => json_encode($data),
+                ':podId' => $podId
             ]);
 
             $insertedId = $db->lastInsertId();

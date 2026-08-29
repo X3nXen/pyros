@@ -56,6 +56,7 @@ export default function Complex() {
     const [formData, setFormData] = useState<ComplexFormData>({
         id: null,
         name: '',
+        podId: '',
         address: '',
         postal: 0,
         city: '',
@@ -146,6 +147,7 @@ export default function Complex() {
                 <TextField
                     label="Megnevezés"
                     variant="standard"
+                    value={formData.name}
                     onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                     }
@@ -153,6 +155,16 @@ export default function Complex() {
                 {errorMessage?.name && (
                     <FormHelperText>{errorMessage.name}</FormHelperText>
                 )}
+            </FormControl>
+            <FormControl>
+                <TextField
+                    label="POD azonosító"
+                    variant="standard"
+                    value={formData.podId}
+                    onChange={(e) =>
+                        setFormData({ ...formData, podId: e.target.value })
+                    }
+                />
             </FormControl>
             <FormControl fullWidth error={!!errorMessage?.postal}>
                 <Autocomplete
@@ -186,6 +198,7 @@ export default function Complex() {
                 <TextField
                     label="Utca, házszám"
                     variant="standard"
+                    value={formData.address}
                     onChange={(e) =>
                         setFormData({ ...formData, address: e.target.value })
                     }
@@ -198,6 +211,7 @@ export default function Complex() {
                 <TextField
                     label="Helyrajzi szám"
                     variant="standard"
+                    value={formData.parcelNumber}
                     onChange={(e) =>
                         setFormData({
                             ...formData,

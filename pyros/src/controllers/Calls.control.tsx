@@ -710,18 +710,21 @@ export default class Calls {
         }
     }
 
-    static async getDocument(): Promise<{
+    static async getDocument(projectId: string): Promise<{
         success: boolean
         payload?: Blob
         message?: string
     }> {
         try {
-            const response = await fetch(Calls.getApiLink() + '/document', {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                },
-            })
+            const response = await fetch(
+                Calls.getApiLink() + '/document?project_id=' + projectId,
+                {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    },
+                }
+            )
 
             if (!response.ok) {
                 throw new Error(`HTTP hiba! Státusz: ${response.status}`)

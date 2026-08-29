@@ -7,4 +7,8 @@ export interface VariableData {
     foreign: boolean
     percent: number | null
     mainActivity: string
+    companyPlace: string
+    dataYear: string
+    employeeCount: number
+    income: number
 }

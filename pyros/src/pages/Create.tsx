@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, Box, CircularProgress, Typography } from '@mui/material'
 import Calls from '../controllers/Calls.control'
+import { useAppSelector } from '../store'
 
 export default function Create() {
     const navigate = useNavigate()
     const [error, setError] = useState<string | null>(null)
+    const projectId = useAppSelector((state) => state.project.currentTaskId)
 
     useEffect(() => {
         let isSubscribed = true
 
         const handleDownload = async () => {
-            const response = await Calls.getDocument()
+            const response = await Calls.getDocument(projectId!)
 
             if (!isSubscribed) return
 

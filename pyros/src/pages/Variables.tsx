@@ -26,6 +26,10 @@ export default function Variables() {
         foreign: false,
         percent: 0,
         mainActivity: workTypes[0],
+        companyPlace: '',
+        dataYear: '',
+        employeeCount: 0,
+        income: 0,
     })
     const [loading, setLoading] = useState<boolean>(false)
     const projectId =
@@ -113,6 +117,19 @@ export default function Variables() {
             </FormControl>
             <FormControl>
                 <TextField
+                    label="Cég székhelye"
+                    variant="standard"
+                    value={formData.companyPlace}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            companyPlace: e.target.value,
+                        })
+                    }
+                />
+            </FormControl>
+            <FormControl>
+                <TextField
                     label="Cég alapítási éve"
                     variant="standard"
                     type="number"
@@ -176,6 +193,44 @@ export default function Variables() {
                         </MenuItem>
                     ))}
                 </Select>
+            </FormControl>
+            <FormControl>
+                <TextField
+                    label="Bevallott év"
+                    variant="standard"
+                    value={formData.dataYear}
+                    onChange={(e) =>
+                        setFormData({ ...formData, dataYear: e.target.value })
+                    }
+                />
+            </FormControl>
+            <FormControl>
+                <TextField
+                    label="Alkalmazottak száma"
+                    variant="standard"
+                    type="number"
+                    value={formData.employeeCount}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            employeeCount: Number(e.target.value),
+                        })
+                    }
+                />
+            </FormControl>
+            <FormControl>
+                <TextField
+                    label="Éves bevétel"
+                    variant="standard"
+                    type="number"
+                    value={formData.income}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            income: Number(e.target.value),
+                        })
+                    }
+                />
             </FormControl>
             <Button
                 variant="contained"
