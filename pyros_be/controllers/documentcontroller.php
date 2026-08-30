@@ -2,6 +2,7 @@
 
 use PhpOffice\PhpWord\TemplateProcessor;
 require_once __DIR__ . "/../database.php";
+require_once __DIR__ . "/../services/AuditService.php";
 class DocumentController
 {
     public function index()
@@ -21,186 +22,73 @@ class DocumentController
         $project_id = $_GET['project_id'];
         try {
             $templateProcessor = new TemplateProcessor(__DIR__ . '/audit_template.docx');
-
-            //Vállalkozás bemutatása
-
             $db = Database::getConnection();
-            $sql = "SELECT * FROM variables WHERE project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
 
-            $rawData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $jsonData = json_decode($rawData[0]['json'], true);
+            // 1. Vállalkozás bemutatása
+            $stmt = $db->prepare("SELECT json FROM variables WHERE project_id = :projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $jsonData = json_decode($stmt->fetchColumn() ?: '{}', true);
 
-            $templateProcessor->setValue('company_name', $jsonData['fullName']);
-            $templateProcessor->setValue('foundation_year', $jsonData['foundationYear']);
-            $templateProcessor->setValue('owner_percentage', ((bool) $jsonData['foreign'] ? 'magyar' : $jsonData['percent'] . '%-ban külföldi'));
-            $templateProcessor->setValue('company_product', $jsonData['mainActivity']);
-            $templateProcessor->setValue('company_place', $jsonData['companyPlace']);
+            $templateProcessor->setValue('company_name', $jsonData['fullName'] ?? '');
+            $templateProcessor->setValue('foundation_year', $jsonData['foundationYear'] ?? '');
+            $templateProcessor->setValue('owner_percentage', !empty($jsonData['foreign']) ? 'magyar' : ($jsonData['percent'] ?? 0) . '%-ban külföldi');
+            $templateProcessor->setValue('company_product', $jsonData['mainActivity'] ?? '');
+            $templateProcessor->setValue('company_place', $jsonData['companyPlace'] ?? '');
+            $templateProcessor->setValue('data_year', $jsonData['dataYear'] ?? '');
+            $templateProcessor->setValue('employee_count', $jsonData['employeeCount'] ?? '');
+            $templateProcessor->setValue('profit', $jsonData['income'] ?? '');
+            $templateProcessor->setValue('bubor_rate', $jsonData['buborPercent']);
+            $templateProcessor->setValue('bond_rate', $jsonData['bondPercent']);
+            $templateProcessor->setValue('mnb_rate', $jsonData['mnbPercent']);
 
-            $templateProcessor->setValue('data_year', $jsonData['dataYear']);
-            $templateProcessor->setValue('employee_count', $jsonData['employeeCount']);
-            $templateProcessor->setValue('profit', $jsonData['income']);
+            // 2. Telephelyek táblázat
+            $stmt = $db->prepare("SELECT complex_json FROM complex WHERE project_id = :projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $complexes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            //Telephelyek
-
-            $sql = "SELECT id, complex_json FROM complex WHERE project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
-            $rawData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $table = new \PhpOffice\PhpWord\Element\Table([
+            $complexTable = new \PhpOffice\PhpWord\Element\Table([
                 'borderSize' => 0,
                 'borderColor' => 'FFFFFF',
                 'afterSpacing' => 100,
             ]);
 
-            foreach ($rawData as $index => $field) {
-                $field_json = json_decode($field['complex_json'], true);
-
-                if (!$field_json) {
+            foreach ($complexes as $index => $field) {
+                $fieldJson = json_decode($field['complex_json'], true);
+                if (!$fieldJson)
                     continue;
-                }
 
-                $table->addRow();
-                $cell = $table->addCell(9000, ['gridSpan' => 2]);
+                $complexTable->addRow();
+                $cell = $complexTable->addCell(9000, ['gridSpan' => 2]);
                 $cell->addText(
-                    $field_json['postal'] . ' ' . $field_json['city'] . ', ' . $field_json['address'] . ' (' . $field_json['name'] . ')',
+                    $fieldJson['postal'] . ' ' . $fieldJson['city'] . ', ' . $fieldJson['address'] . ' (' . $fieldJson['name'] . ')',
                     ['bold' => true, 'size' => 11]
                 );
 
-                if (!empty($field_json['working']) && is_array($field_json['working'])) {
-                    foreach ($field_json['working'] as $working) {
-                        $table->addRow();
-
-                        $leftCell = $table->addCell(4500);
-                        $leftCell->addText('• Tevékenység: ' . $working['workType'], ['size' => 10]);
-
-                        $rightCell = $table->addCell(4500);
-                        $rightCell->addText('Munkarend: ' . $working['workHours'], ['size' => 10, 'italic' => true]);
+                if (!empty($fieldJson['working']) && is_array($fieldJson['working'])) {
+                    foreach ($fieldJson['working'] as $working) {
+                        $complexTable->addRow();
+                        $complexTable->addCell(4500)->addText('• Tevékenység: ' . $working['workType'], ['size' => 10]);
+                        $complexTable->addCell(4500)->addText('Munkarend: ' . $working['workHours'], ['size' => 10, 'italic' => true]);
                     }
                 }
 
-                if ($index < count($rawData) - 1) {
-                    $table->addRow();
-                    $table->addCell(9000, ['gridSpan' => 2])->addText('');
+                if ($index < count($complexes) - 1) {
+                    $complexTable->addRow();
+                    $complexTable->addCell(9000, ['gridSpan' => 2])->addText('');
                 }
             }
+            $templateProcessor->setComplexValue('complex_data', $complexTable);
 
-            $templateProcessor->setComplexValue('complex_data', $table);
-
-            //Fogyasztási adatok
-            $sql = "select c.name, c.pod_id, st.source, st.measurement, st.consumption, st.date_from, st.date_TO from complex c join standings_to_other s on s.type='COMPLEX' and s.reference=c.id join standings st on st.id=s.standing WHERE st.measurement_type='MAIN' AND c.project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $sql = "SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption, st.date_from, st.date_TO 
-        FROM complex c 
-        JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
-        JOIN standings st ON st.id=s.standing 
-        WHERE st.measurement_type='MAIN' AND c.project_id=:projectId";
-            $stmt = $db->prepare($sql);
+            // 3. Fogyasztási táblázat (Telephelyenkénti bontásban)
+            $stmt = $db->prepare("SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption 
+                          FROM complex c 
+                          JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
+                          JOIN standings st ON st.id=s.standing 
+                          WHERE st.measurement_type='MAIN' AND c.project_id=:projectId");
             $stmt->execute([':projectId' => $project_id]);
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $sql = "SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption, st.date_from, st.date_TO 
-        FROM complex c 
-        JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
-        JOIN standings st ON st.id=s.standing 
-        WHERE st.measurement_type='MAIN' AND c.project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':projectId' => $project_id]);
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $energySourcesMap = [
-                'COAL' => 'Szén',
-                'GASOLINE' => 'Gázolaj',
-                'PETROL' => 'Benzin',
-                'GAS' => 'Földgáz',
-                'ELECTRICITY' => 'Elektromos áram',
-                'REMOTE' => 'Távhő',
-                'PAKURA' => 'Pakura',
-                'PB' => 'PB Gáz',
-                'PROPANE' => 'Propán',
-                'LPG' => 'LPG',
-                'WOOD' => 'Tűzifa',
-                'SOLAR' => 'Napenergia'
-            ];
-
-            $energyMeasurementsMap = [
-                'KWH' => 'kWh',
-                'MJ' => 'MJ',
-                'MCUBE' => 'm³',
-                'GJ' => 'GJ',
-                'MWH' => 'MWh'
-            ];
-
-            $monthMap = [
-                'jan' => ['name' => 'január', 'num' => '01'],
-                'feb' => ['name' => 'február', 'num' => '02'],
-                'mar' => ['name' => 'március', 'num' => '03'],
-                'apr' => ['name' => 'április', 'num' => '04'],
-                'may' => ['name' => 'május', 'num' => '05'],
-                'jun' => ['name' => 'június', 'num' => '06'],
-                'jul' => ['name' => 'július', 'num' => '07'],
-                'aug' => ['name' => 'augusztus', 'num' => '08'],
-                'sep' => ['name' => 'szeptember', 'num' => '09'],
-                'oct' => ['name' => 'október', 'num' => '10'],
-                'nov' => ['name' => 'november', 'num' => '11'],
-                'dec' => ['name' => 'december', 'num' => '12'],
-            ];
-
-            $complexesData = [];
-
-            foreach ($data as $row) {
-                if (!empty($row['pod_id']) && !empty($row['name'])) {
-                    $complexLabel = $row['pod_id'] . ' / ' . $row['name'];
-                } else {
-                    $complexLabel = !empty($row['name']) ? $row['name'] : $row['pod_id'];
-                }
-
-                $rawSource = $row['source'];
-                $rawUnit = $row['measurement'] ?? '';
-
-                $sourceLabel = $energySourcesMap[$rawSource] ?? $rawSource;
-                $unitLabel = $energyMeasurementsMap[$rawUnit] ?? $rawUnit;
-
-                $consumptionJson = json_decode($row['consumption'], true);
-
-                if (is_array($consumptionJson)) {
-                    foreach ($consumptionJson as $year => $months) {
-                        if (!is_array($months))
-                            continue;
-
-                        foreach ($months as $monthKey => $value) {
-                            if ($value !== null && isset($monthMap[$monthKey])) {
-                                $sortKey = $year . '-' . $monthMap[$monthKey]['num'];
-                                $displayLabel = $year . '. ' . $monthMap[$monthKey]['name'];
-
-                                $finalValue = ($rawSource === 'SOLAR') ? -abs($value) : $value;
-
-                                $complexesData[$complexLabel][$sortKey]['label'] = $displayLabel;
-
-                                if (!isset($complexesData[$complexLabel][$sortKey]['items'][$rawSource])) {
-                                    $complexesData[$complexLabel][$sortKey]['items'][$rawSource] = [
-                                        'source' => $sourceLabel,
-                                        'value' => 0,
-                                        'unit' => $unitLabel
-                                    ];
-                                }
-
-                                $complexesData[$complexLabel][$sortKey]['items'][$rawSource]['value'] += $finalValue;
-                            }
-                        }
-                    }
-                }
-            }
+            // A Service végzi az adatok strukturálását
+            $groupedComplexData = AuditService::processMonthlyConsumption($stmt->fetchAll(PDO::FETCH_ASSOC));
 
             $mainTable = new \PhpOffice\PhpWord\Element\Table([
                 'borderColor' => 'CCCCCC',
@@ -213,23 +101,17 @@ class DocumentController
             ]);
 
             $isFirstComplex = true;
-
-            foreach ($complexesData as $complexTitle => $groupedData) {
+            foreach ($groupedComplexData as $complexTitle => $groupedData) {
                 if (!$isFirstComplex) {
                     $mainTable->addRow();
                     $breakCell = $mainTable->addCell(9000, ['gridSpan' => 3, 'borderSize' => 0]);
-                    // XML oldaltörés beszúrása
                     $breakCell->addText('<w:br w:type="page"/>');
                 }
                 $isFirstComplex = false;
 
                 $mainTable->addRow(250, ['cantSplit' => true]);
-                $headerCell = $mainTable->addCell(9000, [
-                    'gridSpan' => 3,
-                    'bgColor' => 'D9D9D9',
-                    'valign' => 'center'
-                ]);
-                $headerCell->addText('Mérési pont / Telephely: ' . $complexTitle, ['bold' => true, 'size' => 10]);
+                $mainTable->addCell(9000, ['gridSpan' => 3, 'bgColor' => 'D9D9D9', 'valign' => 'center'])
+                    ->addText('Mérési pont / Telephely: ' . $complexTitle, ['bold' => true, 'size' => 10]);
 
                 $mainTable->addRow(220, ['tblHeader' => true, 'cantSplit' => true]);
                 $mainTable->addCell(3000, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Hónap', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
@@ -246,14 +128,10 @@ class DocumentController
                         $mainTable->addRow(200, ['cantSplit' => true]);
 
                         if ($index === 0) {
-                            $mainTable->addCell(3000, [
-                                'vMerge' => 'restart',
-                                'valign' => 'center'
-                            ])->addText($monthLabel, ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
+                            $mainTable->addCell(3000, ['vMerge' => 'restart', 'valign' => 'center'])
+                                ->addText($monthLabel, ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
                         } else {
-                            $mainTable->addCell(3000, [
-                                'vMerge' => 'continue'
-                            ]);
+                            $mainTable->addCell(3000, ['vMerge' => 'continue']);
                         }
 
                         $mainTable->addCell(3500, ['valign' => 'center'])->addText($item['source'], ['size' => 9.5]);
@@ -263,13 +141,98 @@ class DocumentController
                     }
                 }
             }
-
             $templateProcessor->setComplexValue('standings_data_by_complex', $mainTable);
 
-            //mentés
+            // 4. Mérő hierarchia
+            $stmt = $db->prepare("SELECT id, name, measurement_type, sub_to, source, measurement, consumption 
+                          FROM standings WHERE project_id = :projectId ORDER BY id ASC");
+            $stmt->execute([':projectId' => $project_id]);
+            $allStandings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $standingsById = [];
+            $childrenByParent = [];
+            $mainStandings = [];
+
+            foreach ($allStandings as $standing) {
+                $id = $standing['id'];
+                $parentId = $standing['sub_to'];
+                $standingsById[$id] = $standing;
+
+                if (!empty($parentId)) {
+                    $childrenByParent[$parentId][] = $id;
+                } else {
+                    $mainStandings[] = $id;
+                }
+            }
+
+            $hierarchyTable = new \PhpOffice\PhpWord\Element\Table([
+                'borderSize' => 0,
+                'borderColor' => 'FFFFFF',
+                'cellMarginLeft' => 40,
+                'cellMarginRight' => 40,
+                'cellMarginTop' => 20,
+                'cellMarginBottom' => 20,
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT
+            ]);
+
+            foreach ($mainStandings as $mainId) {
+                AuditService::buildStandingTree($mainId, $standingsById, $childrenByParent, $hierarchyTable, 0);
+            }
+
+            $templateProcessor->setComplexValue('standing_hierarchy', $hierarchyTable);
+
+            //Épületenergetikai értékelés
+
+            $stmt = $db->prepare("SELECT b.name as building_name, b.qf, c.name as complex_name FROM buildings b join complex c on c.id = b.complex WHERE b.project_id=:projectId");
+            $stmt->execute([
+                ':projectId' => $project_id
+            ]);
+            $allBuildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $buildingsTable = new \PhpOffice\PhpWord\Element\Table([
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+            AuditService::buildBuildingsTable($buildingsTable, $allBuildings);
+
+            $templateProcessor->setComplexValue('building_listing', $buildingsTable);
+
+            $stmt = $db->prepare("SELECT 
+                        v.name AS vehicle_name, 
+                        c.name AS complex_name, 
+                        v.usage_value, 
+                        v.usage_value2, 
+                        v.usage_metric, 
+                        s.consumption, 
+                        s.measurement, 
+                        s.source 
+                      FROM vehicles v 
+                      JOIN complex c ON v.complex_id = c.id 
+                      LEFT JOIN standings s ON v.standing_id = s.id 
+                      WHERE v.project_id = :projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $vehicleData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $vehiclesTable = new \PhpOffice\PhpWord\Element\Table([
+                'borderSize' => 6,
+                'borderColor' => '000000',
+                'cellMarginLeft' => 80,
+                'cellMarginRight' => 80,
+                'cellMarginTop' => 60,
+                'cellMarginBottom' => 60,
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+
+            AuditService::buildVehiclesTable($vehiclesTable, $vehicleData);
+
+            $templateProcessor->setComplexValue('vehicle_listing', $vehiclesTable);
+
+            // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';
             $tempPath = sys_get_temp_dir() . '/' . $tempFileName;
             $templateProcessor->saveAs($tempPath);
+
             header('Content-Description: File Transfer');
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
             header('Content-Disposition: attachment; filename="generalt_dokumentacio.docx"');

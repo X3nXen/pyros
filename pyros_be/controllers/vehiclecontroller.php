@@ -71,12 +71,20 @@ class VehicleController
         try {
             $db = Database::getConnection();
             $db->beginTransaction();
-            $sql = 'INSERT INTO vehicles(name, json, project_id) VALUES (:name, :json, :projectId)';
+            $sql = 'INSERT INTO vehicles(name, project_id, complex_id, standing_id, usage_metric, usage_value, usage_value2, fuel, hibrid, motor_size)
+                    VALUES (:name, :projectId, :complexId, :standingId, :usageMetric, :usageValue, :usageValue2, :fuel, :hibrid, :motorSize)';
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':name' => $data['name'],
-                ':json' => json_encode($data),
-                ':projectId' => $projectId
+                ':projectId' => $projectId,
+                ':complexId' => $data['complex'],
+                ':standingId' => $data['subStanding'],
+                ':usageMetric' => $data['usageMetric'],
+                ':usageValue' => $data['usageValue'],
+                ':usageValue2' => $data['usageValue2'],
+                ':fuel' => $data['fuel'],
+                ':hibrid' => !empty($data['hibrid']) ? 1 : 0,
+                ':motorSize' => $data['motorSize']
             ]);
 
             $insertedId = $db->lastInsertId();
