@@ -152,43 +152,6 @@ export default function PumpForm(props: {
                     )
                 }
             )}
-            <FormControl
-                error={
-                    props.pumpErrors !== null && !!props.pumpErrors.manufacturor
-                }
-            >
-                <TextField
-                    label="Gyártó"
-                    variant="outlined"
-                    value={props.currentActivePump.manufacturor}
-                    onChange={(e) => {
-                        props.handleActivePumpChange(
-                            'manufacturor',
-                            e.target.value
-                        )
-                    }}
-                />
-                {!!props.pumpErrors && props.pumpErrors.manufacturor && (
-                    <FormHelperText>
-                        {props.pumpErrors.manufacturor}
-                    </FormHelperText>
-                )}
-            </FormControl>
-            <FormControl
-                error={props.pumpErrors !== null && !!props.pumpErrors.type}
-            >
-                <TextField
-                    label="Típus"
-                    variant="outlined"
-                    value={props.currentActivePump.type}
-                    onChange={(e) => {
-                        props.handleActivePumpChange('type', e.target.value)
-                    }}
-                />
-                {!!props.pumpErrors && props.pumpErrors.type && (
-                    <FormHelperText>{props.pumpErrors.type}</FormHelperText>
-                )}
-            </FormControl>
             <FormControl>
                 <InputLabel id="pump-archetype-label">
                     Szivattyú jellege
@@ -232,51 +195,6 @@ export default function PumpForm(props: {
                         </MenuItem>
                     ))}
                 </Select>
-            </FormControl>
-            <FormControl
-                error={
-                    props.pumpErrors !== null && !!props.pumpErrors.serialNumber
-                }
-            >
-                <TextField
-                    label="Gyári szám"
-                    variant="outlined"
-                    value={props.currentActivePump.serialNumber}
-                    onChange={(e) => {
-                        props.handleActivePumpChange(
-                            'serialNumber',
-                            e.target.value
-                        )
-                    }}
-                />
-                {!!props.pumpErrors && props.pumpErrors.serialNumber && (
-                    <FormHelperText>
-                        {props.pumpErrors.serialNumber}
-                    </FormHelperText>
-                )}
-            </FormControl>
-            <FormControl
-                error={
-                    props.pumpErrors !== null && !!props.pumpErrors.powerUsage
-                }
-            >
-                <TextField
-                    label="Villamos energia felvétel (W)"
-                    variant="outlined"
-                    type="number"
-                    value={props.currentActivePump.powerUsage}
-                    onChange={(e) => {
-                        props.handleActivePumpChange(
-                            'powerUsage',
-                            e.target.value
-                        )
-                    }}
-                />
-                {!!props.pumpErrors && props.pumpErrors.powerUsage && (
-                    <FormHelperText>
-                        {props.pumpErrors.powerUsage}
-                    </FormHelperText>
-                )}
             </FormControl>
             <Button
                 component="label"

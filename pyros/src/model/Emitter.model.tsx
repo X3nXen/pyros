@@ -1,5 +1,4 @@
 import type { ServicedBuildingShort } from './Building.model'
-import type { ElectricCalcRefrigerant, HeatCoolStructure } from './Heater.model'
 import type { PumpFormData } from './Pump.model'
 
 export enum EmitterHmvRegulation {
@@ -9,22 +8,13 @@ export enum EmitterHmvRegulation {
     BOTH = 'Hőmérsékletre és időprogramra',
 }
 
-export enum VentilationBase {
-    WATER = 'Vizes',
-    AIR = 'Levegő',
-}
-
 export interface EmitterFormData {
     id: string | null
     name: string
     building: string | null
     servicedBuilding: Array<ServicedBuildingShort>
     type: string
-    amount: number
-    forwardHeat: number
-    backHeat: number
     state: string
-    vrvRefrigerant: ElectricCalcRefrigerant
     vrvInsideType: EmitterIndoorUnitPlacement
     insideRoom: boolean
     circulation: boolean
@@ -37,13 +27,10 @@ export interface EmitterErrors {
     name: string
     building: string
     servicedBuilding: string
-    amount: string
-    forwardHeat: string
-    backHeat: string
     imageFile: string
 }
 
-export const EMITTER_PURPOSE_TO_TYPE: HeatCoolStructure = {
+export const EMITTER_PURPOSE_TO_TYPE = {
     cool: [
         'Fal-mennyezetfűtés',
         'Fan-Coil',
@@ -67,23 +54,25 @@ export const EMITTER_PURPOSE_TO_TYPE: HeatCoolStructure = {
 
 export const EMITTER_TYPE_TO_REGULATION: Record<string, string[]> = {
     Radiátor: [
-        'Helyiséghőmérsékletre történő szabályozás nélkül',
-        'Régi termosztátfej',
-        'Új termosztátfej',
-        'Időprogramozással működő termosztátfej',
-        'Helyiséghőmérsékletre történő szabályozás központi szabályozással',
+        'Szabályozatlan',
+        'Helyiségenkénti szabályozás víz oldalon',
+        'Helyiségenkénti szabályozás lég oldalon',
+        'Helyiségenkénti szabályozás időprogrammal víz oldalon',
+        'Helyiségenkénti szabályozás időprogrammal lég oldalon',
     ],
     'Fal-mennyezetfűtés': [
         'Szabályozatlan',
-        'Kézi szelep',
-        'Helyiségenkénti szabályozás',
-        'Helyiségenkénti szabályozás időprogrammal',
+        'Helyiségenkénti szabályozás víz oldalon',
+        'Helyiségenkénti szabályozás lég oldalon',
+        'Helyiségenkénti szabályozás időprogrammal víz oldalon',
+        'Helyiségenkénti szabályozás időprogrammal lég oldalon',
     ],
     'Fan-Coil': [
         'Szabályozatlan',
-        'Kézi szelep',
-        'Helyiségenkénti szabályozás',
-        'Helyiségenkénti szabályozás időprogrammal',
+        'Helyiségenkénti szabályozás víz oldalon',
+        'Helyiségenkénti szabályozás lég oldalon',
+        'Helyiségenkénti szabályozás időprogrammal víz oldalon',
+        'Helyiségenkénti szabályozás időprogrammal lég oldalon',
     ],
     'VRV/VRF': [
         'Szabályozatlan',
@@ -95,11 +84,35 @@ export const EMITTER_TYPE_TO_REGULATION: Record<string, string[]> = {
         'Helyiségenkénti szabályozás',
         'Helyiségenkénti szabályozás időprogrammal',
     ],
-    Padlófűtés: ['Nem értelmezhető'],
-    HMV: ['HMV tartály'],
-    Termoventilátor: ['Berendezés szabályozza'],
-    'Technológiai hűtés': ['Berendezés szabályozza'],
-    Egyéb: ['Nem értelmezhető'],
+    Padlófűtés: [
+        'Szabályozatlan',
+        'Helyiségenkénti szabályozás víz oldalon',
+        'Helyiségenkénti szabályozás lég oldalon',
+        'Helyiségenkénti szabályozás időprogrammal víz oldalon',
+        'Helyiségenkénti szabályozás időprogrammal lég oldalon',
+    ],
+    HMV: [
+        'Szabályozatlan',
+        'Helyiségenkénti szabályozás',
+        'Helyiségenkénti szabályozás időprogrammal',
+    ],
+    Termoventilátor: [
+        'Szabályozatlan',
+        'Helyiségenkénti szabályozás víz oldalon',
+        'Helyiségenkénti szabályozás lég oldalon',
+        'Helyiségenkénti szabályozás időprogrammal víz oldalon',
+        'Helyiségenkénti szabályozás időprogrammal lég oldalon',
+    ],
+    'Technológiai hűtés': [
+        'Szabályozatlan',
+        'Helyiségenkénti szabályozás',
+        'Helyiségenkénti szabályozás időprogrammal',
+    ],
+    Egyéb: [
+        'Szabályozatlan',
+        'Helyiségenkénti szabályozás',
+        'Helyiségenkénti szabályozás időprogrammal',
+    ],
 }
 
 export enum EmitterIndoorUnitPlacement {

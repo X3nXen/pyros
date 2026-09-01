@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
     VentilationHeatRetrievers,
-    VentilationInsulationMaterial,
     VentilationRegulation,
     VentilationRunning,
     VentilationStateTypes,
@@ -14,7 +13,9 @@ import { useAppSelector } from '../store'
 import {
     Box,
     Button,
+    Checkbox,
     FormControl,
+    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
@@ -38,8 +39,6 @@ export default function VentilationSystem() {
         building: null,
         servicedBuilding: [],
         type: VentilationBase.BASE_A,
-        forwardHeat: 0,
-        backHeat: 0,
         state: VentilationStateTypes.TYPE_A,
         ventilatorType: VentilationTypes.TYPE_A,
         ventilationOther: '',
@@ -50,13 +49,13 @@ export default function VentilationSystem() {
         retriever: VentilationHeatRetrievers.TYPE_A,
         retrieverYear: new Date().getFullYear(),
         insulationWidth: 0,
-        insulationMaterial: VentilationInsulationMaterial.TYPE_A,
         regulation: VentilationRegulation.TYPE_A,
         running: VentilationRunning.TYPE_A,
         heating: false,
         heaterId: null,
         cooling: false,
         coolingId: null,
+        adiabatic: false,
         firstImage: null,
         secondImage: null,
         thirdImage: null,
@@ -215,32 +214,6 @@ export default function VentilationSystem() {
                     ))}
                 </Select>
             </FormControl>
-            <FormControl error={!!formErrors?.forwardHeat}>
-                <TextField
-                    type="number"
-                    variant="standard"
-                    label="Rendszer előremenő hőmérséklete"
-                    value={formData.forwardHeat}
-                    onChange={(e) =>
-                        handleChange('forwardHeat', e.target.value)
-                    }
-                />
-                {formErrors?.forwardHeat && (
-                    <FormHelperText>{formErrors.forwardHeat}</FormHelperText>
-                )}
-            </FormControl>
-            <FormControl error={!!formErrors?.backHeat}>
-                <TextField
-                    type="number"
-                    variant="standard"
-                    label="Rendszer visszatérő hőmérséklete"
-                    value={formData.backHeat}
-                    onChange={(e) => handleChange('backHeat', e.target.value)}
-                />
-                {formErrors?.backHeat && (
-                    <FormHelperText>{formErrors.backHeat}</FormHelperText>
-                )}
-            </FormControl>
             <FormControl>
                 <InputLabel id="state-select">
                     Légtechnikai rendszer állapota
@@ -364,7 +337,7 @@ export default function VentilationSystem() {
             {formData.retriever !== VentilationHeatRetrievers.NONE ? (
                 <FormControl error={!!formErrors?.retrieverYear}>
                     <TextField
-                        label="Hővisszanyerő gyártási éve"
+                        label="Légkezelő gyártási éve"
                         variant="standard"
                         type="number"
                         value={formData.retrieverYear}
@@ -381,46 +354,22 @@ export default function VentilationSystem() {
             ) : (
                 <></>
             )}
-            <FormControl>
-                <InputLabel id="insulation-select">
-                    Légkezelő hálózat szigetelésének anyaga
-                </InputLabel>
-                <Select
-                    label="Szigetelés anyaga"
-                    labelId="insulation-select"
-                    value={formData.insulationMaterial}
+            <FormControl error={!!formErrors?.insulationWidth}>
+                <TextField
+                    label="Légkezelő hálózat szigetelésének vastagsága (mm)"
+                    type="number"
+                    variant="standard"
+                    value={formData.insulationWidth}
                     onChange={(e) =>
-                        handleChange('insulationMaterial', e.target.value)
+                        handleChange('insulationWidth', e.target.value)
                     }
-                >
-                    {Object.values(VentilationInsulationMaterial).map((e) => (
-                        <MenuItem key={e} value={e}>
-                            {e}
-                        </MenuItem>
-                    ))}
-                </Select>
+                />
+                {formErrors?.insulationWidth && (
+                    <FormHelperText>
+                        {formErrors.insulationWidth}
+                    </FormHelperText>
+                )}
             </FormControl>
-            {formData.insulationMaterial ===
-            VentilationInsulationMaterial.NONE ? (
-                <></>
-            ) : (
-                <FormControl error={!!formErrors?.insulationWidth}>
-                    <TextField
-                        label="Légkezelő hálózat szigetelésének vastagsága (mm)"
-                        type="number"
-                        variant="standard"
-                        value={formData.insulationWidth}
-                        onChange={(e) =>
-                            handleChange('insulationWidth', e.target.value)
-                        }
-                    />
-                    {formErrors?.insulationWidth && (
-                        <FormHelperText>
-                            {formErrors.insulationWidth}
-                        </FormHelperText>
-                    )}
-                </FormControl>
-            )}
             <FormControl>
                 <InputLabel id="regulation-select">
                     Légkezelő szabályozása
@@ -559,6 +508,20 @@ export default function VentilationSystem() {
             ) : (
                 <></>
             )}
+            <FormControlLabel
+                label="Adiabatikus utóhűtéssel rendelkezik"
+                control={
+                    <Checkbox
+                        checked={formData.adiabatic}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                adiabatic: e.target.checked,
+                            })
+                        }
+                    />
+                }
+            />
             <Button
                 component="label"
                 variant="contained"
@@ -566,7 +529,7 @@ export default function VentilationSystem() {
                 startIcon={<CloudUploadIcon />}
                 sx={{ mt: 1 }}
             >
-                Fotó a ventilátorról
+                Fotó a légkezelőről
                 <input
                     type="file"
                     accept="image/*"

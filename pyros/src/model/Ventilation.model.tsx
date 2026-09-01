@@ -19,15 +19,6 @@ export enum VentilationHeatRetrievers {
     NONE = 'Nincs',
 }
 
-export enum VentilationInsulationMaterial {
-    TYPE_A = 'Üveg/kőzetgyapot',
-    TYPE_B = 'Kaucsuk',
-    TYPE_C = 'Filc',
-    TYPE_D = 'Polifoam',
-    TYPE_E = 'PUR/PIR',
-    NONE = 'Nincs',
-}
-
 export enum VentilationStateTypes {
     TYPE_A = 'Szabályozatlan',
     TYPE_B = 'Műszakilag rossz állapotú',
@@ -64,8 +55,6 @@ export interface VentilationFormData {
     building: string | null
     servicedBuilding: Array<ServicedBuildingShort>
     type: VentilationBase
-    forwardHeat: number
-    backHeat: number
     state: VentilationStateTypes
     ventilatorType: VentilationTypes
     ventilationOther: string
@@ -76,13 +65,13 @@ export interface VentilationFormData {
     retriever: VentilationHeatRetrievers
     retrieverYear: number
     insulationWidth: number
-    insulationMaterial: VentilationInsulationMaterial
     regulation: VentilationRegulation
     running: VentilationRunning
     heating: boolean
     heaterId: string | null
     cooling: boolean
     coolingId: string | null
+    adiabatic: boolean
     firstImage: File | null
     secondImage: File | null
     thirdImage: File | null
@@ -93,8 +82,6 @@ export interface VentilationFormErrors {
     building: string
     servicedBuilding: string
     servicedSizes: Record<string, string> | null
-    forwardHeat: string
-    backHeat: string
     ventilationOther: string
     suckRatio: string
     suckPower: string

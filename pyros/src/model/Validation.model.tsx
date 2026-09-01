@@ -5,12 +5,7 @@ import type {
 } from './Building.model'
 import type { ComplexErrors, ComplexFormData } from './Complex.model'
 import type { EmitterErrors, EmitterFormData } from './Emitter.model'
-import {
-    DEVICE_FEATURES,
-    HeaterFeature,
-    type HeaterFormData,
-    type HeaterFormErrors,
-} from './Heater.model'
+import { type HeaterFormData, type HeaterFormErrors } from './Heater.model'
 import type { LightingErrors, LightingFormData } from './Lighting.model'
 import type { PumpErrors, PumpFormData } from './Pump.model'
 import { MeasurementTypes, type StandingsFormData } from './Standings.model'
@@ -36,7 +31,6 @@ import type {
 import type { VehicleErrors, VehicleFormData } from './Vehicles.model'
 import {
     VentilationHeatRetrievers,
-    VentilationInsulationMaterial,
     VentilationTypes,
     type VentilationFormData,
     type VentilationFormErrors,
@@ -311,14 +305,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             standing: '',
             building: '',
             servicedBuilding: '',
-            serial: '',
-            manufacturor: '',
-            type: '',
             heatingType: '',
-            forwardHeat: '',
-            backHeat: '',
-            maxPower: '',
-            oversizeRatio: '',
             imageFile: '',
         }
         if (!item.name || item.name === '') {
@@ -338,49 +325,8 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
                 'Add meg a hőtermelő által kiszolgált épületeket!'
             localHasError = true
         }
-        if (!item.serial || item.serial === '') {
-            heaterElem.serial = 'Add meg a hőtermelő gyári számát!'
-            localHasError = true
-        }
-        if (!item.manufacturor || item.manufacturor === '') {
-            heaterElem.manufacturor = 'Add meg a hőtermelő gyártóját!'
-            localHasError = true
-        }
-        if (!item.type || item.type === '') {
-            heaterElem.type = 'Add meg a hőtermelő típusát!'
-            localHasError = true
-        }
         if (!item.heatingType) {
             heaterElem.heatingType = 'Válaszd ki a hőtermelés jellegét!'
-            localHasError = true
-        }
-        if (
-            item.heatingType &&
-            DEVICE_FEATURES[item.heatingType].includes(
-                HeaterFeature.SYSTEM_HEAT
-            )
-        ) {
-            if (!item.forwardHeat || item.forwardHeat === 0) {
-                heaterElem.forwardHeat = 'Add meg az előremenő hőmérsékletet!'
-                localHasError = true
-            }
-            if (!item.backHeat || item.backHeat === 0) {
-                heaterElem.backHeat = 'Add meg a visszatérő hőmérsékletet!'
-                localHasError = true
-            }
-        }
-
-        if (!item.maxPower || item.maxPower === 0) {
-            heaterElem.maxPower =
-                'Add meg a berendezés max. bevitt teljesítményét!'
-            localHasError = true
-        }
-
-        if (
-            item.oversized &&
-            (!item.oversizeRatio || item.oversizeRatio <= 0)
-        ) {
-            heaterElem.oversizeRatio = 'Add meg a túlméretezettség mértékét!'
             localHasError = true
         }
         if (!item.imageFile) {
@@ -401,10 +347,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             name: '',
             building: '',
             servicedBuilding: '',
-            manufacturor: '',
-            type: '',
-            serialNumber: '',
-            powerUsage: '',
             imageFile: '',
         }
 
@@ -425,22 +367,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
                 'Add meg a szivattyú által kiszolgált épületeket és területeket!'
             localHasError = true
         }
-        if (!item.manufacturor || item.manufacturor === '') {
-            pumpElem.manufacturor = 'Add meg a szivattyú gyártóját!'
-            localHasError = true
-        }
-        if (!item.type || item.type === '') {
-            pumpElem.type = 'Add meg a szivattyú típusát!'
-            localHasError = true
-        }
-        if (!item.serialNumber || item.serialNumber === '') {
-            pumpElem.serialNumber = 'Add meg a szivattyú gyári számát!'
-            localHasError = true
-        }
-        if (!item.powerUsage || item.powerUsage === 0) {
-            pumpElem.powerUsage = 'Add meg a szivattyú villamos energiaigényét!'
-            localHasError = true
-        }
         if (!item.imageFile) {
             pumpElem.imageFile = 'Tölts fel egy képet a szivattyúról!'
             localHasError = true
@@ -459,9 +385,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             name: '',
             building: '',
             servicedBuilding: '',
-            amount: '',
-            forwardHeat: '',
-            backHeat: '',
             imageFile: '',
         }
 
@@ -480,20 +403,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
         ) {
             emitterElem.servicedBuilding =
                 'Add meg a hőtermelő által kiszolgált épületeket és területeket!'
-            localHasError = true
-        }
-        if (!item.amount || item.amount === 0) {
-            emitterElem.amount = 'Add meg a hőleadók darabszámát!'
-            localHasError = true
-        }
-        if (!item.forwardHeat || item.forwardHeat === 0) {
-            emitterElem.forwardHeat =
-                'Add meg a hőleadó rendszerében az előremenő hőmérsékletet!'
-            localHasError = true
-        }
-        if (!item.backHeat || item.backHeat === 0) {
-            emitterElem.backHeat =
-                'Add meg a hőleadó rendszerében a visszatérő hőmérsékletet!'
             localHasError = true
         }
         if (!item.imageFile) {
@@ -516,8 +425,6 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         building: '',
         servicedBuilding: '',
         servicedSizes: null,
-        forwardHeat: '',
-        backHeat: '',
         ventilationOther: '',
         suckRatio: '',
         suckPower: '',
@@ -560,15 +467,6 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         })
     }
 
-    if (!payload.forwardHeat || payload.forwardHeat === 0) {
-        errors.forwardHeat = 'Add meg a rendszer előremenő hőmérsékletét!'
-        hasError = true
-    }
-    if (!payload.backHeat || payload.backHeat === 0) {
-        errors.backHeat = 'Add meg a rendszer visszatérő hőmérsékletét!'
-        hasError = true
-    }
-
     if (payload.ventilatorType === VentilationTypes.OTHER) {
         if (!payload.ventilationOther || payload.ventilationOther === '') {
             errors.ventilationOther = 'Add meg a ventilátor típusát!'
@@ -600,13 +498,6 @@ export function validateVentilationSystem(payload: VentilationFormData) {
             payload.retrieverYear > new Date().getFullYear()
         ) {
             errors.retrieverYear = 'Add meg a hővisszanyerő gyártási évét!'
-            hasError = true
-        }
-    }
-
-    if (payload.insulationMaterial !== VentilationInsulationMaterial.NONE) {
-        if (!payload.insulationWidth || payload.insulationWidth < 0) {
-            errors.insulationWidth = 'Add meg a szigetelés vastagságát!'
             hasError = true
         }
     }

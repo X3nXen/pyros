@@ -26,6 +26,7 @@ import {
     PurposeToCarrier,
     HEAT_CARRIER_TO_TYPE,
     COOL_CARRIER_TO_TYPE,
+    HeaterRegulations,
 } from '../model/Heater.model'
 import type { StandingsShort } from '../model/Standings.model'
 import { type BuildingShort } from '../model/Building.model'
@@ -216,84 +217,32 @@ export default function HeaterForm(props: {
                     )}
             </FormControl>
 
-            <FormControl
-                fullWidth
-                error={
-                    props.heaterErrors !== null &&
-                    !!props.heaterErrors.manufacturor
-                }
-            >
-                <TextField
-                    label="Gyártó"
-                    variant="outlined"
-                    size="small"
-                    value={props.currentActiveHeater.manufacturor}
+            <FormControl>
+                <InputLabel id="heater-regulation-label">
+                    Hőtermelő szabályozása
+                </InputLabel>
+                <Select
+                    labelId="heater-regulation-label"
+                    label="Szabályozás"
+                    value={props.currentActiveHeater.regulation}
                     onChange={(e) =>
                         props.handleActiveHeaterChange(
-                            'manufacturor',
+                            'regulation',
                             e.target.value
                         )
                     }
-                />
-                {!!props.heaterErrors && props.heaterErrors.manufacturor && (
-                    <FormHelperText>
-                        {props.heaterErrors.manufacturor}
-                    </FormHelperText>
-                )}
-            </FormControl>
-
-            <FormControl fullWidth>
-                <TextField
-                    label="Gyártási év"
-                    type="number"
-                    variant="outlined"
-                    size="small"
-                    value={props.currentActiveHeater.year}
-                    onChange={(e) =>
-                        props.handleActiveHeaterChange(
-                            'year',
-                            Number(e.target.value)
+                >
+                    {HeaterRegulations.map(
+                        (regulation: string, index: number) => (
+                            <MenuItem
+                                key={'regulation-' + index}
+                                value={regulation}
+                            >
+                                {regulation}
+                            </MenuItem>
                         )
-                    }
-                />
-            </FormControl>
-
-            <FormControl
-                fullWidth
-                error={
-                    props.heaterErrors !== null && !!props.heaterErrors.serial
-                }
-            >
-                <TextField
-                    label="Gyári szám"
-                    variant="outlined"
-                    size="small"
-                    value={props.currentActiveHeater.serial}
-                    onChange={(e) =>
-                        props.handleActiveHeaterChange('serial', e.target.value)
-                    }
-                />
-                {!!props.heaterErrors && props.heaterErrors.serial && (
-                    <FormHelperText>{props.heaterErrors.serial}</FormHelperText>
-                )}
-            </FormControl>
-
-            <FormControl
-                fullWidth
-                error={props.heaterErrors !== null && !!props.heaterErrors.type}
-            >
-                <TextField
-                    label="Típus"
-                    variant="outlined"
-                    size="small"
-                    value={props.currentActiveHeater.type}
-                    onChange={(e) =>
-                        props.handleActiveHeaterChange('type', e.target.value)
-                    }
-                />
-                {!!props.heaterErrors && props.heaterErrors.type && (
-                    <FormHelperText>{props.heaterErrors.type}</FormHelperText>
-                )}
+                    )}
+                </Select>
             </FormControl>
 
             <FormControl fullWidth size="small">
@@ -394,100 +343,11 @@ export default function HeaterForm(props: {
                 )}
             </FormControl>
 
-            <FormControl
-                fullWidth
-                error={
-                    props.heaterErrors !== null && !!props.heaterErrors.maxPower
-                }
-            >
-                <TextField
-                    label="Max. bevitt teljesítmény (kW)"
-                    type="number"
-                    variant="outlined"
-                    size="small"
-                    value={props.currentActiveHeater.maxPower || ''}
-                    onChange={(e) =>
-                        props.handleActiveHeaterChange(
-                            'maxPower',
-                            Number(e.target.value)
-                        )
-                    }
-                />
-                {!!props.heaterErrors && props.heaterErrors.maxPower && (
-                    <FormHelperText>
-                        {props.heaterErrors.maxPower}
-                    </FormHelperText>
-                )}
-            </FormControl>
-
             {(() => {
                 const activeFeatures =
                     DEVICE_FEATURES[props.currentActiveHeater.heatingType] || []
                 return (
                     <>
-                        {activeFeatures.includes(HeaterFeature.SYSTEM_HEAT) && (
-                            <>
-                                <FormControl
-                                    error={
-                                        props.heaterErrors !== null &&
-                                        !!props.heaterErrors.forwardHeat
-                                    }
-                                >
-                                    <TextField
-                                        label="Előremenő hőmérséklet (°C)"
-                                        type="number"
-                                        size="small"
-                                        fullWidth
-                                        value={
-                                            props.currentActiveHeater
-                                                .forwardHeat || ''
-                                        }
-                                        onChange={(e) =>
-                                            props.handleActiveHeaterChange(
-                                                'forwardHeat',
-                                                Number(e.target.value)
-                                            )
-                                        }
-                                    />
-                                    {!!props.heaterErrors &&
-                                        props.heaterErrors.forwardHeat && (
-                                            <FormHelperText>
-                                                {props.heaterErrors.forwardHeat}
-                                            </FormHelperText>
-                                        )}
-                                </FormControl>
-                                <FormControl
-                                    error={
-                                        props.heaterErrors !== null &&
-                                        !!props.heaterErrors.backHeat
-                                    }
-                                >
-                                    <TextField
-                                        label="Visszatérő hőmérséklet (°C)"
-                                        type="number"
-                                        size="small"
-                                        fullWidth
-                                        value={
-                                            props.currentActiveHeater
-                                                .backHeat || ''
-                                        }
-                                        onChange={(e) =>
-                                            props.handleActiveHeaterChange(
-                                                'backHeat',
-                                                Number(e.target.value)
-                                            )
-                                        }
-                                    />
-                                    {!!props.heaterErrors &&
-                                        props.heaterErrors.backHeat && (
-                                            <FormHelperText>
-                                                {props.heaterErrors.backHeat}
-                                            </FormHelperText>
-                                        )}
-                                </FormControl>
-                            </>
-                        )}
-
                         {activeFeatures.includes(
                             HeaterFeature.ELECTRIC_EFFICIENCY
                         ) && (
@@ -684,57 +544,6 @@ export default function HeaterForm(props: {
                         Van lehetőség hulladékhő hasznosításra
                     </label>
                 </>
-            )}
-
-            <label
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: '0.9rem',
-                }}
-            >
-                <input
-                    type="checkbox"
-                    checked={props.currentActiveHeater.oversized}
-                    onChange={(e) =>
-                        props.handleActiveHeaterChange(
-                            'oversized',
-                            e.target.checked
-                        )
-                    }
-                />
-                Hőtermelő/hűtőberendezés túlméretezett
-            </label>
-
-            {props.currentActiveHeater.oversized && (
-                <FormControl
-                    fullWidth
-                    error={
-                        props.heaterErrors !== null &&
-                        !!props.heaterErrors.oversizeRatio
-                    }
-                >
-                    <TextField
-                        label="Túlméretezettség mértéke (%)"
-                        type="number"
-                        variant="outlined"
-                        size="small"
-                        value={props.currentActiveHeater.oversizeRatio || ''}
-                        onChange={(e) =>
-                            props.handleActiveHeaterChange(
-                                'oversizeRatio',
-                                Number(e.target.value)
-                            )
-                        }
-                    />
-                    {!!props.heaterErrors &&
-                        props.heaterErrors.oversizeRatio && (
-                            <FormHelperText>
-                                {props.heaterErrors.oversizeRatio}
-                            </FormHelperText>
-                        )}
-                </FormControl>
             )}
             <Button
                 component="label"

@@ -3,6 +3,7 @@ import {
     Button,
     Checkbox,
     FormControl,
+    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
@@ -24,7 +25,6 @@ import {
 } from '../model/Emitter.model'
 import { SystemPurpose } from '../model/System.model'
 import { useState } from 'react'
-import { ElectricCalcRefrigerant } from '../model/Heater.model'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 
 export default function EmitterForm(props: {
@@ -201,77 +201,6 @@ export default function EmitterForm(props: {
                     ))}
                 </Select>
             </FormControl>
-            <FormControl
-                error={
-                    props.emitterErrors !== null && !!props.emitterErrors.amount
-                }
-            >
-                <TextField
-                    variant="outlined"
-                    type="number"
-                    label="Mennyiség"
-                    value={props.currentActiveEmitter.amount}
-                    onChange={(e) =>
-                        props.handleActiveEmitterChange(
-                            'amount',
-                            e.target.value
-                        )
-                    }
-                />
-                {!!props.emitterErrors && props.emitterErrors.amount && (
-                    <FormHelperText>
-                        {props.emitterErrors.amount}
-                    </FormHelperText>
-                )}
-            </FormControl>
-            <FormControl
-                error={
-                    props.emitterErrors !== null &&
-                    !!props.emitterErrors.forwardHeat
-                }
-            >
-                <TextField
-                    variant="outlined"
-                    type="number"
-                    label="Rendszer előremenő hőmérséklete (C°)"
-                    value={props.currentActiveEmitter.forwardHeat}
-                    onChange={(e) =>
-                        props.handleActiveEmitterChange(
-                            'forwardHeat',
-                            e.target.value
-                        )
-                    }
-                />
-                {!!props.emitterErrors && props.emitterErrors.forwardHeat && (
-                    <FormHelperText>
-                        {props.emitterErrors.forwardHeat}
-                    </FormHelperText>
-                )}
-            </FormControl>
-            <FormControl
-                error={
-                    props.emitterErrors !== null &&
-                    !!props.emitterErrors.backHeat
-                }
-            >
-                <TextField
-                    variant="outlined"
-                    type="number"
-                    label="Rendszer visszatérő hőmérséklete (C°)"
-                    value={props.currentActiveEmitter.backHeat}
-                    onChange={(e) =>
-                        props.handleActiveEmitterChange(
-                            'backHeat',
-                            e.target.value
-                        )
-                    }
-                />
-                {!!props.emitterErrors && props.emitterErrors.backHeat && (
-                    <FormHelperText>
-                        {props.emitterErrors.backHeat}
-                    </FormHelperText>
-                )}
-            </FormControl>
             <FormControl>
                 <InputLabel id="emitter-state-label">
                     Hőleadó leírása
@@ -298,56 +227,28 @@ export default function EmitterForm(props: {
                 </Select>
             </FormControl>
             {currentEmitterType === 'VRV/VRF' ? (
-                <Box
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
-                >
-                    <FormControl>
-                        <InputLabel id="vrv-refrigerant">
-                            VRV/VRF hűtőfolyadéka
-                        </InputLabel>
-                        <Select
-                            label="VRV/VRF hűtőfolyadéka"
-                            labelId="vrv-refrigerant"
-                            value={props.currentActiveEmitter.vrvRefrigerant}
-                            onChange={(e) =>
-                                props.handleActiveEmitterChange(
-                                    'vrvRefrigerant',
-                                    e.target.value as ElectricCalcRefrigerant
-                                )
-                            }
-                        >
-                            {Object.values(ElectricCalcRefrigerant).map((e) => (
-                                <MenuItem key={e} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <FormControl>
-                        <InputLabel id="vrv-inside-type">
-                            VRV/VRF belső elhelyezés
-                        </InputLabel>
-                        <Select
-                            label="VRV/VRF belső elhelyezés"
-                            labelId="vrv-refrigerant"
-                            value={props.currentActiveEmitter.vrvInsideType}
-                            onChange={(e) =>
-                                props.handleActiveEmitterChange(
-                                    'vrvInsideType',
-                                    e.target.value as EmitterIndoorUnitPlacement
-                                )
-                            }
-                        >
-                            {Object.values(EmitterIndoorUnitPlacement).map(
-                                (e) => (
-                                    <MenuItem key={e} value={e}>
-                                        {e}
-                                    </MenuItem>
-                                )
-                            )}
-                        </Select>
-                    </FormControl>
-                </Box>
+                <FormControl>
+                    <InputLabel id="vrv-inside-type">
+                        VRV/VRF belső elhelyezés
+                    </InputLabel>
+                    <Select
+                        label="VRV/VRF belső elhelyezés"
+                        labelId="vrv-refrigerant"
+                        value={props.currentActiveEmitter.vrvInsideType}
+                        onChange={(e) =>
+                            props.handleActiveEmitterChange(
+                                'vrvInsideType',
+                                e.target.value as EmitterIndoorUnitPlacement
+                            )
+                        }
+                    >
+                        {Object.values(EmitterIndoorUnitPlacement).map((e) => (
+                            <MenuItem key={e} value={e}>
+                                {e}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
             ) : (
                 <></>
             )}
@@ -355,34 +256,34 @@ export default function EmitterForm(props: {
                 <Box
                     sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
                 >
-                    <FormControl>
-                        <Checkbox
-                            checked={props.currentActiveEmitter.insideRoom}
-                            onChange={() =>
-                                props.handleActiveEmitterChange(
-                                    'insideRoom',
-                                    !props.currentActiveEmitter.insideRoom
-                                )
-                            }
-                            slotProps={{
-                                input: { 'aria-label': 'Fűtőtt téren belül' },
-                            }}
-                        />
-                    </FormControl>
-                    <FormControl>
-                        <Checkbox
-                            checked={props.currentActiveEmitter.circulation}
-                            onChange={() =>
-                                props.handleActiveEmitterChange(
-                                    'circulation',
-                                    !props.currentActiveEmitter.circulation
-                                )
-                            }
-                            slotProps={{
-                                input: { 'aria-label': 'Van cirkuláció' },
-                            }}
-                        />
-                    </FormControl>
+                    <FormControlLabel
+                        label="Fűtött téren belül"
+                        control={
+                            <Checkbox
+                                checked={props.currentActiveEmitter.insideRoom}
+                                onChange={() =>
+                                    props.handleActiveEmitterChange(
+                                        'insideRoom',
+                                        !props.currentActiveEmitter.insideRoom
+                                    )
+                                }
+                            />
+                        }
+                    />
+                    <FormControlLabel
+                        label="Cirkuláció van"
+                        control={
+                            <Checkbox
+                                checked={props.currentActiveEmitter.circulation}
+                                onChange={() =>
+                                    props.handleActiveEmitterChange(
+                                        'circulation',
+                                        !props.currentActiveEmitter.circulation
+                                    )
+                                }
+                            />
+                        }
+                    />
                     <FormControl>
                         <InputLabel id="hmv-regulation-label">
                             HMV cirkuláció szabályzása

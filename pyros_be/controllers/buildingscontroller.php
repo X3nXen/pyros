@@ -100,7 +100,7 @@ class BuildingsController
 
             $res = calculateValues($data);
             $qf = $data['qf'] ?? round($res['q_f'], 2);
-            $heatLoss = $data['heatLoss'] ?? round($res['total_loss_watt'] / 1000, 2);
+            $heatLoss = $data['heatLoss'] ?? 0;
 
             $sql = "INSERT INTO buildings(name, json_data, calculated_values, qf, heat_loss, image_id, complex, project_id) VALUES (:name, :json_data, :calculated_values, :qf, :heat_loss, :image_id, :complex, :project_id)";
             $stmt = $db->prepare($sql);

@@ -37,14 +37,33 @@ class DocumentController
             $templateProcessor->setValue('data_year', $jsonData['dataYear'] ?? '');
             $templateProcessor->setValue('employee_count', $jsonData['employeeCount'] ?? '');
             $templateProcessor->setValue('profit', $jsonData['income'] ?? '');
+
+            //Pénzügyi kalkuláció
             $templateProcessor->setValue('bubor_rate', $jsonData['buborPercent']);
             $templateProcessor->setValue('bond_rate', $jsonData['bondPercent']);
             $templateProcessor->setValue('mnb_rate', $jsonData['mnbPercent']);
+            $interest_rate = 0.3 * (((float) $jsonData['buborPercent']) / 100) + 0.5 * (((float) $jsonData['bondPercent']) / 100) + 0.2 * (((float) $jsonData['mnbPercent']) / 100);
+            $interest_rate = round(($interest_rate + 0.03) * 100, 2);
+            $templateProcessor->setValue('interest_rate', $interest_rate);
+
+            //Költségek kalkulációja
+            $templateProcessor->setValue('current_date', date('Y.m.d'));
+
+            $stmt = $db->prepare("SELECT date_from, date_to FROM standings WHERE project_id=:projectId LIMIT 1");
+            $stmt->execute([':projectId' => $project_id]);
+            $dates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $dateFrom = new DateTime($dates[0]['date_from']);
+            $dateTo = new DateTime($dates[0]['date_to']);
+
+            $templateProcessor->setValue('audit_interval', $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d'));
 
             // 2. Telephelyek táblázat
             $stmt = $db->prepare("SELECT complex_json FROM complex WHERE project_id = :projectId");
             $stmt->execute([':projectId' => $project_id]);
             $complexes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $templateProcessor->setValue('telephelyein', count($complexes) > 1 ? 'telephelyein' : 'telephelyén');
 
             $complexTable = new \PhpOffice\PhpWord\Element\Table([
                 'borderSize' => 0,
@@ -79,7 +98,7 @@ class DocumentController
             }
             $templateProcessor->setComplexValue('complex_data', $complexTable);
 
-            // 3. Fogyasztási táblázat (Telephelyenkénti bontásban)
+            // 3. Fogyasztási táblázat
             $stmt = $db->prepare("SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption 
                           FROM complex c 
                           JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
@@ -87,7 +106,6 @@ class DocumentController
                           WHERE st.measurement_type='MAIN' AND c.project_id=:projectId");
             $stmt->execute([':projectId' => $project_id]);
 
-            // A Service végzi az adatok strukturálását
             $groupedComplexData = AuditService::processMonthlyConsumption($stmt->fetchAll(PDO::FETCH_ASSOC));
 
             $mainTable = new \PhpOffice\PhpWord\Element\Table([
