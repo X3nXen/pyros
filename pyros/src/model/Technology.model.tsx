@@ -1,6 +1,7 @@
 export interface CompressedFormData {
     id: string | null
     name: string
+    complex: string
     pressure: number
     machines: Array<CompressorData>
 }
@@ -27,13 +28,15 @@ export interface CompressorData {
     compressorType: string
     amount: number
     nominalOutput: number
-    couldWasteUse: boolean
+    pressureReduction: boolean
+    systemOptimalization: boolean
     wasteUse: string
 }
 
 export interface SteamFormData {
     id: string | null
     name: string
+    complex: string
     pressure: number
     heaterMode: string
     steamUse: string
@@ -46,7 +49,6 @@ export interface SteamMachineData {
     mode: string
     type: string
     nominalOutput: number
-    couldSmokeUse: boolean
     smokeUse: string
 }
 
@@ -65,6 +67,7 @@ export interface SteamMachineErrors {
 export interface CoolingFormData {
     id: string | null
     name: string
+    complex: string
     coolerMode: string
     machines: Array<CoolingMachineData>
 }
@@ -75,7 +78,6 @@ export interface CoolingMachineData {
     standing: string | null
     type: string
     nominalOutput: number
-    couldWasteUse: boolean
     wasteUse: string
 }
 
@@ -93,6 +95,7 @@ export interface CoolingMachineErrors {
 export interface OtherFormData {
     id: string | null
     name: string
+    complex: string
     machines: Array<OtherDeviceData>
 }
 
@@ -104,7 +107,6 @@ export interface OtherDeviceData {
     amount: number
     nominalOutput: number
     hours: number
-    couldWasteUse: boolean
     wasteUse: string
 }
 
@@ -124,10 +126,11 @@ export interface OtherDeviceErrors {
 export const CompressorModes: Array<string> = ['On/off', 'Frekvenciaváltós']
 
 export const WasteUseModes: Array<string> = [
-    'Nincs',
+    'Nincs, lehetőség sincs',
+    'Nincs, van rá lehetőség',
     'Van, fűtés',
     'Van, HMV',
-    'Van, fűtés és HMV',
+    'Van, fűtés+HMV',
 ]
 
 export const HeaterModes: Array<string> = [
@@ -159,8 +162,8 @@ export const CoolingMachineModes: Array<string> = [
 export const OtherMachineModes: Array<string> = ['On-off', 'Szabályozott']
 
 export enum TechnologyType {
-    COMPRESSED_AIR,
-    STEAM,
-    COOLING,
-    OTHER,
+    COMPRESSED_AIR = 'COMPRESSED_AIR',
+    STEAM = 'STEAM',
+    COOLING = 'COOLING',
+    OTHER = 'OTHER',
 }

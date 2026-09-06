@@ -98,6 +98,13 @@ class StandingsController
 
         $dateFrom = !empty($data['dateFrom']) ? date('Y-m-d', strtotime($data['dateFrom'])) : null;
         $dateTo = !empty($data['dateTo']) ? date('Y-m-d', strtotime($data['dateTo'])) : null;
+        $purpose = $measurementType !== 'MAIN' ? match ($data['purpose']) {
+            'Épület' => 'BUILDING',
+            'Tevékenység' => 'SERVICE',
+            'Szállítás' => 'CARRY',
+            default => 'SERVICE'
+        } : null;
+
         $projectId = $data['project_id'] ?? null;
         if (!$projectId) {
             http_response_code(500);
@@ -133,9 +140,9 @@ class StandingsController
             $db = Database::getConnection();
 
             $sql = "INSERT INTO standings 
-                    (name, measurement_type, sub_to, source, measurement, date_from, date_to, consumption, project_id) 
+                    (name, measurement_type, sub_to, source, measurement, date_from, date_to, consumption, project_id, purpose, pod) 
                 VALUES 
-                    (:name, :measurement_type, :sub_to, :source, :measurement, :date_from, :date_to, :consumption, :projectId)";
+                    (:name, :measurement_type, :sub_to, :source, :measurement, :date_from, :date_to, :consumption, :projectId, :purpose, :podId)";
 
             $stmt = $db->prepare($sql);
 
@@ -148,7 +155,9 @@ class StandingsController
                 ':date_from' => $dateFrom,
                 ':date_to' => $dateTo,
                 ':consumption' => $consumptionJson,
-                ':projectId' => $projectId
+                ':projectId' => $projectId,
+                ':purpose' => $purpose,
+                ':podId' => $data['pod'] ?? null
             ]);
 
             http_response_code(201);

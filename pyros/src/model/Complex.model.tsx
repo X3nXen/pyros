@@ -1,7 +1,6 @@
 export interface ComplexFormData {
     id: string | null
     name: string
-    podId: string
     address: string
     postal: number
     city: string

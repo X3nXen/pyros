@@ -22,11 +22,13 @@ import {
     OtherMachineModes,
 } from '../model/Technology.model'
 import { useAppSelector } from '../store'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function Other() {
     const [formData, setFormData] = useState<OtherFormData>({
         id: null,
         name: '',
+        complex: '',
         machines: [],
     })
     const [loading, setLoading] = useState<boolean>(false)
@@ -42,6 +44,7 @@ export default function Other() {
     ]
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
+    const complexes = useAppSelector((state) => state.project.complexes)
 
     const currentActiveOtherMachine =
         activeOtherMachineIndex !== null
@@ -56,7 +59,6 @@ export default function Other() {
             type: '',
             nominalOutput: 0,
             hours: 0,
-            couldWasteUse: false,
             wasteUse: WasteUseModes[0],
             amount: 0,
         }
@@ -117,6 +119,23 @@ export default function Other() {
                 {!!errors && errors.name !== '' && (
                     <FormHelperText>{errors.name}</FormHelperText>
                 )}
+            </FormControl>
+            <FormControl>
+                <InputLabel id="complex-select-label">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select-label"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData) => (
+                        <MenuItem key={'complex-' + e.id} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
             </FormControl>
 
             <CardListing<OtherDeviceData>
@@ -390,31 +409,6 @@ export default function Other() {
                                     }
                                 </FormHelperText>
                             )}
-                    </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-use-select">
-                            Van lehetőség hulladékhő hasznosításra
-                        </InputLabel>
-                        <Select
-                            label="Hulladékhő hasznosítás"
-                            labelId="waste-use-select"
-                            value={
-                                currentActiveOtherMachine.couldWasteUse ? 1 : 0
-                            }
-                            onChange={(e) =>
-                                handleActiveOtherMachineChange(
-                                    'couldWasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            <MenuItem key="Van" value={1}>
-                                Van
-                            </MenuItem>
-                            <MenuItem key="Nincs" value={0}>
-                                Nincs
-                            </MenuItem>
-                        </Select>
                     </FormControl>
                     <FormControl>
                         <InputLabel id="waste-select">

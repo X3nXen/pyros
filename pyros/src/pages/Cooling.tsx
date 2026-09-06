@@ -23,11 +23,13 @@ import {
 import CardListing from '../components/CardListing'
 import type { StandingsShort } from '../model/Standings.model'
 import FormSendProtocol from '../controllers/Forms.control'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function Cooling() {
     const [formData, setFormData] = useState<CoolingFormData>({
         id: null,
         name: '',
+        complex: '',
         coolerMode: CoolerModes[0],
         machines: [],
     })
@@ -42,6 +44,7 @@ export default function Cooling() {
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
     ]
+    const complexes = useAppSelector((state) => state.project.complexes)
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
 
@@ -57,7 +60,6 @@ export default function Cooling() {
             standing: null,
             type: '',
             nominalOutput: 0,
-            couldWasteUse: false,
             wasteUse: WasteUseModes[0],
         }
 
@@ -119,6 +121,23 @@ export default function Cooling() {
                 )}
             </FormControl>
 
+            <FormControl>
+                <InputLabel id="complex-select-label">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select-label"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData) => (
+                        <MenuItem key={'complex-' + e.id} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <FormControl>
                 <InputLabel id="cooler-mode-select">
                     Hűtőgép működési módja
@@ -319,33 +338,6 @@ export default function Cooling() {
                                     }
                                 </FormHelperText>
                             )}
-                    </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-use-select">
-                            Van lehetőség hulladékhő hasznosításra
-                        </InputLabel>
-                        <Select
-                            label="Hulladékhő hasznosítás"
-                            labelId="waste-use-select"
-                            value={
-                                currentActiveCoolingMachine.couldWasteUse
-                                    ? 1
-                                    : 0
-                            }
-                            onChange={(e) =>
-                                handleActiveCoolingMachineChange(
-                                    'couldWasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            <MenuItem key="Van" value={1}>
-                                Van
-                            </MenuItem>
-                            <MenuItem key="Nincs" value={0}>
-                                Nincs
-                            </MenuItem>
-                        </Select>
                     </FormControl>
                     <FormControl>
                         <InputLabel id="waste-select">

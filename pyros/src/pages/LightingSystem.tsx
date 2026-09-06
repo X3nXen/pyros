@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom'
 import CardListing from '../components/CardListing'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useAppSelector } from '../store'
+import type { StandingsShort } from '../model/Standings.model'
 
 export default function LightingSystem() {
     const [formData, setFormData] = useState<Array<LightingFormData>>([])
@@ -48,11 +49,14 @@ export default function LightingSystem() {
             naturalLight: LightingNaturalLightRatio[0],
             emergency: false,
             standBy: false,
+            standing: null,
         }
 
         setFormData([...formData, newLightingSystem])
         setActiveLightingIndex(formData.length)
     }
+
+    const standings = useAppSelector((state) => state.project.subStandings)
 
     function handleActiveLightingSystemChange(
         field: keyof LightingFormData,
@@ -97,6 +101,7 @@ export default function LightingSystem() {
                 mt: 3,
             }}
         >
+            <h1>Világítási rendszerek rögzítése</h1>
             <CardListing
                 items={formData}
                 activeIndex={activeLightingIndex}
@@ -351,6 +356,49 @@ export default function LightingSystem() {
                                 Nincs / nem releváns
                             </MenuItem>
                         </Select>
+                    </FormControl>
+                    <FormControl
+                        error={
+                            formErrors !== null &&
+                            activeLightingIndex !== null &&
+                            formErrors[activeLightingIndex] !== 'none'
+                        }
+                    >
+                        <InputLabel id="lighting-standing-select">
+                            Mérő hozzárendelése
+                        </InputLabel>
+                        <Select
+                            label="Mérő"
+                            labelId="lighting-standing-select"
+                            value={currentActiveLighting.standing}
+                            onChange={(e) =>
+                                handleActiveLightingSystemChange(
+                                    'standing',
+                                    e.target.value
+                                )
+                            }
+                        >
+                            {standings.map((e: StandingsShort) => (
+                                <MenuItem key={e.id} value={e.id}>
+                                    {e.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                        {formErrors !== null &&
+                            activeLightingIndex !== null &&
+                            formErrors[activeLightingIndex] !== 'none' &&
+                            (formErrors[activeLightingIndex] as LightingErrors)
+                                .standing && (
+                                <FormHelperText>
+                                    {
+                                        (
+                                            formErrors[
+                                                activeLightingIndex
+                                            ] as LightingErrors
+                                        ).standing
+                                    }
+                                </FormHelperText>
+                            )}
                     </FormControl>
                     <Button
                         variant="contained"

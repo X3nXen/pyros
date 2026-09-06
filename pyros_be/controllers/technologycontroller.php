@@ -84,13 +84,14 @@ class TechnologyController
                     $params[] = 'TECHNOLOGY';
                 }
             }
-            $sql = "INSERT INTO technology (name, json, technology_type, project_id) VALUES (:name, :json, :technology_type, :projectId)";
+            $sql = "INSERT INTO technology (name, json, technology_type, project_id, complex) VALUES (:name, :json, :technology_type, :projectId, :complexId)";
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':name' => $data['name'],
                 ':json' => json_encode($data),
                 ':technology_type' => $data['technologyType'],
-                ':projectId' => $projectId
+                ':projectId' => $projectId,
+                ':complexId' => $data['complex']
             ]);
 
             if (!empty($data['machines'])) {

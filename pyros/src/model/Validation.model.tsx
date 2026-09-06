@@ -528,6 +528,7 @@ export function validateLightingSystem(payload: Array<LightingFormData>) {
         const localErrors: LightingErrors = {
             zone: '',
             size: '',
+            standing: '',
         }
         if (!e.zone || e.zone === '') {
             localErrors.zone = 'Add meg a zóna nevét!'
@@ -535,6 +536,10 @@ export function validateLightingSystem(payload: Array<LightingFormData>) {
         }
         if (!e.size || e.size <= 0) {
             localErrors.size = 'Add meg a zóna méretét!'
+            localHasError = true
+        }
+        if (!e.standing || e.standing == '') {
+            localErrors.standing = 'Add meg a hozzárendelt mérőt!'
             localHasError = true
         }
         if (localHasError) {

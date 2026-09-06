@@ -9,17 +9,49 @@ class DocumentController
     {
         $method = $_SERVER['REQUEST_METHOD'];
 
-        if ($method === 'GET') {
-            $this->handleGet();
+        if ($method === 'POST') {
+            $this->handlePost();
         } else {
             http_response_code(405);
             echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
         }
     }
 
-    private function handleGet()
+    private function handlePost()
     {
-        $project_id = $_GET['project_id'];
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Érvénytelen JSON formátum']);
+            return;
+        }
+
+        $project_id = $data['project_id'] ?? null;
+        $base64Image = $data['sankey_image'] ?? null;
+
+        if (!$project_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'A project_id megadása kötelező']);
+            return;
+        }
+
+        $sankeyImagePath = sys_get_temp_dir() . '/sankey_' . $project_id . '.png';
+        $hasValidImage = false;
+
+        if (!empty($base64Image)) {
+            $imgData = preg_replace('#^data:image/\w+;base64,#i', '', $base64Image);
+            $decodedData = base64_decode($imgData);
+
+            if ($decodedData !== false) {
+                file_put_contents($sankeyImagePath, $decodedData);
+
+                if (@getimagesize($sankeyImagePath) !== false) {
+                    $hasValidImage = true;
+                }
+            }
+        }
         try {
             $templateProcessor = new TemplateProcessor(__DIR__ . '/audit_template.docx');
             $db = Database::getConnection();
@@ -28,8 +60,9 @@ class DocumentController
             $stmt = $db->prepare("SELECT json FROM variables WHERE project_id = :projectId");
             $stmt->execute([':projectId' => $project_id]);
             $jsonData = json_decode($stmt->fetchColumn() ?: '{}', true);
+            $companyName = $jsonData['fullName'];
 
-            $templateProcessor->setValue('company_name', $jsonData['fullName'] ?? '');
+            $templateProcessor->setValue('company_name', $companyName ?? '');
             $templateProcessor->setValue('foundation_year', $jsonData['foundationYear'] ?? '');
             $templateProcessor->setValue('owner_percentage', !empty($jsonData['foreign']) ? 'magyar' : ($jsonData['percent'] ?? 0) . '%-ban külföldi');
             $templateProcessor->setValue('company_product', $jsonData['mainActivity'] ?? '');
@@ -37,6 +70,69 @@ class DocumentController
             $templateProcessor->setValue('data_year', $jsonData['dataYear'] ?? '');
             $templateProcessor->setValue('employee_count', $jsonData['employeeCount'] ?? '');
             $templateProcessor->setValue('profit', $jsonData['income'] ?? '');
+
+            $stmt = $db->prepare("
+    SELECT id, name, measurement_type, sub_to, source, measurement, consumption, purpose 
+    FROM standings 
+    WHERE project_id = :projectId
+");
+            $stmt->execute([':projectId' => $project_id]);
+            $standings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $carrierRows = AuditService::getEnergyCarrierSummaryRows($standings);
+
+            if (!empty($carrierRows)) {
+                $templateProcessor->cloneRow('carrier', count($carrierRows));
+
+                foreach ($carrierRows as $index => $row) {
+                    $i = $index + 1;
+
+                    $templateProcessor->setValue("carrier#{$i}", $row['carrier_name']);
+                    $templateProcessor->setValue("carrier_building#{$i}", $row['carrier_building']);
+                    $templateProcessor->setValue("carrier_product#{$i}", $row['carrier_product']);
+                    $templateProcessor->setValue("carrier_vehicle#{$i}", $row['carrier_vehicle']);
+                    $templateProcessor->setValue("carrier_total#{$i}", $row['carrier_total']);
+                }
+            } else {
+                $templateProcessor->setValue('carrier', 'Nincs adat');
+                $templateProcessor->setValue('carrier_building', '-');
+                $templateProcessor->setValue('carrier_product', '-');
+                $templateProcessor->setValue('carrier_vehicle', '-');
+                $templateProcessor->setValue('carrier_total', '-');
+            }
+
+            // Fogyasztások felosztása
+
+            if (!empty($carrierRows)) {
+                $templateProcessor->cloneRow('carrier2', count($carrierRows));
+
+                foreach ($carrierRows as $index => $row) {
+                    $i = $index + 1;
+                    $templateProcessor->setValue("carrier2#{$i}", $row['carrier_name']);
+                    $templateProcessor->setValue("carrier2_building#{$i}", $row['carrier_building']);
+                    $templateProcessor->setValue("carrier2_product#{$i}", $row['carrier_product']);
+                    $templateProcessor->setValue("carrier2_vehicle#{$i}", $row['carrier_vehicle']);
+                }
+            } else {
+                $templateProcessor->setValue('carrier2', 'Nincs adat');
+                $templateProcessor->setValue('carrier2_building', '-');
+                $templateProcessor->setValue('carrier2_product', '-');
+                $templateProcessor->setValue('carrier2_vehicle', '-');
+            }
+
+            if ($hasValidImage) {
+                $templateProcessor->setImageValue('sankey_diagram', [
+                    'path' => $sankeyImagePath,
+                    'width' => 600,
+                    'height' => 300,
+                    'ratio' => true
+                ]);
+            } else {
+                $templateProcessor->setValue('sankey_diagram', 'A diagram nem áll rendelkezésre.');
+            }
+            if (file_exists($sankeyImagePath)) {
+                @unlink($sankeyImagePath);
+            }
 
             //Pénzügyi kalkuláció
             $templateProcessor->setValue('bubor_rate', $jsonData['buborPercent']);
@@ -99,7 +195,7 @@ class DocumentController
             $templateProcessor->setComplexValue('complex_data', $complexTable);
 
             // 3. Fogyasztási táblázat
-            $stmt = $db->prepare("SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption 
+            $stmt = $db->prepare("SELECT c.id as complex_id, c.name, st.source, st.measurement, st.consumption 
                           FROM complex c 
                           JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
                           JOIN standings st ON st.id=s.standing 
@@ -215,6 +311,7 @@ class DocumentController
 
             $templateProcessor->setComplexValue('building_listing', $buildingsTable);
 
+            //Szállítás értékelése
             $stmt = $db->prepare("SELECT 
                         v.name AS vehicle_name, 
                         c.name AS complex_name, 
@@ -245,6 +342,107 @@ class DocumentController
             AuditService::buildVehiclesTable($vehiclesTable, $vehicleData);
 
             $templateProcessor->setComplexValue('vehicle_listing', $vehiclesTable);
+
+            //Technológia értékelése
+            $stmt = $db->prepare("SELECT t.id, t.name, t.json, c.name as complex_name, t.technology_type FROM technology t join complex c on t.complex = c.id WHERE t.project_id = :projectId ORDER BY id ASC");
+            $stmt->execute([':projectId' => $project_id]);
+            $technologies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($technologies)) {
+                $templateProcessor->setValue('technology_title', '');
+                $templateProcessor->setValue('technology_content', '');
+            } else {
+                $templateProcessor->setValue('technology_title', '10. Technológiai alrendszerek energetikai értékelése');
+                $stmtMeters = $db->prepare("SELECT id, name FROM standings WHERE project_id = :projectId");
+                $stmtMeters->execute([':projectId' => $project_id]);
+                $meters = $stmtMeters->fetchAll(PDO::FETCH_KEY_PAIR);
+
+                $groupedTechs = [
+                    'COMPRESSED_AIR' => [],
+                    'STEAM' => [],
+                    'COOLING' => [],
+                    'OTHER' => []
+                ];
+
+                foreach ($technologies as $tech) {
+                    $type = $tech['technology_type'];
+                    if (isset($groupedTechs[$type])) {
+                        $groupedTechs[$type][] = $tech;
+                    }
+                }
+
+                $mainTable = new \PhpOffice\PhpWord\Element\Table([
+                    'borderSize' => 0,
+                    'borderColor' => 'FFFFFF',
+                    'cellMargin' => 0
+                ]);
+
+                $mainTable->addRow();
+                $mainCell = $mainTable->addCell(9000);
+                $mainCell->addText(
+                    "A " . htmlspecialchars($companyName ?? 'GAZDÁLKODÓ SZERVEZET') . "-nál/nél az alábbi technológiai alrendszerek kerültek kialakításra:",
+                    null,
+                    ['spaceAfter' => 120]
+                );
+                $letterIndex = 'a';
+
+                if (!empty($groupedTechs['COMPRESSED_AIR'])) {
+                    $mainCell->addText($letterIndex . ") Sűrített levegős hálózat", ['bold' => true, 'size' => 11]);
+
+                    foreach ($groupedTechs['COMPRESSED_AIR'] as $tech) {
+                        $jsonData = json_decode($tech['json'], true) ?? [];
+
+                        // Átadjuk a $complexes és $meters tömböket is!
+                        AuditService::appendCompressedAirTableToCell($mainCell, $jsonData, $tech['name'], $tech['complex_name'], $meters);
+                        $mainCell->addText("");
+                    }
+
+                    $letterIndex = chr(ord($letterIndex) + 1);
+                }
+
+                if (!empty($groupedTechs['STEAM'])) {
+                    $mainCell->addText($letterIndex . ") Gőzrendszer", ['bold' => true, 'size' => 11]);
+
+                    foreach ($groupedTechs['STEAM'] as $tech) {
+                        $jsonData = json_decode($tech['json'], true) ?? [];
+                        $complexName = $tech['complex_name'] ?? '';
+
+                        AuditService::appendSteamTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters);
+                        $mainCell->addText("");
+                    }
+
+                    $letterIndex = chr(ord($letterIndex) + 1);
+                }
+
+                if (!empty($groupedTechs['COOLING'])) {
+                    $mainCell->addText($letterIndex . ") Technológiai hűtés", ['bold' => true, 'size' => 11]);
+
+                    foreach ($groupedTechs['COOLING'] as $tech) {
+                        $jsonData = json_decode($tech['json'], true) ?? [];
+
+                        AuditService::appendCoolingTableToCell($mainCell, $jsonData, $tech['name'], $meters);
+                        $mainCell->addText(""); // Sorköz
+                    }
+
+                    $letterIndex = chr(ord($letterIndex) + 1);
+                }
+
+                if (!empty($groupedTechs['OTHER'])) {
+                    $mainCell->addText($letterIndex . ") Egyéb technológiai hőhasználat", ['bold' => true, 'size' => 11]);
+
+                    foreach ($groupedTechs['OTHER'] as $tech) {
+                        $jsonData = json_decode($tech['json'], true) ?? [];
+                        $complexName = $tech['complex_name'] ?? '';
+
+                        AuditService::appendOtherTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters);
+                        $mainCell->addText("");
+                    }
+
+                    $letterIndex = chr(ord($letterIndex) + 1);
+                }
+
+                $templateProcessor->setComplexBlock('technology_content', $mainTable);
+            }
 
             // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';

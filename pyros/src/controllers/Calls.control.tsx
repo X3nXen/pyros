@@ -710,27 +710,31 @@ export default class Calls {
         }
     }
 
-    static async getDocument(projectId: string): Promise<{
+    static async getDocument(
+        projectId: string,
+        sankeyImage?: string | null
+    ): Promise<{
         success: boolean
         payload?: Blob
         message?: string
     }> {
         try {
-            const response = await fetch(
-                Calls.getApiLink() + '/document?project_id=' + projectId,
-                {
-                    method: 'GET',
-                    headers: {
-                        Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    },
-                }
-            )
+            const response = await fetch(Calls.getApiLink() + '/document', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    sankey_image: sankeyImage || null,
+                }),
+            })
 
             if (!response.ok) {
                 throw new Error(`HTTP hiba! Státusz: ${response.status}`)
             }
 
-            // JSON helyett Blob-ként kérjük le a bináris fájlt
             const blob = await response.blob()
 
             return {
@@ -742,6 +746,32 @@ export default class Calls {
             return {
                 success: false,
                 message: 'Nem sikerült letölteni a dokumentumot.',
+            }
+        }
+    }
+
+    static async getSankeyData(projectId: string): Promise<{
+        success: boolean
+        payload?: Array<{ from: string; to: string; flow: number }>
+        message?: string
+    }> {
+        try {
+            const response = await fetch(
+                Calls.getApiLink() + '/sankey?project_id=' + projectId,
+                {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' },
+                }
+            )
+            if (!response.ok)
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            const data = await response.json()
+            return { success: true, payload: data }
+        } catch (error) {
+            console.error('Hiba a Sankey adatok lekérése során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült lekérni a Sankey adatokat.',
             }
         }
     }
