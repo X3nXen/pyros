@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../database.php';
+require_once __DIR__ . '/../services/AuditService.php';
 
 class VehicleController
 {
@@ -71,8 +72,8 @@ class VehicleController
         try {
             $db = Database::getConnection();
             $db->beginTransaction();
-            $sql = 'INSERT INTO vehicles(name, project_id, complex_id, standing_id, usage_metric, usage_value, usage_value2, fuel, hibrid, motor_size)
-                    VALUES (:name, :projectId, :complexId, :standingId, :usageMetric, :usageValue, :usageValue2, :fuel, :hibrid, :motorSize)';
+            $sql = 'INSERT INTO vehicles(name, project_id, complex_id, standing_id, usage_metric, usage_value, usage_value2, fuel, hibrid, motor_size, capacity, vehicle_category, chargeable)
+                    VALUES (:name, :projectId, :complexId, :standingId, :usageMetric, :usageValue, :usageValue2, :fuel, :hibrid, :motorSize, :capacity, :vehicleCategory, :chargeable)';
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':name' => $data['name'],
@@ -84,7 +85,10 @@ class VehicleController
                 ':usageValue2' => $data['usageValue2'],
                 ':fuel' => $data['fuel'],
                 ':hibrid' => !empty($data['hibrid']) ? 1 : 0,
-                ':motorSize' => $data['motorSize']
+                ':motorSize' => $data['motorSize'],
+                ':capacity' => $data['capacity'] ?? 0,
+                ':vehicleCategory' => $data['category'],
+                ':chargeable' => (int) $data['chargeable']
             ]);
 
             $insertedId = $db->lastInsertId();
@@ -96,6 +100,20 @@ class VehicleController
                 ':reference' => $insertedId,
                 ':type' => 'VEHICLE'
             ]);
+
+            $stmt = $db->prepare("SELECT measurement_type FROM standings WHERE id=:standingId");
+            $stmt->execute([':standingId' => $data['subStanding']]);
+            $standingData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($standingData && $standingData['measurement_type'] == 'VIRTUAL') {
+                $sql = "UPDATE standings SET consumption=:consumption_json WHERE id=:standingId AND measurement_type='VIRTUAL'";
+                $stmt = $db->prepare($sql);
+                $stmt->execute([
+                    ':standingId' => $data['subStanding'],
+                    ':consumption_json' => json_encode(AuditService::calculateVehicleTotal($data))
+                ]);
+            }
+
 
             $db->commit();
 

@@ -10,6 +10,8 @@ export interface VehicleFormData {
     usageValue: number
     usageValue2: number
     subStanding: string | null
+    capacity: number
+    chargeable: boolean
 }
 
 export interface VehicleErrors {
@@ -19,6 +21,7 @@ export interface VehicleErrors {
     subStanding: string
     motorSize: string
     usageValue2: string
+    capacity: string
 }
 
 export const VehicleCategories: Array<string> = [
@@ -35,7 +38,7 @@ export const VehicleFuelCategories: Array<string> = [
     'Gázolaj',
     'PB Gáz',
     'Propán',
-    'Eletromos áram',
+    'Elektromos áram',
     'LPG',
 ]
 

@@ -92,25 +92,36 @@ class AuditService
         return $complexesData;
     }
 
-    /**
-     * A teljes fogyasztás összegzése egyetlen számmá a mérő JSON-jából (a hierarchiafához)
-     */
     public static function calculateTotalConsumption(?string $consumptionJson, string $source = ''): float
     {
-        if (empty($consumptionJson))
+        if (empty($consumptionJson)) {
             return 0;
+        }
 
         $data = json_decode($consumptionJson, true);
-        if (!is_array($data))
+        if (!is_array($data)) {
             return 0;
+        }
+
+        if (isset($data['total']) && is_numeric($data['total'])) {
+            $total = (float) $data['total'];
+            return ($source === 'SOLAR') ? -abs($total) : $total;
+        }
 
         $total = 0;
         foreach ($data as $year => $months) {
-            if (!is_array($months))
+            if (is_numeric($months)) {
+                $total += (float) $months;
                 continue;
+            }
+
+            if (!is_array($months)) {
+                continue;
+            }
+
             foreach ($months as $val) {
                 if ($val !== null && is_numeric($val)) {
-                    $total += $val;
+                    $total += (float) $val;
                 }
             }
         }
@@ -124,8 +135,9 @@ class AuditService
 
         foreach ($standings as $row) {
             $rawSource = strtoupper(trim($row['source'] ?? ''));
-            if (empty($rawSource))
+            if (empty($rawSource)) {
                 continue;
+            }
 
             $carrierName = self::$energySources[$rawSource] ?? $rawSource;
 
@@ -141,39 +153,35 @@ class AuditService
 
             $consumptionValue = self::calculateTotalConsumption($row['consumption'] ?? '', $rawSource);
 
-            if (in_array($row['measurement_type'], ['MAIN', 'VIRTUAL']) && empty($row['sub_to'])) {
+            // 1. Teljes fogyasztás gyűjtése (Főmérők vagy önálló mérési pontok)
+            if (in_array($row['measurement_type'] ?? '', ['MAIN', 'VIRTUAL']) && empty($row['sub_to'])) {
                 $carriers[$carrierName]['total'] += $consumptionValue;
             }
 
-            if (!empty($row['purpose'])) {
-                if ($row['purpose'] === 'BUILDING') {
-                    $carriers[$carrierName]['building'] += $consumptionValue;
-                } elseif ($row['purpose'] === 'SERVICE') {
-                    $carriers[$carrierName]['service'] += $consumptionValue;
-                } elseif ($row['purpose'] === 'CARRY') {
-                    $carriers[$carrierName]['carry'] += $consumptionValue;
-                }
+            // 2. Kategóriák szerinti gyűjtés
+            $purpose = strtoupper(trim($row['purpose'] ?? ''));
+            if ($purpose === 'BUILDING') {
+                $carriers[$carrierName]['building'] += $consumptionValue;
+            } elseif ($purpose === 'SERVICE') {
+                $carriers[$carrierName]['service'] += $consumptionValue;
+            } elseif (in_array($purpose, ['CARRY', 'TRANSPORT', 'VEHICLE', 'SZALLITAS'])) {
+                $carriers[$carrierName]['carry'] += $consumptionValue;
             }
         }
 
         $carrierRows = [];
 
         foreach ($carriers as $name => $data) {
-            $total = $data['total'];
             $building = $data['building'];
             $carry = $data['carry'];
-            $rawSource = $data['raw_source'];
-            $product = 0.0;
+            $total = $data['total'];
 
-            if (in_array($rawSource, ['GAS', 'REMOTE', 'COAL', 'PAKURA', 'WOOD', 'PB', 'PROPANE', 'LPG'])) {
-                $carry = 0.0;
-                $product = max(0.0, $total - $building);
-            } elseif (in_array($rawSource, ['GASOLINE', 'PETROL'])) {
-                $building = 0.0;
-                $product = max(0.0, $total - $carry);
-            } else {
-                $product = max(0.0, $total - $building - $carry);
-            }
+            // Biztonsági korrekció: ha a részösszegek meghaladják a total-t (pl. sub-metering miatt), 
+            // a total felveszi a részösszegek max értékét.
+            $total = max($total, $building + $carry + $data['service']);
+
+            // Tevékenység (Product) = ami megmarad az Épület és Szállítás levonása után
+            $product = max(0.0, $total - $building - $carry);
 
             $carrierRows[] = [
                 'carrier_name' => $name,
@@ -187,104 +195,6 @@ class AuditService
         return $carrierRows;
     }
 
-    public static function generateSankeyDiagram(array $carrierRows, string $outputPath): bool
-    {
-        $links = [];
-
-        $buildingNode = 'Épület';
-        $productNode = 'Tevékenység';
-        $vehicleNode = 'Szállítás';
-
-        // Szigorú érték-tisztító segédfüggvény
-        $parseValue = function ($val) {
-            if (is_numeric($val))
-                return (float) $val;
-            if (empty($val))
-                return 0.0;
-            $clean = preg_replace('/[^\d\,\.]/', '', str_replace(['&nbsp;', "\xC2\xA0", ' ', 'kWh'], '', $val));
-            $clean = str_replace(',', '.', $clean);
-            return (float) $clean;
-        };
-
-        foreach ($carrierRows as $row) {
-            $source = trim(strip_tags($row['carrier_name'] ?? 'Energia'));
-
-            $bVal = $parseValue($row['carrier_building'] ?? 0);
-            $pVal = $parseValue($row['carrier_product'] ?? 0);
-            $vVal = $parseValue($row['carrier_vehicle'] ?? 0);
-
-            if ($bVal > 0) {
-                $links[] = ['from' => $source, 'to' => $buildingNode, 'flow' => $bVal];
-            }
-            if ($pVal > 0) {
-                $links[] = ['from' => $source, 'to' => $productNode, 'flow' => $pVal];
-            }
-            if ($vVal > 0) {
-                $links[] = ['from' => $source, 'to' => $vehicleNode, 'flow' => $vVal];
-            }
-        }
-
-        if (empty($links)) {
-            return false;
-        }
-
-        // Chart.js v2/v3 stabil Sankey struktúra
-        $chartConfig = [
-            'type' => 'sankey',
-            'data' => [
-                'datasets' => [
-                    [
-                        'data' => $links,
-                        'colorFrom' => '#0055A5',
-                        'colorTo' => '#28A745',
-                        'colorMode' => 'gradient'
-                    ]
-                ]
-            ]
-        ];
-
-        $postData = json_encode([
-            'width' => 600,
-            'height' => 300,
-            'format' => 'png',
-            'chart' => $chartConfig
-        ]);
-
-        $ch = curl_init('https://quickchart.io/chart');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-        $imageContent = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        // Csak akkor mentjük el, ha 200 OK választ kaptunk
-        if ($httpCode === 200 && !empty($imageContent)) {
-            file_put_contents($outputPath, $imageContent);
-
-            // EXTRA VALIDÁCIÓ: Megnézzük, hogy a fájl valóban érvényes KÉP-e (nem JSON hibaüzenet)
-            $imageInfo = @getimagesize($outputPath);
-            if ($imageInfo !== false) {
-                return true; // Érvényes kép!
-            }
-        }
-
-        // Ha nem kép jött vissza, töröljük a hibás fájlt
-        if (file_exists($outputPath)) {
-            @unlink($outputPath);
-        }
-
-        return false;
-    }
-
-    /**
-     * Mérő hierarchia fa felépítése rekurzívan egy TextRun elembe
-     */
     public static function buildStandingTree(
         int $standingId,
         array &$standingsById,
@@ -313,7 +223,6 @@ class AuditService
         $deadCellColWidth = 3000;
         $valueColWidth = 3000;
 
-        // 1. OSZLOP: MÉRŐ NEVE
         $nameCell = $table->addCell($nameColWidth, $cellOptions);
 
         if ($level === 0) {
@@ -333,7 +242,6 @@ class AuditService
             $nameCell->addText('• ' . $standing['name'], $fontStyle, $nameParagraphStyle);
         }
 
-        // 2. OSZLOP: DEADSPACE
         $deadCell = $table->addCell($deadCellColWidth, $cellOptions);
 
         $valueCell = $table->addCell($valueColWidth, $cellOptions);
@@ -449,58 +357,6 @@ class AuditService
             };
     }
 
-    /**
-     * Jármű fajlagos fogyasztásának és mértékegységének kiszámítása
-     */
-    public static function calculateVehicleQf(array $vehicle): array
-    {
-        // 1. A DB-ből jövő 'consumption' JSON sztring
-        $rawConsumption = $vehicle['consumption'] ?? null;
-
-        // 2. Összes éves fogyasztás kiszámítása
-        $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
-
-        // 3. Átszámítás kWh-ra
-        $unit = $vehicle['measurement'] ?? 'KWH';
-        $totalKwh = self::convertToKwh($totalConsumption, $unit);
-
-        // 4. Használati mutatók lekérése - kezeli a camelCase és snake_case kulcsokat is!
-        $metric = $vehicle['usage_metric'] ?? $vehicle['usageMetric'] ?? 'km';
-        $usage1 = (float) ($vehicle['usage_value'] ?? $vehicle['usageValue'] ?? 0);
-        $usage2 = (float) ($vehicle['usage_value2'] ?? $vehicle['usageValue2'] ?? 0);
-
-        $divisor = 0;
-        $unitLabel = 'kWh/km';
-        $threshold = 0.8;
-
-        if (strcasecmp($metric, 'tkm') === 0) {
-            $divisor = $usage1 * $usage2; // km * tonna
-            $unitLabel = 'kWh/tkm';
-            $threshold = 0.15;
-        } elseif (strcasecmp($metric, 'Üzemóra') === 0 || strcasecmp($metric, 'h') === 0) {
-            $divisor = $usage1;
-            $unitLabel = 'kWh/h';
-            $threshold = 15.0;
-        } else { // km
-            $divisor = $usage1;
-            $unitLabel = 'kWh/km';
-            $threshold = 0.8;
-        }
-
-        // 5. Qf kiszámítása
-        $qf = ($divisor > 0) ? ($totalKwh / $divisor) : 0;
-        $status = ($qf > $threshold) ? 'Fejlesztendő' : 'Megfelelő';
-
-        return [
-            'qf' => $qf,
-            'unit' => $unitLabel,
-            'status' => $status
-        ];
-    }
-
-    /**
-     * Jármű értékelési táblázat építése Word-höz
-     */
     public static function buildVehiclesTable(\PhpOffice\PhpWord\Element\Table &$table, array &$vehicles): void
     {
         $colWidths = [
@@ -531,7 +387,6 @@ class AuditService
             'spaceAfter' => 60
         ];
 
-        // Fejléc sor
         $table->addRow(600, $headerRowStyle);
 
         $cell1 = $table->addCell($colWidths['vehicle'], $headerCellStyle);
@@ -566,30 +421,281 @@ class AuditService
             'spaceAfter' => 40
         ];
 
-        // Adatsorok generálása
         foreach ($vehicles as $v) {
             $table->addRow(null, ['cantSplit' => true]);
 
-            // Fajlagos érték kiszámítása
             $calc = self::calculateVehicleQf($v);
 
-            // Jármű neve
             $c1 = $table->addCell($colWidths['vehicle'], $dataCellStyle);
-            $c1->addText($v['vehicle_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
+            $c1->addText($v['vehicle_name'] ?? $v['name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
 
-            // Telephely neve
             $c2 = $table->addCell($colWidths['complex'], $dataCellStyle);
             $c2->addText($v['complex_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
 
-            // Kalkulált Fajlagos érték + dinamikus mértékegység (kWh/km, kWh/h, kWh/tkm)
             $c3 = $table->addCell($colWidths['qf'], $dataCellStyle);
             $formattedQf = number_format($calc['qf'], 2, ',', ' ') . ' ' . $calc['unit'];
             $c3->addText($formattedQf, $dataFontStyle, $dataParagraphStyleCenter);
 
-            // Besorolás
             $c4 = $table->addCell($colWidths['status'], $dataCellStyle);
             $c4->addText($calc['status'], $dataFontStyle, $dataParagraphStyleCenter);
         }
+    }
+
+    public static function calculateVehicleQf(array $vehicle): array
+    {
+        $category = mb_strtolower(trim($vehicle['vehicle_category'] ?? ''));
+        $usageMetric = mb_strtolower(trim($vehicle['usage_metric'] ?? $vehicle['usageMetric'] ?? ''));
+
+        if (str_contains($category, 'anyagmozgat') || str_contains($category, 'targonc')) {
+            $rawConsumption = $vehicle['consumption'] ?? null;
+            $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
+
+            $fuel = $vehicle['fuel'] ?? 'Elektromos áram';
+            $unit = $vehicle['measurement'] ?? 'KWH';
+            $totalKwh = self::convertFuelToKwh($totalConsumption, $fuel, $unit);
+
+            $usage1 = (float) ($vehicle['usage_value'] ?? $vehicle['usageValue'] ?? 0);
+            $usage2 = (float) ($vehicle['usage_value2'] ?? $vehicle['usageValue2'] ?? 0);
+            $capacity = (float) ($vehicle['capacity'] ?? 0);
+
+            if ($usageMetric === 'tkm') {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/tkm';
+                $threshold = 0.247;
+            } elseif ($usageMetric === 'km') {
+                $weight = $usage2 > 0 ? $usage2 : ($capacity > 0 ? $capacity : 1.0);
+                $divisor = $usage1 * $weight;
+                $unitLabel = 'kWh/tkm';
+                $threshold = 0.247;
+            } else {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/h';
+                $threshold = self::getForkliftThresholdKwhPerHour($capacity, $fuel);
+            }
+
+            $qf = ($divisor > 0) ? ($totalKwh / $divisor) : 0;
+            $status = ($threshold > 0 && $qf > $threshold) ? 'Fejlesztendő' : 'Megfelelő';
+
+            return [
+                'qf' => $qf,
+                'unit' => $unitLabel,
+                'status' => $status
+            ];
+        } else if (str_contains($category, 'áruszállít') || str_contains($category, 'aruszallit') || str_contains($category, 'teher')) {
+            $rawConsumption = $vehicle['consumption'] ?? null;
+            $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
+
+            $fuel = $vehicle['fuel'] ?? 'Gázolaj';
+            $unit = $vehicle['measurement'] ?? 'L';
+            $totalKwh = self::convertFuelToKwh($totalConsumption, $fuel, $unit);
+
+            $usage1 = (float) ($vehicle['usage_value'] ?? $vehicle['usageValue'] ?? 0);
+            $usage2 = (float) ($vehicle['usage_value2'] ?? $vehicle['usageValue2'] ?? 0);
+            $capacity = (float) ($vehicle['capacity'] ?? 0);
+
+            $weightInTons = $usage2 > 0 ? $usage2 : ($capacity > 0 ? $capacity : 1.0);
+
+            if ($usageMetric === 'tkm') {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/tkm';
+                $threshold = 0.247;
+            } elseif ($usageMetric === 'km') {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/km';
+                $threshold = 0.247 * $weightInTons;
+            } elseif ($usageMetric === 'üzemóra' || $usageMetric === 'h') {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/h';
+                $threshold = 0.247 * $weightInTons * 40.0;
+            } else {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/tkm';
+                $threshold = 0.247;
+            }
+
+            $qf = ($divisor > 0) ? ($totalKwh / $divisor) : 0;
+            $status = ($threshold > 0 && $qf > $threshold) ? 'Fejlesztendő' : 'Megfelelő';
+
+            return [
+                'qf' => $qf,
+                'unit' => $unitLabel,
+                'status' => $status
+            ];
+        } else {
+
+            $rawConsumption = $vehicle['consumption'] ?? null;
+            $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
+
+            $fuel = $vehicle['fuel'] ?? 'Benzin';
+            $unit = $vehicle['measurement'] ?? 'L';
+            $totalKwh = self::convertFuelToKwh($totalConsumption, $fuel, $unit);
+
+            $usageKm = (float) ($vehicle['usage_value'] ?? $vehicle['usageValue'] ?? 0);
+            $qf = ($usageKm > 0) ? ($totalKwh / $usageKm) : 0;
+
+            $motorSize = (int) ($vehicle['motor_size'] ?? $vehicle['motorSize'] ?? 0);
+            $isHybrid = !empty($vehicle['hibrid']);
+            $isChargeable = !empty($vehicle['chargeable']);
+
+            $threshold = self::getPassengerCarThresholdKwhPerKm($fuel, $motorSize, $isHybrid, $isChargeable);
+
+            $status = ($threshold > 0 && $qf > $threshold) ? 'Fejlesztendő' : 'Megfelelő';
+
+            return [
+                'qf' => $qf,
+                'unit' => 'kWh/km',
+                'status' => $status
+            ];
+        }
+    }
+
+    private static function getPassengerCarThresholdKwhPerKm(string $fuel, int $motorSize, bool $isHybrid, bool $isChargeable): float
+    {
+        $fuelClean = mb_strtolower(trim($fuel));
+
+        if (str_contains($fuelClean, 'elektromos') && !$isHybrid) {
+            return 0.20;
+        }
+
+        $l100km = 0.0;
+
+        if (str_contains($fuelClean, 'benzin')) {
+            if ($motorSize <= 1000) {
+                $l100km = 7.6;
+            } elseif ($motorSize <= 1500) {
+                $l100km = 8.6;
+            } elseif ($motorSize <= 2000) {
+                $l100km = 9.5;
+            } elseif ($motorSize <= 3000) {
+                $l100km = 11.4;
+            } else {
+                $l100km = 13.3;
+            }
+        } elseif (str_contains($fuelClean, 'dízel') || str_contains($fuelClean, 'dizel') || str_contains($fuelClean, 'gázolaj')) {
+            if ($motorSize <= 1500) {
+                $l100km = 5.7;
+            } elseif ($motorSize <= 2000) {
+                $l100km = 6.7;
+            } elseif ($motorSize <= 3000) {
+                $l100km = 7.6;
+            } else {
+                $l100km = 9.5;
+            }
+        } elseif (str_contains($fuelClean, 'lpg') || str_contains($fuelClean, 'pb') || str_contains($fuelClean, 'gáz')) {
+            $baseBenzin = 8.6;
+            if ($motorSize <= 1000)
+                $baseBenzin = 7.6;
+            elseif ($motorSize <= 1500)
+                $baseBenzin = 8.6;
+            elseif ($motorSize <= 2000)
+                $baseBenzin = 9.5;
+            elseif ($motorSize <= 3000)
+                $baseBenzin = 11.4;
+            elseif ($motorSize > 3000)
+                $baseBenzin = 13.3;
+
+            $l100km = $baseBenzin * 1.2;
+        }
+
+        $kwhPerKm = 0.0;
+
+        if (str_contains($fuelClean, 'dízel') || str_contains($fuelClean, 'dizel') || str_contains($fuelClean, 'gázolaj')) {
+            $kwhPerKm = ($l100km / 100) * 11.4;
+        } else {
+            $kwhPerKm = ($l100km / 100) * 9.2;
+        }
+
+        if ($isHybrid && $isChargeable) {
+            $kwhPerKm *= 0.7;
+        }
+
+        return $kwhPerKm;
+    }
+
+    public static function convertFuelToKwh(float $value, string $fuel, string $unit): float
+    {
+        $fuelClean = mb_strtolower(trim($fuel));
+        $unitClean = strtoupper(trim($unit));
+
+        if (str_contains($fuelClean, 'elektromos') || str_contains($fuelClean, 'eletromos')) {
+            return self::convertToKwh($value, $unitClean);
+        }
+
+        if (str_contains($fuelClean, 'dízel') || str_contains($fuelClean, 'dizel') || str_contains($fuelClean, 'gázolaj')) {
+            return $value * 11.4;
+        }
+
+        if (str_contains($fuelClean, 'benzin')) {
+            return $value * 9.2;
+        }
+
+        if (str_contains($fuelClean, 'lpg') || str_contains($fuelClean, 'pb')) {
+            if ($unitClean === 'L' || $unitClean === 'LITER') {
+                return $value * 6.69;
+            }
+            return $value * 12.82;
+        }
+
+        if (str_contains($fuelClean, 'propán') || str_contains($fuelClean, 'propan')) {
+            return $value * 12.86;
+        }
+
+        return self::convertToKwh($value, $unitClean);
+    }
+
+    private static function getForkliftThresholdKwhPerHour(float $capacity, string $fuel): float
+    {
+        $fuelClean = mb_strtolower(trim($fuel));
+
+        $matrix = [
+            '1.5' => ['dízel' => 2.19, 'lpg' => 2.30, 'elektr' => 4.47],
+            '2.0' => ['dízel' => 2.57, 'lpg' => 2.70, 'elektr' => 4.81],
+            '2.5' => ['dízel' => 2.97, 'lpg' => 3.26, 'elektr' => 7.16],
+            '3.0' => ['dízel' => 3.23, 'lpg' => 3.55, 'elektr' => 7.56],
+            '3.5' => ['dízel' => 3.90, 'lpg' => 3.79, 'elektr' => 8.33],
+            '4.0' => ['dízel' => 4.44, 'lpg' => 4.29, 'elektr' => 8.70],
+            '4.5' => ['dízel' => 4.91, 'lpg' => 4.63, 'elektr' => 9.30],
+            '5.0' => ['dízel' => 5.95, 'lpg' => 4.94, 'elektr' => 10.38],
+            '5.5' => ['dízel' => 6.97, 'lpg' => 5.31, 'elektr' => 12.80],
+            '6.0' => ['dízel' => 7.48, 'lpg' => 7.09, 'elektr' => 12.20],
+            '6.5' => ['dízel' => 0.00, 'lpg' => 0.00, 'elektr' => 12.20],
+            '7.0' => ['dízel' => 8.80, 'lpg' => 7.83, 'elektr' => 13.40],
+            '7.5' => ['dízel' => 8.90, 'lpg' => 0.00, 'elektr' => 0.00],
+            '8.0' => ['dízel' => 9.72, 'lpg' => 9.93, 'elektr' => 0.00],
+            '9.0' => ['dízel' => 11.11, 'lpg' => 10.70, 'elektr' => 0.00],
+            '10.0' => ['dízel' => 13.00, 'lpg' => 0.00, 'elektr' => 0.00],
+        ];
+
+        if ($capacity <= 0) {
+            return 0.0;
+        }
+
+        $closestCap = '1.5';
+        $minDiff = null;
+
+        foreach ($matrix as $capKey => $values) {
+            $diff = abs($capacity - (float) $capKey);
+            if ($minDiff === null || $diff < $minDiff) {
+                $minDiff = $diff;
+                $closestCap = (string) $capKey;
+            }
+        }
+
+        $row = $matrix[$closestCap];
+
+        if (str_contains($fuelClean, 'elektromos') || str_contains($fuelClean, 'eletromos')) {
+            return $row['elektr'];
+        }
+
+        if (str_contains($fuelClean, 'dízel') || str_contains($fuelClean, 'dizel') || str_contains($fuelClean, 'gázolaj')) {
+            return $row['dízel'] * 11.4;
+        }
+
+        if (str_contains($fuelClean, 'lpg') || str_contains($fuelClean, 'pb') || str_contains($fuelClean, 'propán')) {
+            return $row['lpg'] * 12.82;
+        }
+
+        return 0.0;
     }
 
     public static function appendCompressedAirTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = []): void
@@ -966,5 +1072,65 @@ class AuditService
 
         $calculatedStatus = $hasRoomForImprovement ? 'Fejlesztendő' : 'Megfelelő';
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
+    }
+
+    public static function calculateVehicleTotal($vehicleData): array
+    {
+        $type = $vehicleData['category'] ?? '';
+        $fuel = $vehicleData['fuel'] ?? '';
+        $capacity = floatval($vehicleData['capacity'] ?? 0);
+        $annualHours = floatval($vehicleData['usageValue'] ?? 24 * 365);
+
+        $hourlyNorm = 0.0;
+
+        if ($type === 'Anyagmozgató') {
+            if ($fuel === 'Elektromos áram' || $fuel === 'Elektromos') {
+                $hourlyNorm = self::getElectricForkliftNorm($capacity);
+            }
+        }
+
+        $annualConsumption = $hourlyNorm * $annualHours;
+
+        return [
+            'total' => round($annualConsumption, 2),
+        ];
+    }
+
+    private static function getElectricForkliftNorm(float $capacity): float
+    {
+        $normTable = [
+            1.5 => 4.47,
+            2.0 => 4.81,
+            2.5 => 7.16,
+            3.0 => 7.56,
+            3.5 => 8.33,
+            4.0 => 8.70,
+            4.5 => 9.30,
+            5.0 => 10.38,
+            5.5 => 12.80,
+            6.0 => 12.20,
+            6.5 => 12.20,
+            7.0 => 13.40,
+        ];
+
+        if ($capacity <= 0) {
+            return 0.0;
+        }
+
+        if (isset($normTable[(string) $capacity])) {
+            return $normTable[(string) $capacity];
+        }
+        $closestCapacity = null;
+        $minDiff = null;
+
+        foreach ($normTable as $capKey => $normValue) {
+            $diff = abs($capacity - $capKey);
+            if ($minDiff === null || $diff < $minDiff) {
+                $minDiff = $diff;
+                $closestCapacity = $capKey;
+            }
+        }
+
+        return $normTable[$closestCapacity] ?? 0.0;
     }
 }

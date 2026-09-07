@@ -105,7 +105,10 @@ export function validateStandings(
         }
     }
 
-    if (!payload.file && payload.measurementType !== MeasurementTypes.VIRTUAL) {
+    if (
+        !payload.file &&
+        payload.measurementType !== ('VIRTUAL' as MeasurementTypes)
+    ) {
         errors.file = 'A kimutatás fájl feltöltése kötelező!'
         hasError = true
     }
@@ -776,6 +779,7 @@ export function validateVehicle(payload: VehicleFormData) {
         subStanding: '',
         motorSize: '',
         usageValue2: '',
+        capacity: '',
     }
     let hasError = false
 
@@ -813,6 +817,14 @@ export function validateVehicle(payload: VehicleFormData) {
     ) {
         errors.usageValue2 =
             'Add meg a használati jellemző második komponensét! (tonna)'
+        hasError = true
+    }
+
+    if (
+        payload.category === 'Anyagmozgató' &&
+        (!payload.capacity || payload.capacity === 0)
+    ) {
+        errors.capacity = 'Add meg az anyagmozgató teherbírását!'
         hasError = true
     }
 

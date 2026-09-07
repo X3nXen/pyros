@@ -98,12 +98,12 @@ class StandingsController
 
         $dateFrom = !empty($data['dateFrom']) ? date('Y-m-d', strtotime($data['dateFrom'])) : null;
         $dateTo = !empty($data['dateTo']) ? date('Y-m-d', strtotime($data['dateTo'])) : null;
-        $purpose = $measurementType !== 'MAIN' ? match ($data['purpose']) {
+        $purpose = match ($data['purpose']) {
             'Épület' => 'BUILDING',
             'Tevékenység' => 'SERVICE',
             'Szállítás' => 'CARRY',
             default => 'SERVICE'
-        } : null;
+        };
 
         $projectId = $data['project_id'] ?? null;
         if (!$projectId) {

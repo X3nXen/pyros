@@ -288,7 +288,7 @@ export default function Standings() {
                     },
                 }}
             />
-            {formData.measurementType !== MeasurementTypes.VIRTUAL ? (
+            {formData.measurementType !== ('VIRTUAL' as MeasurementTypes) ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                     <Button
                         component="label"

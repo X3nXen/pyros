@@ -9,7 +9,9 @@ import {
 import {
     Box,
     Button,
+    Checkbox,
     FormControl,
+    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
@@ -34,6 +36,8 @@ export default function Vehicles() {
         usageValue: 0,
         usageValue2: 0,
         subStanding: null,
+        capacity: 0.0,
+        chargeable: false,
     })
     const [formErrors, setFormErrors] = useState<VehicleErrors | null>(null)
     const [loading, setLoading] = useState<boolean>(false)
@@ -119,6 +123,27 @@ export default function Vehicles() {
                     ))}
                 </Select>
             </FormControl>
+            {formData.category === 'Anyagmozgató' ? (
+                <FormControl error={!!formErrors?.capacity}>
+                    <TextField
+                        label="Terhelhetőség (t)"
+                        variant="standard"
+                        type="number"
+                        value={formData.capacity}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                capacity: Number(e.target.value),
+                            })
+                        }
+                    />
+                    {formErrors?.capacity && (
+                        <FormHelperText>{formErrors.capacity}</FormHelperText>
+                    )}
+                </FormControl>
+            ) : (
+                <></>
+            )}
             <FormControl>
                 <InputLabel id="fuel-select">Üzemanyag</InputLabel>
                 <Select
@@ -178,6 +203,24 @@ export default function Vehicles() {
                             </MenuItem>
                         </Select>
                     </FormControl>
+                    {formData.hibrid ? (
+                        <FormControlLabel
+                            label="Tölthető hibrid"
+                            control={
+                                <Checkbox
+                                    value={formData.chargeable}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            chargeable: e.target.checked,
+                                        })
+                                    }
+                                />
+                            }
+                        />
+                    ) : (
+                        <></>
+                    )}
                 </Box>
             ) : (
                 <></>
