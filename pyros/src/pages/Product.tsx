@@ -3,29 +3,39 @@ import { type ProductFormData, ProductMetric } from '../model/Product.model'
 import {
     Box,
     Button,
+    Checkbox,
     CircularProgress,
     FormControl,
+    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
     Select,
+    TextField,
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
-import { useAppSelector } from '../store'
+import { useAppDispatch, useAppSelector } from '../store'
+import { setHasPrimaryProductLocally } from '../store/projectSlice'
 
 export default function Product() {
     const [formData, setFormData] = useState<ProductFormData>({
         id: null,
+        name: '',
         metric: ProductMetric[0],
         file: null,
+        isPrimary: false,
     })
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState<boolean>(false)
     const navigate = useNavigate()
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
+    const hasMainProduct = useAppSelector(
+        (state) => state.project.hasPrimaryProduct
+    )
+    const dispatch = useAppDispatch()
 
     async function handleSubmit() {
         const result = await FormSendProtocol.handleProduct(
@@ -36,6 +46,7 @@ export default function Product() {
         )
         if (result && result.success) {
             navigate('/')
+            dispatch(setHasPrimaryProductLocally(formData.isPrimary))
         }
     }
 
@@ -50,6 +61,16 @@ export default function Product() {
                 mt: 3,
             }}
         >
+            <FormControl>
+                <TextField
+                    label="Termék megnevezése"
+                    variant="standard"
+                    value={formData.name}
+                    onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                    }
+                />
+            </FormControl>
             <FormControl>
                 <InputLabel id="metric-select">
                     Gazdálkodási jellemző
@@ -104,6 +125,25 @@ export default function Product() {
                 </Button>
                 {error !== null && <FormHelperText>{error}</FormHelperText>}
             </FormControl>
+            {hasMainProduct ? (
+                <></>
+            ) : (
+                <FormControlLabel
+                    label="Ez a fő termék"
+                    control={
+                        <Checkbox
+                            value={formData.isPrimary}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    isPrimary: e.target.checked,
+                                })
+                            }
+                        />
+                    }
+                />
+            )}
+
             <Button
                 variant="contained"
                 disabled={loading}

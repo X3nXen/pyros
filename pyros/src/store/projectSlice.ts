@@ -19,6 +19,7 @@ interface ProjectState {
     complexes: Array<ComplexShortData>
     buildings: Array<BuildingShort>
     heaters: Array<HeaterShort>
+    hasPrimaryProduct: boolean
     loading: boolean
     error: string | null
 }
@@ -31,6 +32,7 @@ const initialState: ProjectState = {
     complexes: [],
     buildings: [],
     heaters: [],
+    hasPrimaryProduct: false,
     loading: false,
     error: null,
 }
@@ -59,20 +61,30 @@ export const fetchProjectData = createAsyncThunk(
             if (!taskId) {
                 return rejectWithValue('Nincs kiválasztva aktív projekt!')
             }
-            const [mainRes, subRes, complexRes, buildingRes, heaterRes] =
-                await Promise.all([
-                    Calls.getMainStandings(taskId),
-                    Calls.getSubStandings(taskId),
-                    Calls.getComplexes(taskId),
-                    Calls.getBuildings(taskId),
-                    Calls.getHeaters(taskId),
-                ])
+            const [
+                mainRes,
+                subRes,
+                complexRes,
+                buildingRes,
+                heaterRes,
+                hasPrimaryProductRes,
+            ] = await Promise.all([
+                Calls.getMainStandings(taskId),
+                Calls.getSubStandings(taskId),
+                Calls.getComplexes(taskId),
+                Calls.getBuildings(taskId),
+                Calls.getHeaters(taskId),
+                Calls.getHasMainProduct(taskId),
+            ])
             return {
                 mainStandings: mainRes.success ? mainRes.payload : [],
                 subStandings: subRes.success ? subRes.payload : [],
                 complexes: complexRes.success ? complexRes.payload : [],
                 buildings: buildingRes.success ? buildingRes.payload : [],
                 heaters: heaterRes.success ? heaterRes.payload : [],
+                hasPrimaryProduct: hasPrimaryProductRes.success
+                    ? Boolean(hasPrimaryProductRes.payload?.is_primary)
+                    : false,
             }
         } catch (error) {
             return rejectWithValue(
@@ -92,6 +104,7 @@ const projectSlice = createSlice({
             state.subStandings = []
             state.complexes = []
             state.buildings = []
+            state.hasPrimaryProduct = false
         },
         addComplexLocally: (
             state: ProjectState,
@@ -123,6 +136,12 @@ const projectSlice = createSlice({
         ) => {
             state.heaters.push(action.payload)
         },
+        setHasPrimaryProductLocally: (
+            state: ProjectState,
+            action: PayloadAction<boolean>
+        ) => {
+            state.hasPrimaryProduct = action.payload
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -150,6 +169,7 @@ const projectSlice = createSlice({
                     state.complexes = action.payload.complexes
                     state.buildings = action.payload.buildings
                     state.heaters = action.payload.heaters
+                    state.hasPrimaryProduct = action.payload.hasPrimaryProduct
                 }
             )
             .addCase(
@@ -169,6 +189,7 @@ export const {
     addSubStandingLocally,
     addBuildingLocally,
     addHeaterLocally,
+    setHasPrimaryProductLocally,
 } = projectSlice.actions
 
 export default projectSlice.reducer

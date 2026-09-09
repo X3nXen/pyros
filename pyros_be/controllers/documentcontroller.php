@@ -56,7 +56,15 @@ class DocumentController
         try {
             $templateProcessor = new TemplateProcessor(__DIR__ . '/audit_template.docx');
             $db = Database::getConnection();
-
+            $improveable_list = [
+                'building' => [],
+                'heaters' => [],
+                'hmv' => [],
+                'coolers' => [],
+                'hvac' => [],
+                'vehicle' => [],
+                'technology' => []
+            ];
             // 1. Vállalkozás bemutatása
             $stmt = $db->prepare("SELECT json FROM variables WHERE project_id = :projectId");
             $stmt->execute([':projectId' => $project_id]);
@@ -152,8 +160,9 @@ class DocumentController
 
             $dateFrom = new DateTime($dates[0]['date_from']);
             $dateTo = new DateTime($dates[0]['date_to']);
+            $auditInterval = $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d');
 
-            $templateProcessor->setValue('audit_interval', $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d'));
+            $templateProcessor->setValue('audit_interval', $auditInterval);
 
             $marketData = EnergyPriceService::getMarketPrices();
 
@@ -330,7 +339,7 @@ class DocumentController
                 'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
-            AuditService::buildBuildingsTable($buildingsTable, $allBuildings);
+            AuditService::buildBuildingsTable($buildingsTable, $allBuildings, $improveable_list);
 
             $templateProcessor->setComplexValue('building_listing', $buildingsTable);
 
@@ -345,7 +354,7 @@ class DocumentController
                 'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
-            AuditService::buildHeatingTable($heatingTable, $allHeating);
+            AuditService::buildHeatingTable($heatingTable, $allHeating, $improveable_list);
 
             $templateProcessor->setComplexValue('heating_listing', $heatingTable);
 
@@ -354,7 +363,7 @@ class DocumentController
                 'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
-            AuditService::buildHMVTable($hmvTable, $allHeating);
+            AuditService::buildHMVTable($hmvTable, $allHeating, $improveable_list);
             $templateProcessor->setComplexValue("hmv_listing", $hmvTable);
 
             // - Világítási rendszerek értékelése
@@ -380,7 +389,7 @@ class DocumentController
                 'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
-            AuditService::buildCoolingTable($coolingTable, $allCooling);
+            AuditService::buildCoolingTable($coolingTable, $allCooling, $improveable_list);
 
             $templateProcessor->setComplexValue('cooling_listing', $coolingTable);
 
@@ -392,7 +401,7 @@ class DocumentController
                 'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
-            AuditService::buildHVACTable($hvacTable, $allHvac);
+            AuditService::buildHVACTable($hvacTable, $allHvac, $improveable_list);
 
             $templateProcessor->setComplexValue('hvac_listing', $hvacTable);
 
@@ -430,7 +439,7 @@ class DocumentController
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
 
-            AuditService::buildVehiclesTable($vehiclesTable, $vehicleData);
+            AuditService::buildVehiclesTable($vehiclesTable, $vehicleData, $improveable_list);
 
             $templateProcessor->setComplexValue('vehicle_listing', $vehiclesTable);
 
@@ -442,8 +451,15 @@ class DocumentController
             if (empty($technologies)) {
                 $templateProcessor->setValue('technology_title', '');
                 $templateProcessor->setValue('technology_content', '');
+
+                //Technológia offset indexek fejezeteknek
+                $templateProcessor->setValue("technology_offset_index", 9);
+                $templateProcessor->setValue("technology_offset_2_index", 10);
+                $templateProcessor->setValue("technology_offset_3_index", 11);
+                $templateProcessor->deleteBlock('block_technology');
             } else {
-                $templateProcessor->setValue('technology_title', '10. Technológiai alrendszerek energetikai értékelése');
+                $templateProcessor->cloneBlock('block_technology', 1, true, false);
+                $templateProcessor->setValue('technology_title', '9.Technológiai alrendszerek energetikai értékelése');
                 $stmtMeters = $db->prepare("SELECT id, name FROM standings WHERE project_id = :projectId");
                 $stmtMeters->execute([':projectId' => $project_id]);
                 $meters = $stmtMeters->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -484,7 +500,7 @@ class DocumentController
                         $jsonData = json_decode($tech['json'], true) ?? [];
 
                         // Átadjuk a $complexes és $meters tömböket is!
-                        AuditService::appendCompressedAirTableToCell($mainCell, $jsonData, $tech['name'], $tech['complex_name'], $meters);
+                        AuditService::appendCompressedAirTableToCell($mainCell, $jsonData, $tech['name'], $tech['complex_name'], $meters, $improveable_list);
                         $mainCell->addText("");
                     }
 
@@ -498,7 +514,7 @@ class DocumentController
                         $jsonData = json_decode($tech['json'], true) ?? [];
                         $complexName = $tech['complex_name'] ?? '';
 
-                        AuditService::appendSteamTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters);
+                        AuditService::appendSteamTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters, $improveable_list);
                         $mainCell->addText("");
                     }
 
@@ -511,7 +527,7 @@ class DocumentController
                     foreach ($groupedTechs['COOLING'] as $tech) {
                         $jsonData = json_decode($tech['json'], true) ?? [];
 
-                        AuditService::appendCoolingTableToCell($mainCell, $jsonData, $tech['name'], $meters);
+                        AuditService::appendCoolingTableToCell($mainCell, $jsonData, $tech['name'], $meters, $improveable_list);
                         $mainCell->addText(""); // Sorköz
                     }
 
@@ -525,7 +541,7 @@ class DocumentController
                         $jsonData = json_decode($tech['json'], true) ?? [];
                         $complexName = $tech['complex_name'] ?? '';
 
-                        AuditService::appendOtherTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters);
+                        AuditService::appendOtherTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters, $improveable_list);
                         $mainCell->addText("");
                     }
 
@@ -533,7 +549,109 @@ class DocumentController
                 }
 
                 $templateProcessor->setComplexBlock('technology_content', $mainTable);
+
+                //Technológia offset indexek fejezeteknek
+                $templateProcessor->setValue("technology_offset_index", 10);
+                $templateProcessor->setValue("technology_offset_2_index", 11);
+                $templateProcessor->setValue("technology_offset_3_index", 12);
             }
+
+            // Energia teljesítmény mutató
+
+            $stmt = $db->prepare("SELECT product_name, metric, is_primary, json FROM product WHERE project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allProduct = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $productTable = $productTable = new \PhpOffice\PhpWord\Element\Table([
+                'borderSize' => 6,
+                'borderColor' => '000000',
+                'cellMargin' => 80
+            ]);
+            AuditService::buildProductTable($productTable, $allProduct, $auditInterval);
+
+            $templateProcessor->setComplexValue("product_listing", $productTable);
+            $totalActivityEnergyKwH = 0.0;
+
+            if (!empty($carrierRows)) {
+                foreach ($carrierRows as $cRow) {
+                    $cleanProductValue = str_replace([' ', ','], ['', '.'], $cRow['carrier_product'] ?? '0');
+                    $totalActivityEnergyKwH += (float) $cleanProductValue;
+                }
+            }
+
+            $primaryProduct = null;
+            foreach ($allProduct as $prod) {
+                if (!empty($prod['is_primary'])) {
+                    $primaryProduct = $prod;
+                    break;
+                }
+            }
+
+            if (!$primaryProduct && !empty($allProduct)) {
+                $primaryProduct = $allProduct[0];
+            }
+
+            if ($primaryProduct) {
+                $productNameLabel = $primaryProduct['product_name'];
+                if (!empty($primaryProduct['metric'])) {
+                    $productNameLabel .= ' (' . $primaryProduct['metric'] . ')';
+                }
+                $templateProcessor->setValue('product_name', $productNameLabel);
+
+                $jsonData = json_decode($primaryProduct['json'] ?? '{}', true);
+                $primaryAmountSum = (float) ($jsonData['sum'] ?? 0.0);
+
+                if ($primaryAmountSum > 0) {
+                    $etmValue = $totalActivityEnergyKwH / $primaryAmountSum;
+
+                    $formattedEtm = number_format($etmValue, 2, ',', ' ') . ' kWh/' . $primaryProduct['metric'];
+                    $templateProcessor->setValue('ETM', $formattedEtm);
+                } else {
+                    $templateProcessor->setValue('ETM', '-');
+                }
+            } else {
+                $templateProcessor->setValue('product_name', 'főtermék');
+                $templateProcessor->setValue('ETM', '-');
+            }
+
+            // Javaslatok és források
+            $listingRun = new \PhpOffice\PhpWord\Element\TextRun();
+
+            $fontStyle = ['name' => 'Calibri', 'size' => 11];
+            $paragraphStyle = ['spaceAfter' => 60, 'spaceBefore' => 0];
+
+            $formatItems = function (array $items): string {
+                return !empty($items) ? implode(', ', $items) : 'Nem azonosítottunk fejlesztési lehetőséget.';
+            };
+
+            $listingRun->addText("a) Kapacitás-optimalizálás: ", $fontStyle);
+            $listingRun->addText($formatItems($improveable_list['vehicle'] ?? []), $fontStyle);
+            $listingRun->addTextBreak(1);
+
+            $listingRun->addText("b) épületenergetikai javaslatok: ", $fontStyle);
+            $listingRun->addText($formatItems($improveable_list['building'] ?? []), $fontStyle);
+            $listingRun->addTextBreak(1);
+
+            $mepItems = array_merge(
+                $improveable_list['hmv'] ?? [],
+                $improveable_list['coolers'] ?? [],
+                $improveable_list['hvac'] ?? []
+            );
+            $listingRun->addText("c) épületgépészeti javaslatok: ", $fontStyle);
+            $listingRun->addText($formatItems($mepItems), $fontStyle);
+            $listingRun->addTextBreak(1);
+
+            $listingRun->addText("d) technológiai javaslatok: ", $fontStyle);
+            $listingRun->addText($formatItems($improveable_list['technology'] ?? []), $fontStyle);
+            $listingRun->addTextBreak(1);
+
+            $listingRun->addText("e) alternatív hőtermelési/hűtési javaslatok: ", $fontStyle);
+            $listingRun->addText($formatItems($improveable_list['heaters'] ?? []), $fontStyle);
+            $listingRun->addTextBreak(1);
+
+            $listingRun->addText("f) megújuló energiaforrás bevonási javaslatok: ", $fontStyle);
+            $listingRun->addText("Kapacitásbővítés vagy napelem rendszer telepítése javasolt.", $fontStyle);
+
+            $templateProcessor->setComplexValue('replaceable_listing', $listingRun);
 
             // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';

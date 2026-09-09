@@ -259,7 +259,7 @@ class AuditService
         }
     }
 
-    public static function buildBuildingsTable(\PhpOffice\PhpWord\Element\Table &$table, array &$buildings)
+    public static function buildBuildingsTable(\PhpOffice\PhpWord\Element\Table &$table, array &$buildings, array &$improveable_list)
     {
         $colWidths = [
             'building' => 2500,
@@ -328,6 +328,12 @@ class AuditService
             $table->addRow(null, ['cantSplit' => true]);
             $qfValue = is_numeric($b['qf']) ? (float) $b['qf'] : 0;
             $statusText = ($qfValue > 150) ? 'Fejlesztendő' : 'Megfelelő';
+            if ($qfValue > 150) {
+                if (!isset($improveable_list['building'])) {
+                    $improveable_list['building'] = [];
+                }
+                $improveable_list['building'][] = $b['building_name'];
+            }
 
             $cell1 = $table->addCell($colWidths['building'], $dataCellStyle);
             $cell1->addText($b['building_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
@@ -344,7 +350,7 @@ class AuditService
         }
     }
 
-    public static function buildHeatingTable(\PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems)
+    public static function buildHeatingTable(\PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, array &$improveable_list)
     {
         $colWidths = [
             'complex' => 1500,
@@ -424,6 +430,12 @@ class AuditService
                 $heaterTypeCell->addText($heater["heatingType"], $dataFontStyle, $dataParagraphStyleCenter);
 
                 $heaterPoints = self::calculateHeaterPoints($heater);
+                if ($heaterPoints['status'] === "Fejlesztendő") {
+                    if (!isset($improveable_list['heaters'])) {
+                        $improveable_list['heaters'] = [];
+                    }
+                    $improveable_list['heaters'][] = $heater['name'];
+                }
                 $heaterPointCell = $table->addCell($colWidths['points'], $dataCellStyle);
                 $heaterPointCell->addText($heaterPoints['points'], $dataFontStyle, $dataParagraphStyleCenter);
 
@@ -433,7 +445,7 @@ class AuditService
         }
     }
 
-    public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems): void
+    public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, $improveable_list): void
     {
         $colWidths = [
             'complex' => 1500,
@@ -518,6 +530,12 @@ class AuditService
 
                 $status = $hmvPoints === 100 ? "Megfelelő" : "Fejlesztendő";
                 $etc = "Cirkuláció és szabályozás optimalizálása, ahol a pontszám alacsony";
+                if ($hmvPoints < 100) {
+                    if (!isset($improveable_list['hmv'])) {
+                        $improveable_list['hmv'] = [];
+                    }
+                    $improveable_list['hmv'][] = $h['name'];
+                }
 
                 $heaterPointCell = $table->addCell($colWidths['status'], $dataCellStyle);
                 $heaterPointCell->addText($status, $dataFontStyle, $dataParagraphStyleCenter);
@@ -614,7 +632,7 @@ class AuditService
         }
     }
 
-    public static function buildCoolingTable(PhpOffice\PhpWord\Element\Table &$table, array &$cooling_systems): void
+    public static function buildCoolingTable(PhpOffice\PhpWord\Element\Table &$table, array &$cooling_systems, array &$improveable_list): void
     {
         $colWidths = [
             'complex' => 1500,
@@ -700,6 +718,12 @@ class AuditService
                 $coolerTypeCell->addText($cooler["heatingType"], $dataFontStyle, $dataParagraphStyleCenter);
 
                 $coolerPoints = self::calculateCoolerPoints($cooler);
+                if ($coolerPoints['combined'] < 75) {
+                    if (!isset($improveable_list['coolers'])) {
+                        $improveable_list['coolers'] = [];
+                    }
+                    $improveable_list['coolers'][] = $cooler['name'];
+                }
                 $coolerBasePointCell = $table->addCell($colWidths['base_points'], $dataCellStyle);
                 $coolerBasePointCell->addText($coolerPoints['base'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
 
@@ -712,7 +736,7 @@ class AuditService
         }
     }
 
-    public static function buildHVACTable(PhpOffice\PhpWord\Element\Table &$table, array &$hvacSystems): void
+    public static function buildHVACTable(PhpOffice\PhpWord\Element\Table &$table, array &$hvacSystems, array &$improveable_list): void
     {
         $colWidths = [
             'complex' => 1125,
@@ -793,6 +817,13 @@ class AuditService
 
             $calculated = self::calculateVentilationGoodness($systemDetails, (float) $system['sfp']);
 
+            if (($calculated["sfp_goodness"] + $calculated['retriever_goodness'] + $calculated['insulation_goodness']) / 3 < 75) {
+                if (!isset($improveable_list['hvac'])) {
+                    $improveable_list['hvac'] = [];
+                }
+                $improveable_list['hvac'][] = $system['name'];
+            }
+
             $sfpCell = $table->addCell($colWidths['sfp'], $dataCellStyle);
             $sfpCell->addText($system['sfp'] . "", $dataFontStyle, $dataParagraphStyleCenter);
 
@@ -810,6 +841,68 @@ class AuditService
         }
     }
 
+    public static function buildProductTable(\PhpOffice\PhpWord\Element\Table &$table, array $allProduct, string $auditInterval): void
+    {
+        $colWidths = [
+            'name' => 4500,
+            'amount' => 4500
+        ];
+
+        $headerRowStyle = [
+            'tblHeader' => true,
+            'cantSplit' => true
+        ];
+
+        $headerCellStyle = [
+            'bgColor' => 'A6A6A6',
+            'valign' => 'center'
+        ];
+
+        $headerFontStyle = [
+            'bold' => true,
+            'size' => 10,
+            'name' => 'Calibri'
+        ];
+
+        $dataCellStyle = [
+            'valign' => 'center'
+        ];
+
+        $dataFontStyle = [
+            'size' => 9.5,
+            'name' => 'Calibri'
+        ];
+
+        $paragraphCenter = [
+            'alignment' => 'center',
+            'spaceBefore' => 40,
+            'spaceAfter' => 40
+        ];
+
+        $table->addRow(500, $headerRowStyle);
+
+        $hCell1 = $table->addCell($colWidths['name'], $headerCellStyle);
+        $hCell1->addText("Termék megnevezése", $headerFontStyle, $paragraphCenter);
+
+        $hCell2 = $table->addCell($colWidths['amount'], $headerCellStyle);
+        $hCell2->addText("Mennyiség (" . $auditInterval . ")", $headerFontStyle, $paragraphCenter);
+
+        foreach ($allProduct as $product) {
+            $table->addRow(null, ['cantSplit' => true]);
+
+            $jsonData = json_decode($product['json'] ?? '{}', true);
+            $rawSum = $jsonData['sum'] ?? 0.0;
+
+            $formattedAmount = number_format((float) $rawSum, 0, ',', ' ') . ' ' . ($product['metric'] ?? '');
+
+            $cellName = $table->addCell($colWidths['name'], $dataCellStyle);
+            $cellName->addText($product['product_name'] ?? '', $dataFontStyle, $paragraphCenter);
+
+            $cellAmount = $table->addCell($colWidths['amount'], $dataCellStyle);
+            $cellAmount->addText($formattedAmount, $dataFontStyle, $paragraphCenter);
+        }
+    }
+
     public static function convertToKwh(float $value, string $unit): float
     {
         return
@@ -823,7 +916,7 @@ class AuditService
             };
     }
 
-    public static function buildVehiclesTable(\PhpOffice\PhpWord\Element\Table &$table, array &$vehicles): void
+    public static function buildVehiclesTable(\PhpOffice\PhpWord\Element\Table &$table, array &$vehicles, array &$improveable_list): void
     {
         $colWidths = [
             'vehicle' => 2500,
@@ -899,6 +992,12 @@ class AuditService
             $c2->addText($v['complex_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
 
             $c3 = $table->addCell($colWidths['qf'], $dataCellStyle);
+            if ($calc['status'] === "Fejlesztendő") {
+                if (!isset($improveable_list['vehicle'])) {
+                    $improveable_list['vehicle'] = [];
+                }
+                $improveable_list['vehicle'][] = $v['vehicle_name'];
+            }
             $formattedQf = number_format($calc['qf'], 2, ',', ' ') . ' ' . $calc['unit'];
             $c3->addText($formattedQf, $dataFontStyle, $dataParagraphStyleCenter);
 
@@ -1164,7 +1263,7 @@ class AuditService
         return 0.0;
     }
 
-    public static function appendCompressedAirTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = []): void
+    public static function appendCompressedAirTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = [], array &$improveable_list): void
     {
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
@@ -1273,11 +1372,17 @@ class AuditService
         }
 
         $calculatedStatus = $hasRoomForImprovement ? 'Fejlesztendő' : 'Megfelelő';
+        if ($hasRoomForImprovement) {
+            if (!isset($improveable_list['technology'])) {
+                $improveable_list['technology'] = [];
+            }
+            $improveable_list['technology'][] = $data['name'];
+        }
 
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
 
-    public static function appendSteamTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = []): void
+    public static function appendSteamTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = [], array &$improveable_list): void
     {
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
@@ -1367,10 +1472,17 @@ class AuditService
         }
 
         $calculatedStatus = $hasRoomForImprovement ? 'Fejlesztendő' : 'Megfelelő';
+
+        if ($hasRoomForImprovement) {
+            if (!isset($improveable_list['technology'])) {
+                $improveable_list['technology'] = [];
+            }
+            $improveable_list['technology'][] = $data['name'];
+        }
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
 
-    public static function appendCoolingTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', array $meters = []): void
+    public static function appendCoolingTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', array $meters = [], array &$improveable_list): void
     {
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
@@ -1455,10 +1567,16 @@ class AuditService
         }
 
         $calculatedStatus = $hasRoomForImprovement ? 'Fejlesztendő' : 'Megfelelő';
+        if ($hasRoomForImprovement) {
+            if (!isset($improveable_list['technology'])) {
+                $improveable_list['technology'] = [];
+            }
+            $improveable_list['technology'][] = $data['name'];
+        }
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
 
-    public static function appendOtherTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = []): void
+    public static function appendOtherTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = [], array &$improveable_list): void
     {
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
@@ -1537,6 +1655,12 @@ class AuditService
         }
 
         $calculatedStatus = $hasRoomForImprovement ? 'Fejlesztendő' : 'Megfelelő';
+        if ($hasRoomForImprovement) {
+            if (!isset($improveable_list['technology'])) {
+                $improveable_list['technology'] = [];
+            }
+            $improveable_list['technology'][] = $data['name'];
+        }
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
 

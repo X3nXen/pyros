@@ -55,32 +55,34 @@ function parseProductExcel(string $filePath): array
     $spreadsheet = IOFactory::load($filePath);
     $sheet = $spreadsheet->getActiveSheet();
 
-    // 1. C2 cella kiolvasása terméknévként
     $rawProductName = $sheet->getCell('C2')->getValue();
     $productName = (is_string($rawProductName) || is_numeric($rawProductName)) && trim((string) $rawProductName) !== ''
         ? trim((string) $rawProductName)
         : 'Termék';
 
     $productionData = [];
-    $currentRow = 3; // B3 és C3 celláktól indul a kiolvasás
+    $totalSum = 0.0;
+    $currentRow = 3;
 
-    // B3-tól lefelé addig olvasunk, amíg találunk évet a B oszlopban
     while (true) {
-        $yearVal = $sheet->getCell('B' . $currentRow)->getValue();
+        $dateVal = $sheet->getCell('A' . $currentRow)->getFormattedValue();
 
-        // Ha a B oszlop sorában nincs több adat (évet jelölő érték), megállunk
-        if ($yearVal === null || trim((string) $yearVal) === '') {
+        if ($dateVal === null || trim((string) $dateVal) === '') {
             break;
         }
 
-        $year = trim((string) $yearVal);
-        $rawVal = $sheet->getCell('C' . $currentRow)->getCalculatedValue();
+        $dateKey = trim((string) $dateVal);
+        $rawVal = $sheet->getCell('B' . $currentRow)->getCalculatedValue();
 
-        // Ha van megadott mennyiség, float-ként eltároljuk
-        $productionData[$year] = ($rawVal !== null && $rawVal !== '') ? (float) $rawVal : null;
+        $numericVal = ($rawVal !== null && $rawVal !== '') ? (float) $rawVal : 0.0;
+
+        $productionData[$dateKey] = $numericVal;
+        $totalSum += $numericVal;
 
         $currentRow++;
     }
+
+    $productionData['sum'] = $totalSum;
 
     return [
         'product_name' => $productName,

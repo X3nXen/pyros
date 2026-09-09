@@ -141,7 +141,7 @@ $username = $_SESSION['username'] ?? 'Felhasználó';
                 <h2>Felülvizsgálat</h2>
             </a>
 
-            <a href="http://localhost:5173/" class="portal-card">
+            <a href="/pyros/dist/" class="portal-card">
                 <h2>Audit</h2>
             </a>
         </div>

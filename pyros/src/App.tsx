@@ -20,7 +20,7 @@ import Create from './pages/Create'
 
 function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter basename="/pyros/dist">
             <Routes>
                 <Route element={<Layout />}>
                     <Route path="/" element={<Home />} />

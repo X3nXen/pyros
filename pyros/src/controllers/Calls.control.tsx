@@ -25,6 +25,9 @@ import type { VentilationFormData } from '../model/Ventilation.model'
 
 export default class Calls {
     static getApiLink() {
+        if (import.meta.env.PROD) {
+            return '/pyros_be'
+        }
         return 'http://localhost:8000'
     }
 
@@ -772,6 +775,34 @@ export default class Calls {
             return {
                 success: false,
                 message: 'Nem sikerült lekérni a Sankey adatokat.',
+            }
+        }
+    }
+
+    static async getHasMainProduct(project_id: string): Promise<{
+        success: boolean
+        payload?: { is_primary: boolean }
+        message?: string
+    }> {
+        try {
+            const response = await fetch(
+                Calls.getApiLink() +
+                    '/product?primary=true&project_id=' +
+                    project_id,
+                {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' },
+                }
+            )
+            if (!response.ok)
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            const data = await response.json()
+            return { success: true, payload: data }
+        } catch (error) {
+            console.error('Hiba a főtermék státusz lekérése során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült lekérni a főtermék státuszt.',
             }
         }
     }
