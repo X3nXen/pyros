@@ -24,7 +24,7 @@ import type {
     VentilationFormData,
     VentilationFormErrors,
 } from '../model/Ventilation.model'
-import type { LightingErrors, LightingFormData } from '../model/Lighting.model'
+import type { LightingForm, SystemErrors } from '../model/Lighting.model'
 import type { VehicleErrors, VehicleFormData } from '../model/Vehicles.model'
 import type { ProductFormData } from '../model/Product.model'
 import {
@@ -226,9 +226,9 @@ export default class FormSendProtocol {
     }
 
     static async handleLightingSystem(
-        payload: Array<LightingFormData>,
+        payload: LightingForm,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: Array<string | LightingErrors> | null) => void,
+        setErrorMessage: (msg: SystemErrors | null) => void,
         projectId: string
     ) {
         setErrorMessage(null)

@@ -31,11 +31,13 @@ import { useNavigate } from 'react-router-dom'
 import FormSendProtocol from '../controllers/Forms.control'
 import { SystemPurpose } from '../model/System.model'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function VentilationSystem() {
     const [formData, setFormData] = useState<VentilationFormData>({
         id: null,
         name: '',
+        complex: '',
         building: null,
         servicedBuilding: [],
         type: VentilationBase.BASE_A,
@@ -66,6 +68,7 @@ export default function VentilationSystem() {
     )
 
     const buildings = useAppSelector((state) => state.project.buildings)
+    const complexes = useAppSelector((state) => state.project.complexes)
     const heaters = useAppSelector((state) => state.project.heaters)
 
     const navigate = useNavigate()
@@ -112,6 +115,24 @@ export default function VentilationSystem() {
                 />
                 {formErrors?.name && (
                     <FormHelperText>{formErrors.name}</FormHelperText>
+                )}
+            </FormControl>
+            <FormControl error={!!formErrors?.complex}>
+                <InputLabel id="complex-select">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select"
+                    value={formData.complex}
+                    onChange={(e) => handleChange('complex', e.target.value)}
+                >
+                    {complexes.map((e: ComplexShortData, index: number) => (
+                        <MenuItem key={'complex-' + index} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+                {formErrors?.complex && (
+                    <FormHelperText>{formErrors.complex}</FormHelperText>
                 )}
             </FormControl>
             <FormControl error={!!formErrors?.building}>

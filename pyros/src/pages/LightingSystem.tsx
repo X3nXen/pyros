@@ -6,7 +6,9 @@ import {
     LightingSolutions,
     ZoneUsage,
     type LightingErrors,
+    type LightingForm,
     type LightingFormData,
+    type SystemErrors,
 } from '../model/Lighting.model'
 import {
     Box,
@@ -23,12 +25,14 @@ import CardListing from '../components/CardListing'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useAppSelector } from '../store'
 import type { StandingsShort } from '../model/Standings.model'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function LightingSystem() {
-    const [formData, setFormData] = useState<Array<LightingFormData>>([])
-    const [formErrors, setFormErrors] = useState<Array<
-        LightingErrors | string
-    > | null>(null)
+    const [formData, setFormData] = useState<LightingForm>({
+        complex: '',
+        systems: [],
+    })
+    const [formErrors, setFormErrors] = useState<SystemErrors | null>(null)
     const [activeLightingIndex, setActiveLightingIndex] = useState<
         number | null
     >(null)
@@ -36,24 +40,28 @@ export default function LightingSystem() {
     const navigate = useNavigate()
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
+    const complexes = useAppSelector((state) => state.project.complexes)
 
     function handleAddLightingSystem() {
-        const newLightingSystem: LightingFormData = {
-            id: null,
-            zone: '',
-            size: 0,
-            solution: LightingSolutions[0],
-            dim: LightingDim[0],
-            zoneUsage: ZoneUsage[0],
-            regulation: LightingRegulation[0],
-            naturalLight: LightingNaturalLightRatio[0],
-            emergency: false,
-            standBy: false,
-            standing: null,
-        }
+        const newLightingSystem: Array<LightingFormData> = [
+            ...formData.systems,
+            {
+                id: null,
+                zone: '',
+                size: 0,
+                solution: LightingSolutions[0],
+                dim: LightingDim[0],
+                zoneUsage: ZoneUsage[0],
+                regulation: LightingRegulation[0],
+                naturalLight: LightingNaturalLightRatio[0],
+                emergency: false,
+                standBy: false,
+                standing: null,
+            },
+        ]
 
-        setFormData([...formData, newLightingSystem])
-        setActiveLightingIndex(formData.length)
+        setFormData({ ...formData, systems: newLightingSystem })
+        setActiveLightingIndex(newLightingSystem.length)
     }
 
     const standings = useAppSelector((state) => state.project.subStandings)
@@ -65,14 +73,13 @@ export default function LightingSystem() {
         if (activeLightingIndex === null) return
 
         const updatedSystem = {
-            ...formData[activeLightingIndex],
+            ...formData.systems[activeLightingIndex],
             [field]: value,
         }
 
-        const updatedFormData = JSON.parse(JSON.stringify(formData))
-        updatedFormData[activeLightingIndex] = updatedSystem
-
-        setFormData(updatedFormData)
+        const updatedSystems = [...formData.systems]
+        updatedSystems[activeLightingIndex] = updatedSystem
+        setFormData({ ...formData, systems: updatedSystems })
     }
 
     async function handleSubmit() {
@@ -88,7 +95,9 @@ export default function LightingSystem() {
     }
 
     const currentActiveLighting =
-        activeLightingIndex === null ? null : formData[activeLightingIndex]
+        activeLightingIndex === null
+            ? null
+            : formData.systems[activeLightingIndex]
 
     return (
         <Box
@@ -102,8 +111,28 @@ export default function LightingSystem() {
             }}
         >
             <h1>Világítási rendszerek rögzítése</h1>
+            <FormControl error={!!formErrors?.complex}>
+                <InputLabel id="complex-select">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData, index: number) => (
+                        <MenuItem key={'complex-' + index} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+                {formErrors?.complex && (
+                    <FormHelperText>{formErrors.complex}</FormHelperText>
+                )}
+            </FormControl>
             <CardListing
-                items={formData}
+                items={formData.systems}
                 activeIndex={activeLightingIndex}
                 onSelect={(index) => setActiveLightingIndex(index)}
                 onAdd={handleAddLightingSystem}
@@ -126,13 +155,14 @@ export default function LightingSystem() {
                         error={
                             formErrors !== null &&
                             activeLightingIndex !== null &&
-                            formErrors[activeLightingIndex] !== 'none'
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !== 'none'
                         }
                     >
                         <TextField
                             variant="standard"
                             label="Zóna megnevezése"
-                            value={formData[activeLightingIndex!].zone}
+                            value={formData.systems[activeLightingIndex!].zone}
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'zone',
@@ -142,13 +172,18 @@ export default function LightingSystem() {
                         />
                         {formErrors !== null &&
                             activeLightingIndex !== null &&
-                            formErrors[activeLightingIndex] !== 'none' &&
-                            (formErrors[activeLightingIndex] as LightingErrors)
-                                .zone && (
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !==
+                                'none' &&
+                            (
+                                formErrors.systems[
+                                    activeLightingIndex
+                                ] as LightingErrors
+                            ).zone && (
                                 <FormHelperText>
                                     {
                                         (
-                                            formErrors[
+                                            formErrors.systems[
                                                 activeLightingIndex
                                             ] as LightingErrors
                                         ).zone
@@ -160,14 +195,15 @@ export default function LightingSystem() {
                         error={
                             formErrors !== null &&
                             activeLightingIndex !== null &&
-                            formErrors[activeLightingIndex] !== 'none'
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !== 'none'
                         }
                     >
                         <TextField
                             variant="standard"
                             type="number"
                             label="Zóna területe"
-                            value={formData[activeLightingIndex!].size}
+                            value={formData.systems[activeLightingIndex!].size}
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'size',
@@ -177,13 +213,18 @@ export default function LightingSystem() {
                         />
                         {formErrors !== null &&
                             activeLightingIndex !== null &&
-                            formErrors[activeLightingIndex] !== 'none' &&
-                            (formErrors[activeLightingIndex] as LightingErrors)
-                                .size && (
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !==
+                                'none' &&
+                            (
+                                formErrors.systems[
+                                    activeLightingIndex
+                                ] as LightingErrors
+                            ).size && (
                                 <FormHelperText>
                                     {
                                         (
-                                            formErrors[
+                                            formErrors.systems[
                                                 activeLightingIndex
                                             ] as LightingErrors
                                         ).size
@@ -198,7 +239,9 @@ export default function LightingSystem() {
                         <Select
                             label="Megoldás"
                             labelId="solution-select"
-                            value={formData[activeLightingIndex!].solution}
+                            value={
+                                formData.systems[activeLightingIndex!].solution
+                            }
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'solution',
@@ -222,7 +265,7 @@ export default function LightingSystem() {
                         <Select
                             label="Szabályozhatóság"
                             labelId="dim-select"
-                            value={formData[activeLightingIndex!].dim}
+                            value={formData.systems[activeLightingIndex!].dim}
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'dim',
@@ -244,7 +287,9 @@ export default function LightingSystem() {
                         <Select
                             label="Rendeltetés"
                             labelId="zone-usage-select"
-                            value={formData[activeLightingIndex!].zoneUsage}
+                            value={
+                                formData.systems[activeLightingIndex!].zoneUsage
+                            }
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'zoneUsage',
@@ -266,7 +311,10 @@ export default function LightingSystem() {
                         <Select
                             label="Szabályozás"
                             labelId="regulation-select"
-                            value={formData[activeLightingIndex!].regulation}
+                            value={
+                                formData.systems[activeLightingIndex!]
+                                    .regulation
+                            }
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'regulation',
@@ -290,7 +338,10 @@ export default function LightingSystem() {
                         <Select
                             label="Arány"
                             labelId="natural-light-select"
-                            value={formData[activeLightingIndex!].naturalLight}
+                            value={
+                                formData.systems[activeLightingIndex!]
+                                    .naturalLight
+                            }
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
                                     'naturalLight',
@@ -315,7 +366,9 @@ export default function LightingSystem() {
                             label="Vészvilágítás van/nincs"
                             labelId="emergency-select"
                             value={
-                                formData[activeLightingIndex!].emergency ? 1 : 0
+                                formData.systems[activeLightingIndex!].emergency
+                                    ? 1
+                                    : 0
                             }
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
@@ -340,7 +393,9 @@ export default function LightingSystem() {
                             label="Készenléti van/nincs"
                             labelId="standby-select"
                             value={
-                                formData[activeLightingIndex!].standBy ? 1 : 0
+                                formData.systems[activeLightingIndex!].standBy
+                                    ? 1
+                                    : 0
                             }
                             onChange={(e) =>
                                 handleActiveLightingSystemChange(
@@ -361,7 +416,8 @@ export default function LightingSystem() {
                         error={
                             formErrors !== null &&
                             activeLightingIndex !== null &&
-                            formErrors[activeLightingIndex] !== 'none'
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !== 'none'
                         }
                     >
                         <InputLabel id="lighting-standing-select">
@@ -386,13 +442,18 @@ export default function LightingSystem() {
                         </Select>
                         {formErrors !== null &&
                             activeLightingIndex !== null &&
-                            formErrors[activeLightingIndex] !== 'none' &&
-                            (formErrors[activeLightingIndex] as LightingErrors)
-                                .standing && (
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !==
+                                'none' &&
+                            (
+                                formErrors.systems[
+                                    activeLightingIndex
+                                ] as LightingErrors
+                            ).standing && (
                                 <FormHelperText>
                                     {
                                         (
-                                            formErrors[
+                                            formErrors.systems[
                                                 activeLightingIndex
                                             ] as LightingErrors
                                         ).standing

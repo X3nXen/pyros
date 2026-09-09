@@ -344,6 +344,472 @@ class AuditService
         }
     }
 
+    public static function buildHeatingTable(\PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems)
+    {
+        $colWidths = [
+            'complex' => 1500,
+            'name' => 1500,
+            'type' => 3000,
+            'points' => 1000,
+            'status' => 2000
+        ];
+
+        $headerRowStyle = [
+            'tblHeader' => true,
+            'cantSplit' => true
+        ];
+
+        $headerCellStyle = [
+            'bgColor' => 'A6A6A6',
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $headerFontStyle = [
+            'bold' => true,
+            'size' => 10,
+            'name' => 'Calibri'
+        ];
+        $headerParagraphStyle = [
+            'alignment' => 'center',
+            'spaceBefore' => 60,
+            'spaceAfter' => 60
+        ];
+
+        $table->addRow(600, $headerRowStyle);
+        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
+        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header2 = $table->addCell($colWidths['name'], $headerCellStyle);
+        $header2->addText("Hőtermelő\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
+        $header3 = $table->addCell($colWidths['type'], $headerCellStyle);
+        $header3->addText("Hőtermelő\ntípusa", $headerFontStyle, $headerParagraphStyle);
+        $header4 = $table->addCell($colWidths['points'], $headerCellStyle);
+        $header4->addText("Kalkulált\npontszám", $headerFontStyle, $headerParagraphStyle);
+        $header5 = $table->addCell($colWidths['status'], $headerCellStyle);
+        $header5->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
+
+        $dataCellStyle = [
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $dataFontStyle = [
+            'size' => 9.5,
+            'name' => 'Calibri'
+        ];
+        $dataParagraphStyleCenter = [
+            'alignment' => 'center',
+            'spaceBefore' => 40,
+            'spaceAfter' => 40
+        ];
+
+        foreach ($heating_systems as $h) {
+            $heaters = json_decode($h['heaters'], true);
+            foreach ($heaters as $index => $heater) {
+                $table->addRow(null, ['cantSplit' => true]);
+
+                if ($index === 0) {
+                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
+                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
+                    $complexCell->addText($h['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                } else {
+                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
+                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
+                }
+
+                $heaterNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
+                $heaterNameCell->addText($heater['name'], $dataFontStyle, $dataParagraphStyleCenter);
+
+                $heaterTypeCell = $table->addCell($colWidths['type'], $dataCellStyle);
+                $heaterTypeCell->addText($heater["heatingType"], $dataFontStyle, $dataParagraphStyleCenter);
+
+                $heaterPoints = self::calculateHeaterPoints($heater);
+                $heaterPointCell = $table->addCell($colWidths['points'], $dataCellStyle);
+                $heaterPointCell->addText($heaterPoints['points'], $dataFontStyle, $dataParagraphStyleCenter);
+
+                $heaterStatusCell = $table->addCell($colWidths['status'], $dataCellStyle);
+                $heaterStatusCell->addText($heaterPoints['status'], $dataFontStyle, $dataParagraphStyleCenter);
+            }
+        }
+    }
+
+    public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems): void
+    {
+        $colWidths = [
+            'complex' => 1500,
+            'name' => 1500,
+            'points' => 1500,
+            'status' => 1500,
+            'etc' => 3000
+        ];
+
+        $headerRowStyle = [
+            'tblHeader' => true,
+            'cantSplit' => true
+        ];
+
+        $headerCellStyle = [
+            'bgColor' => 'A6A6A6',
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $headerFontStyle = [
+            'bold' => true,
+            'size' => 10,
+            'name' => 'Calibri'
+        ];
+        $headerParagraphStyle = [
+            'alignment' => 'center',
+            'spaceBefore' => 60,
+            'spaceAfter' => 60
+        ];
+
+        $table->addRow(600, $headerRowStyle);
+        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
+        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header2 = $table->addCell($colWidths['name'], $headerCellStyle);
+        $header2->addText("HMV rendszer\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
+        $header3 = $table->addCell($colWidths['points'], $headerCellStyle);
+        $header3->addText("Szabályozási\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
+        $header4 = $table->addCell($colWidths['status'], $headerCellStyle);
+        $header4->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
+        $header5 = $table->addCell($colWidths['etc'], $headerCellStyle);
+        $header5->addText("Megjegyzés", $headerFontStyle, $headerParagraphStyle);
+
+        $dataCellStyle = [
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $dataFontStyle = [
+            'size' => 9.5,
+            'name' => 'Calibri'
+        ];
+        $dataParagraphStyleCenter = [
+            'alignment' => 'center',
+            'spaceBefore' => 40,
+            'spaceAfter' => 40
+        ];
+
+        foreach ($heating_systems as $h) {
+            $heaters = json_decode($h['emitters'], true);
+            foreach ($heaters as $index => $emitter) {
+                if ($emitter['type'] !== 'HMV') {
+                    continue;
+                }
+                $table->addRow(null, ['cantSplit' => true]);
+
+                if ($index === 0) {
+                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
+                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
+                    $complexCell->addText($h['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                } else {
+                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
+                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
+                }
+
+                $heaterNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
+                $heaterNameCell->addText($emitter['name'], $dataFontStyle, $dataParagraphStyleCenter);
+
+                $hmvPoints = self::HMV_REGULATION_VALUES[$emitter['hmvRegulation']];
+                $heaterTypeCell = $table->addCell($colWidths['points'], $dataCellStyle);
+                $heaterTypeCell->addText($hmvPoints . "%", $dataFontStyle, $dataParagraphStyleCenter);
+
+                $status = $hmvPoints === 100 ? "Megfelelő" : "Fejlesztendő";
+                $etc = "Cirkuláció és szabályozás optimalizálása, ahol a pontszám alacsony";
+
+                $heaterPointCell = $table->addCell($colWidths['status'], $dataCellStyle);
+                $heaterPointCell->addText($status, $dataFontStyle, $dataParagraphStyleCenter);
+
+                $heaterStatusCell = $table->addCell($colWidths['etc'], $dataCellStyle);
+                $heaterStatusCell->addText($etc, $dataFontStyle, $dataParagraphStyleCenter);
+            }
+        }
+    }
+
+    public static function buildLightingTable(PhpOffice\PhpWord\Element\Table &$table, array &$lighting_systems): void
+    {
+        $colWidths = [
+            'complex' => 1500,
+            'zone' => 1500,
+            'specific' => 1750,
+            'annual' => 1750,
+            'status' => 2500
+        ];
+
+        $headerRowStyle = [
+            'tblHeader' => true,
+            'cantSplit' => true
+        ];
+
+        $headerCellStyle = [
+            'bgColor' => 'A6A6A6',
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $headerFontStyle = [
+            'bold' => true,
+            'size' => 10,
+            'name' => 'Calibri'
+        ];
+        $headerParagraphStyle = [
+            'alignment' => 'center',
+            'spaceBefore' => 60,
+            'spaceAfter' => 60
+        ];
+
+        $table->addRow(600, $headerRowStyle);
+        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
+        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header2 = $table->addCell($colWidths['zone'], $headerCellStyle);
+        $header2->addText("Zóna", $headerFontStyle, $headerParagraphStyle);
+        $header3 = $table->addCell($colWidths['specific'], $headerCellStyle);
+        $header3->addText("Kalkulált fajlagos fogyasztás", $headerFontStyle, $headerParagraphStyle);
+        $header4 = $table->addCell($colWidths['annual'], $headerCellStyle);
+        $header4->addText("Éves fogyasztás", $headerFontStyle, $headerParagraphStyle);
+        $header5 = $table->addCell($colWidths['status'], $headerCellStyle);
+        $header5->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
+
+        $dataCellStyle = [
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $dataFontStyle = [
+            'size' => 9.5,
+            'name' => 'Calibri'
+        ];
+        $dataParagraphStyleCenter = [
+            'alignment' => 'center',
+            'spaceBefore' => 40,
+            'spaceAfter' => 40
+        ];
+
+        foreach ($lighting_systems as $index => $system) {
+            $table->addRow(null, ['cantSplit' => true]);
+            $complexCell = $table->addCell($colWidths['complex'], $dataCellStyle);
+            $complexCell->addText($system['complex_name'], $dataFontStyle, $dataParagraphStyleCenter);
+
+            $zoneCell = $table->addCell($colWidths['zone'], $dataCellStyle);
+            $zoneCell->addText($system['name'], $dataFontStyle, $dataParagraphStyleCenter);
+
+            $specificCell = $table->addCell($colWidths['specific'], $dataCellStyle);
+            $textRun = $specificCell->addTextRun($dataParagraphStyleCenter);
+
+            $textRun->addText($system['specific_sum'] . " kWh/m", $dataFontStyle);
+
+            $superScriptStyle = array_merge($dataFontStyle, ['superScript' => true]);
+            $textRun->addText("2", $superScriptStyle);
+
+            $textRun->addText("a", $dataFontStyle);
+
+            $consumption = self::calculateTotalConsumption($system['consumption'], $system['source']);
+            $annualCell = $table->addCell($colWidths['annual'], $dataCellStyle);
+            $annualCell->addText($consumption . "kWh", $dataFontStyle, $dataParagraphStyleCenter);
+
+            $statusCell = $table->addCell($colWidths['status'], $dataCellStyle);
+            $statusCell->addText('Megfelelő/Fejlesztendő', $dataFontStyle, $dataParagraphStyleCenter);
+        }
+    }
+
+    public static function buildCoolingTable(PhpOffice\PhpWord\Element\Table &$table, array &$cooling_systems): void
+    {
+        $colWidths = [
+            'complex' => 1500,
+            'name' => 1500,
+            'type' => 2100,
+            'base_points' => 1300,
+            'regulation_points' => 1300,
+            'status' => 1300
+        ];
+
+        $headerRowStyle = [
+            'tblHeader' => true,
+            'cantSplit' => true
+        ];
+
+        $headerCellStyle = [
+            'bgColor' => 'A6A6A6',
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $headerFontStyle = [
+            'bold' => true,
+            'size' => 10,
+            'name' => 'Calibri'
+        ];
+        $headerParagraphStyle = [
+            'alignment' => 'center',
+            'spaceBefore' => 60,
+            'spaceAfter' => 60
+        ];
+
+        $table->addRow(600, $headerRowStyle);
+        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
+        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header2 = $table->addCell($colWidths['name'], $headerCellStyle);
+        $header2->addText("Berendezés\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
+        $header3 = $table->addCell($colWidths['type'], $headerCellStyle);
+        $header3->addText("Berendezés\ntípusa", $headerFontStyle, $headerParagraphStyle);
+        $header4 = $table->addCell($colWidths['base_points'], $headerCellStyle);
+        $header4->addText("Alap\npontszám\n(33)", $headerFontStyle, $headerParagraphStyle);
+        $header5 = $table->addCell($colWidths['regulation_points'], $headerCellStyle);
+        $header5->addText("Szabályozás\n(10)", $headerFontStyle, $headerParagraphStyle);
+        $header6 = $table->addCell($colWidths['status'], $headerCellStyle);
+        $header6->addText("Összesített\n(43)", $headerFontStyle, $headerParagraphStyle);
+
+        $dataCellStyle = [
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $dataFontStyle = [
+            'size' => 9.5,
+            'name' => 'Calibri'
+        ];
+        $dataParagraphStyleCenter = [
+            'alignment' => 'center',
+            'spaceBefore' => 40,
+            'spaceAfter' => 40
+        ];
+
+        foreach ($cooling_systems as $h) {
+            $coolers = json_decode($h['heaters'], true);
+            foreach ($coolers as $index => $cooler) {
+                if (!is_numeric(array_search($cooler['heatingType'], self::COOLER_TYPES))) {
+                    continue;
+                }
+                $table->addRow(null, ['cantSplit' => true]);
+
+                if ($index === 0) {
+                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
+                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
+                    $complexCell->addText($h['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                } else {
+                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
+                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
+                }
+
+                $coolerNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
+                $coolerNameCell->addText($cooler['name'], $dataFontStyle, $dataParagraphStyleCenter);
+
+                $coolerTypeCell = $table->addCell($colWidths['type'], $dataCellStyle);
+                $coolerTypeCell->addText($cooler["heatingType"], $dataFontStyle, $dataParagraphStyleCenter);
+
+                $coolerPoints = self::calculateCoolerPoints($cooler);
+                $coolerBasePointCell = $table->addCell($colWidths['base_points'], $dataCellStyle);
+                $coolerBasePointCell->addText($coolerPoints['base'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+
+                $coolerRegulationCell = $table->addCell($colWidths['regulation_points'], $dataCellStyle);
+                $coolerRegulationCell->addText($coolerPoints['regulation'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+
+                $coolerCombinedCell = $table->addCell($colWidths['status'], $dataCellStyle);
+                $coolerCombinedCell->addText($coolerPoints['combined'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+            }
+        }
+    }
+
+    public static function buildHVACTable(PhpOffice\PhpWord\Element\Table &$table, array &$hvacSystems): void
+    {
+        $colWidths = [
+            'complex' => 1125,
+            'building' => 1125,
+            'name' => 1125,
+            'sfp' => 1125,
+            'sfp_points' => 1125,
+            'heat' => 1125,
+            "heat_points" => 1125,
+            "insulation_points" => 1125
+        ];
+
+        $headerRowStyle = [
+            'tblHeader' => true,
+            'cantSplit' => true
+        ];
+
+        $headerCellStyle = [
+            'bgColor' => 'A6A6A6',
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $headerFontStyle = [
+            'bold' => true,
+            'size' => 10,
+            'name' => 'Calibri'
+        ];
+        $headerParagraphStyle = [
+            'alignment' => 'center',
+            'spaceBefore' => 60,
+            'spaceAfter' => 60
+        ];
+
+        $table->addRow(600, $headerRowStyle);
+        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
+        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header2 = $table->addCell($colWidths['building'], $headerCellStyle);
+        $header2->addText("Hely", $headerFontStyle, $headerParagraphStyle);
+        $header3 = $table->addCell($colWidths['name'], $headerCellStyle);
+        $header3->addText("Rendszer", $headerFontStyle, $headerParagraphStyle);
+        $header4 = $table->addCell($colWidths['sfp'], $headerCellStyle);
+        $header4->addText("SFP\n(W/m3/s)", $headerFontStyle, $headerParagraphStyle);
+        $header5 = $table->addCell($colWidths['sfp_points'], $headerCellStyle);
+        $header5->addText("SFP\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
+        $header6 = $table->addCell($colWidths['heat'], $headerCellStyle);
+        $header6->addText("Hővisszanyerés\ntípusa", $headerFontStyle, $headerParagraphStyle);
+        $header6 = $table->addCell($colWidths['heat_points'], $headerCellStyle);
+        $header6->addText("Hővisszanyerés\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
+        $header6 = $table->addCell($colWidths['insulation_points'], $headerCellStyle);
+        $header6->addText("Szigetelés\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
+
+        $dataCellStyle = [
+            'valign' => 'center',
+            'borderSize' => 6,
+            'borderColor' => '000000'
+        ];
+        $dataFontStyle = [
+            'size' => 9.5,
+            'name' => 'Calibri'
+        ];
+        $dataParagraphStyleCenter = [
+            'alignment' => 'center',
+            'spaceBefore' => 40,
+            'spaceAfter' => 40
+        ];
+
+        foreach ($hvacSystems as $system) {
+            $systemDetails = json_decode($system['json'], true);
+            $table->addRow(null, ['cantSplit' => true]);
+
+            $complexCell = $table->addCell($colWidths['complex'], $dataCellStyle);
+            $complexCell->addText($system['complex_name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $buildingCell = $table->addCell($colWidths['building'], $dataCellStyle);
+            $buildingCell->addText($system['building_name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $nameCell = $table->addCell($colWidths['name'], $dataCellStyle);
+            $nameCell->addText($system['name'], $dataFontStyle, $dataParagraphStyleCenter);
+
+            $calculated = self::calculateVentilationGoodness($systemDetails, (float) $system['sfp']);
+
+            $sfpCell = $table->addCell($colWidths['sfp'], $dataCellStyle);
+            $sfpCell->addText($system['sfp'] . "", $dataFontStyle, $dataParagraphStyleCenter);
+
+            $sfpGoodnessCell = $table->addCell($colWidths['sfp_points'], $dataCellStyle);
+            $sfpGoodnessCell->addText($calculated['sfp_goodness'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+
+            $retrieverCell = $table->addCell($colWidths['heat'], $dataCellStyle);
+            $retrieverCell->addText($systemDetails['retriever'], $dataFontStyle, $dataParagraphStyleCenter);
+
+            $retrieverGoodnessCell = $table->addCell($colWidths['heat_points'], $dataCellStyle);
+            $retrieverGoodnessCell->addText($calculated['retriever_goodness'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+
+            $insulationGoodnessCell = $table->addCell($colWidths['insulation_points'], $dataCellStyle);
+            $insulationGoodnessCell->addText($calculated['insulation_goodness'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+        }
+    }
+
     public static function convertToKwh(float $value, string $unit): float
     {
         return
@@ -1133,4 +1599,177 @@ class AuditService
 
         return $normTable[$closestCapacity] ?? 0.0;
     }
+
+    public static function calculateHeaterPoints(array $heater): array
+    {
+        $points = 100 * self::CARRIER_VALUES[$heater['carrier']] * self::REGULATION_VALUES[$heater['regulation']] * self::STATE_VALUES[$heater['state']];
+        return [
+            "points" => round($points, 2),
+            "status" => ($points > 60.0 ? "Megfelelő" : "Fejlesztendő")
+        ];
+    }
+
+    public const CARRIER_VALUES = [
+        "H hőszivattyús elektromos áram" => 1.0,
+        "Biogáz" => 0.9,
+        "Távfűtés" => 0.8,
+        "Biomassza" => 0.75,
+        "Pellet" => 0.72,
+        "Csúcson kívüli elektromos áram" => 0.68,
+        "Elektromos áram" => 0.65,
+        "Földgáz" => 0.58,
+        "Tűzifa" => 0.52,
+        "PB-gáz" => 0.45,
+        "Tüzelőolaj" => 0.3,
+        "Szén" => 0.15,
+        "Egyéb" => 0.5
+    ];
+
+    public const REGULATION_VALUES = [
+        "Időjárásfüggő szabályozás" => 1.0,
+        "Központi értékről történő szabályozás" => 0.85,
+        "Fix értéktartás" => 0.7
+    ];
+
+    public const STATE_VALUES = [
+        "NEW" => 1.0,
+        "SERVICED" => 0.9,
+        "UNRELIABLE" => 0.5,
+        "OOO" => 0.0
+    ];
+
+    public const HMV_REGULATION_VALUES = [
+        "Nincs" => 0.0,
+        "Hőmérsékletre" => 33.3,
+        "Időprogramra" => 66.7,
+        "Hőmérsékletre és időprogramra" => 100
+    ];
+
+    public const COOLER_TYPES = [
+        'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)',
+        'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)',
+        'Elektromos üzemű hőszivattyú talajhő hőforrással',
+        'Elektromos üzemű hőszivattyú víz hőforrással',
+        'VRV/VRF',
+        'Split klíma',
+        'Technológiai hűtés (hőszivattyú)',
+        'Technológiai hűtés (folyadékhűtő)',
+        'Technológiai hűtés',
+        'Folyadékhűtő',
+        'Hőszivattyú'
+    ];
+
+    public static function calculateCoolerPoints(array $cooler)
+    {
+        $energy_efficiency_multiplier = self::HEATER_ELECTRIC_CALC_MODE[$cooler['baseType']] *
+            (1 + self::HEATER_ELECTRIC_CALC_INSTALLATION[$cooler['placementType']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_SOURCE[$cooler['ambientMedium']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_MEDIUM[$cooler['heatTransfer']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_REFRIGERANT[$cooler['refrigerant']]) *
+            (1 + self::HEATER_DESCRIPTIONS[$cooler['state']]);
+        $multiplier = max([1.03, min([1.5, $energy_efficiency_multiplier])]);
+        $scop_cop_ratio = round(($multiplier / 1) * 100, 2);
+        $base_points = ($scop_cop_ratio >= 120.8 ? 33 :
+            ($scop_cop_ratio >= 112.7 ? 30 :
+                ($scop_cop_ratio >= 104.5 ? 25 :
+                    ($scop_cop_ratio >= 96.4 ? 20 :
+                        ($scop_cop_ratio >= 88.2 ? 15 :
+                            ($scop_cop_ratio >= 80.0 ? 10 :
+                                ($scop_cop_ratio >= 71.9 ? 5 : 0)))))));
+        $regulation_points = match ($cooler['regulation']) {
+            'Fix értéktartás' => 0,
+            'Központi értékről történő szabályozás' => 5,
+            default => 10
+        };
+        $combined = $base_points + $regulation_points;
+        return [
+            "base" => round(($base_points / 33) * 100, 2),
+            "regulation" => round(($regulation_points / 10) * 100, 2),
+            "combined" => round(($combined / 43) * 100, 2),
+        ];
+    }
+
+    public const HEATER_DESCRIPTIONS = [
+        "NEW" => 0,
+        "SERVICED" => -0.02,
+        "UNRELIABLE" => -0.05,
+        "OOO" => -0.05
+    ];
+
+    public const HEATER_ELECTRIC_CALC_MODE = [
+        "Ismeretlen" => 0,
+        "On/Off működés, 1 hűtőkör" => 0.95,
+        "Többfokozatú működés, hűtőkörönként több kompresszor" => 1.04,
+        "Inverteres/fordulatszám szabályzott kompresszorok" => 1.18,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_INSTALLATION = [
+        "Ismeretlen" => 0,
+        "Gyári előírások betartásával, jól szellőző helyen" => 0,
+        "Részben zavart légárammal" => -0.05,
+        "Rosszul szellőző, zugos helyen" => -0.12,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_SOURCE = [
+        "Ismeretlen" => 0,
+        "Levegő" => -0.03,
+        "Nedvesített levegő" => 0,
+        "Talajszonda" => 0.04,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_MEDIUM = [
+        "Ismeretlen" => 0,
+        "Levegő" => 0,
+        "Víz (normál üzemi tartomány)" => -0.05,
+        "Víz (magas hőmérsékletű üzemi tartomány)" => -0.075,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_REFRIGERANT = [
+        "Ismeretlen" => 0,
+        "R410A" => 0,
+        "R32" => 0.02,
+        "R454B" => 0.01,
+        "R407C" => -0.02,
+        "R22" => -0.04,
+        "R134a (állandó sebesség)" => 0,
+        "R134a (VSD/centrifugás)" => 0.01,
+        "R1234ze" => 0.01,
+        "R290" => 0.02,
+    ];
+
+    public static function calculateVentilationGoodness(array $hvacSystem, float $sfp): array
+    {
+        $sfp_points = match (true) {
+            $sfp < 500 => 15, $sfp < 750 => 13, $sfp < 1250 => 11,
+            $sfp < 2000 => 9, $sfp < 3000 => 7, $sfp < 4500 => 5,
+            default => 0
+        };
+        $sfp_goodness = round(($sfp_points / 15) * 100, 2);
+        $ins_thick = $hvacSystem['insulationWidth'] ?? 0;
+        $ins_point = match (true) {
+            $ins_thick < 10 => 0, $ins_thick < 20 => 1, $ins_thick < 40 => 2,
+            default => 3
+        };
+        $insulation_goodness = round(($ins_point / 3) * 100);
+        $hv_type = $hvacSystem['retriever'] ?? "Nincs";
+        $hv_year = (int) ($hvacSystem['retrieverYear'] ?? 0);
+        $hv_idx = ($hv_year < 2016) ? 0 : 1;
+        $hv_point = self::RETRIEVER_POINTS[$hv_type][$hv_idx] ?? 0;
+        $retriever_goodness = round(($hv_point / 10) * 100, 2);
+        return [
+            "sfp_goodness" => $sfp_goodness,
+            "retriever_goodness" => $retriever_goodness,
+            "insulation_goodness" => $insulation_goodness
+        ];
+    }
+
+    public const RETRIEVER_POINTS = [
+        "Keresztáramú" => [4, 6],
+        "Forgódobos" => [6, 10],
+        "Közvetítő közeges" => [2, 6],
+        "Hőcsöves" => [0, 0],
+        "Keverőkamra" => [0, 0],
+        "Egyéb" => [0, 0],
+        "Nincs" => [0, 0]
+    ];
 }

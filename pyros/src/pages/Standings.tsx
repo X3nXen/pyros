@@ -326,7 +326,7 @@ export default function Standings() {
                         <Typography
                             variant="caption"
                             color="error"
-                            sx={{ mt: -2, pl: 2 }}
+                            sx={{ mt: 1, pl: 2 }}
                         >
                             {errorMessage.file}
                         </Typography>
@@ -337,7 +337,7 @@ export default function Standings() {
                             sx={{
                                 textAlign: 'center',
                                 color: 'text.secondary',
-                                mt: -1,
+                                mt: 1,
                             }}
                         >
                             Kiválasztott fájl:{' '}

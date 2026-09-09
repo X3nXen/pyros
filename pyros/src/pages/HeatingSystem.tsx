@@ -56,12 +56,14 @@ import EmitterForm from '../components/Emitter'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
 import { addHeaterLocally } from '../store/projectSlice'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function HeatingSystem() {
     const [formData, setFormData] = useState<HeatingSystemFormData>({
         id: null,
         name: '',
         standing: null,
+        complex: '',
         systemPurpose: SystemPurpose.HEAT,
         systemRegulation: 'NONE' as SystemRegulation,
         systemRegulationDesc: 'NONE' as SystemRegulationDesc,
@@ -86,6 +88,7 @@ export default function HeatingSystem() {
     const subStandings = useAppSelector((state) => state.project.subStandings)
     const mainStandings = useAppSelector((state) => state.project.mainStandings)
     const allStandings = subStandings.concat(mainStandings)
+    const complexes = useAppSelector((state) => state.project.complexes)
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
     const projectId =
@@ -316,6 +319,27 @@ export default function HeatingSystem() {
                         </MenuItem>
                     ))}
                 </Select>
+            </FormControl>
+
+            <FormControl error={!!formErrors?.complex}>
+                <InputLabel id="complex-select">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData, index: number) => (
+                        <MenuItem key={'complex-' + index} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+                {formErrors?.complex && (
+                    <FormHelperText>{formErrors?.complex}</FormHelperText>
+                )}
             </FormControl>
 
             <FormControl

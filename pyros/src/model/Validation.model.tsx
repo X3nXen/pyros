@@ -6,7 +6,11 @@ import type {
 import type { ComplexErrors, ComplexFormData } from './Complex.model'
 import type { EmitterErrors, EmitterFormData } from './Emitter.model'
 import { type HeaterFormData, type HeaterFormErrors } from './Heater.model'
-import type { LightingErrors, LightingFormData } from './Lighting.model'
+import type {
+    LightingErrors,
+    LightingForm,
+    SystemErrors,
+} from './Lighting.model'
 import type { PumpErrors, PumpFormData } from './Pump.model'
 import { MeasurementTypes, type StandingsFormData } from './Standings.model'
 import type { HeatingSystemErrors, HeatingSystemFormData } from './System.model'
@@ -284,6 +288,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
     const errors: HeatingSystemErrors = {
         name: '',
         standing: '',
+        complex: '',
         heaters: [],
         pumps: [],
         emitters: [],
@@ -298,6 +303,11 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
 
     if (!payload.standing || payload.standing === '') {
         errors.standing = 'Add meg a rendszerhez tartozó mérőt!'
+        hasError = true
+    }
+
+    if (!payload.complex || payload.complex === '') {
+        errors.complex = 'Add meg a telephelyet!'
         hasError = true
     }
 
@@ -425,6 +435,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
 export function validateVentilationSystem(payload: VentilationFormData) {
     const errors: VentilationFormErrors = {
         name: '',
+        complex: '',
         building: '',
         servicedBuilding: '',
         servicedSizes: null,
@@ -443,6 +454,10 @@ export function validateVentilationSystem(payload: VentilationFormData) {
 
     if (!payload.name || payload.name === '') {
         errors.name = 'Add meg a légkezelő rendszer megnevezését!'
+        hasError = true
+    }
+    if (!payload.complex || payload.complex === '') {
+        errors.complex = 'Add meg a légkezelő rendszerhez tartozó telephelyet!'
         hasError = true
     }
 
@@ -523,10 +538,17 @@ export function validateVentilationSystem(payload: VentilationFormData) {
     return hasError ? errors : null
 }
 
-export function validateLightingSystem(payload: Array<LightingFormData>) {
-    const errors: Array<string | LightingErrors> = []
+export function validateLightingSystem(payload: LightingForm) {
+    const errors: SystemErrors = {
+        complex: '',
+        systems: [],
+    }
     let hasError = false
-    payload.forEach((e) => {
+    if (!payload.complex || payload.complex === '') {
+        errors.complex = 'Add meg a telephelyet!'
+        hasError = true
+    }
+    payload.systems.forEach((e) => {
         let localHasError = false
         const localErrors: LightingErrors = {
             zone: '',
@@ -547,9 +569,14 @@ export function validateLightingSystem(payload: Array<LightingFormData>) {
         }
         if (localHasError) {
             hasError = true
-            errors.push(localErrors)
+            if (errors.systems === null) {
+                errors.systems = []
+            }
+            ;(errors.systems as Array<LightingErrors | string>).push(
+                localErrors
+            )
         } else {
-            errors.push('none')
+            ;(errors.systems as Array<LightingErrors | string>).push('none')
         }
     })
     return hasError ? errors : null

@@ -1,7 +1,7 @@
 import type { BuildingFormData, BuildingShort } from '../model/Building.model'
 import type { ComplexFormData, ComplexShortData } from '../model/Complex.model'
 import type { HeaterFormData, HeaterShort } from '../model/Heater.model'
-import type { LightingFormData } from '../model/Lighting.model'
+import type { LightingForm } from '../model/Lighting.model'
 import type { ClickupTaskShort } from '../model/LoginData.model'
 import type { ProductFormData } from '../model/Product.model'
 import type {
@@ -315,7 +315,7 @@ export default class Calls {
     }
 
     static async postLightingSystem(
-        payload: Array<LightingFormData>,
+        payload: LightingForm,
         projectId: string
     ): Promise<{ success: boolean; message: string }> {
         try {

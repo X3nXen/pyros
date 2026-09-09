@@ -89,7 +89,6 @@ class VentilationController
                 mkdir($uploadDir, 0755, true);
             }
 
-            // Segédfüggvény a képek kétlépcsős mentéséhez (image_info -> move -> update img_<id>)
             $processImage = function ($fileKey, $referenceType, $referenceId) use ($db, $uploadDir) {
                 if (!isset($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) {
                     return null;
@@ -131,14 +130,16 @@ class VentilationController
 
             $calculated = calculateValues($data);
 
-            $sql = 'INSERT INTO ventilation_systems(name, json, sfp, category, project_id) VALUES (:name, :json, :sfp, :category, :projectId)';
+            $sql = 'INSERT INTO ventilation_systems(name, json, sfp, category, project_id, complex, building) VALUES (:name, :json, :sfp, :category, :projectId, :complexId, :buildingId)';
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':name' => $data['name'],
                 ':json' => json_encode($data),
                 ':sfp' => $calculated['specificVal'],
                 ':category' => $calculated['spfCat'],
-                ':projectId' => $projectId
+                ':projectId' => $projectId,
+                ':complexId' => $data['complex'],
+                ':buildingId' => $data['building']
             ]);
 
             $insertedVentilation = $db->lastInsertId();

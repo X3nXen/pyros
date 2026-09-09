@@ -3,6 +3,7 @@
 use PhpOffice\PhpWord\TemplateProcessor;
 require_once __DIR__ . "/../database.php";
 require_once __DIR__ . "/../services/AuditService.php";
+require_once __DIR__ . "/../services/EnergyPriceService.php";
 class DocumentController
 {
     public function index()
@@ -153,6 +154,28 @@ class DocumentController
             $dateTo = new DateTime($dates[0]['date_to']);
 
             $templateProcessor->setValue('audit_interval', $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d'));
+
+            $marketData = EnergyPriceService::getMarketPrices();
+
+            $eurHuf = $marketData['eur_huf_rate'];
+            $gasEurMwh = $marketData['natural_gas_price'];
+            $electricEurMwh = $marketData['electric_energy_price'];
+
+            $gasConverted = ($gasEurMwh * $eurHuf) / 1000;
+            $electricConverted = ($electricEurMwh * $eurHuf) / 1000;
+
+            $gasSpecific = $gasConverted + 15.0;
+            $electricSpecific = $electricConverted + 30.915;
+
+            $templateProcessor->setValue('eur_huf_rate', number_format($eurHuf, 2, ',', ' '));
+            $templateProcessor->setValue('natural_gas_price', number_format($gasEurMwh, 2, ',', ' '));
+            $templateProcessor->setValue('electric_energy_price', number_format($electricEurMwh, 2, ',', ' '));
+
+            $templateProcessor->setValue('natural_gas_converted', number_format($gasConverted, 2, ',', ' '));
+            $templateProcessor->setValue('natural_gas_specific', number_format($gasSpecific, 2, ',', ' '));
+
+            $templateProcessor->setValue('electric_converted', number_format($electricConverted, 2, ',', ' '));
+            $templateProcessor->setValue('electric_energy_specific', number_format($electricSpecific, 3, ',', ' '));
 
             // 2. Telephelyek táblázat
             $stmt = $db->prepare("SELECT complex_json FROM complex WHERE project_id = :projectId");
@@ -310,6 +333,68 @@ class DocumentController
             AuditService::buildBuildingsTable($buildingsTable, $allBuildings);
 
             $templateProcessor->setComplexValue('building_listing', $buildingsTable);
+
+            // - Fűtési rendszerek értékelése
+
+            $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
+            $stmt->execute([
+                ':projectId' => $project_id
+            ]);
+            $allHeating = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $heatingTable = new \PhpOffice\PhpWord\Element\Table([
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+            AuditService::buildHeatingTable($heatingTable, $allHeating);
+
+            $templateProcessor->setComplexValue('heating_listing', $heatingTable);
+
+            // - HMV rendszerek értékelése
+            $hmvTable = new \PhpOffice\PhpWord\Element\Table([
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+            AuditService::buildHMVTable($hmvTable, $allHeating);
+            $templateProcessor->setComplexValue("hmv_listing", $hmvTable);
+
+            // - Világítási rendszerek értékelése
+
+            $stmt = $db->prepare("SELECT l.name, l.specific_sum, s.consumption, s.source, c.name as complex_name FROM lighting_systems l join standings s on l.standing = s.id join complex c on c.id = l.complex where l.project_id =:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allLighting = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $lightingTable = new \PhpOffice\PhpWord\Element\Table([
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+
+            AuditService::buildLightingTable($lightingTable, $allLighting);
+            $templateProcessor->setComplexValue("lighting_listing", $lightingTable);
+
+            // - Komforthűtés rendszerek értékelése
+
+            $stmt = $db->prepare("SELECT h.heaters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='COOL' OR purpose='BOTH')");
+            $stmt->execute([':projectId' => $project_id]);
+            $allCooling = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $coolingTable = new \PhpOffice\PhpWord\Element\Table([
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+            AuditService::buildCoolingTable($coolingTable, $allCooling);
+
+            $templateProcessor->setComplexValue('cooling_listing', $coolingTable);
+
+            // - Légkezelő rendszerek
+            $stmt = $db->prepare("SELECT v.name, c.name as complex_name, b.name as building_name, v.sfp, v.category, v.json from ventilation_systems v join complex c on c.id=v.complex join buildings b on v.building = b.id WHERE v.project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allHvac = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $hvacTable = new \PhpOffice\PhpWord\Element\Table([
+                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+            ]);
+            AuditService::buildHVACTable($hvacTable, $allHvac);
+
+            $templateProcessor->setComplexValue('hvac_listing', $hvacTable);
 
             //Szállítás értékelése
             $stmt = $db->prepare("SELECT 

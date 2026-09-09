@@ -2,7 +2,7 @@ import { SystemPurpose } from './System.model'
 
 export enum HeaterCarrier {
     NATURAL_GAS = 'Földgáz',
-    PB_GAS = 'Pbgáz',
+    PB_GAS = 'PB-gáz',
     BIO_GAS = 'Biogáz',
     ELECTRICITY = 'Elektromos áram',
     OFF_PEAK_ELECTRICITY = 'Csúcson kívüli elektromos áram',
@@ -106,8 +106,8 @@ export enum HeaterType {
 
 export const HeaterRegulations: Array<string> = [
     'Fix értéktartás',
-    'Központi értékről történő szabályzás',
-    'Időjárásfüggő szabályzás',
+    'Központi értékről történő szabályozás',
+    'Időjárásfüggő szabályozás',
 ]
 
 export const HEAT_CARRIER_TO_TYPE: Record<HeaterCarrier, HeaterType[]> = {

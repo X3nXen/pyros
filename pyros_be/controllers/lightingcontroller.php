@@ -73,7 +73,7 @@ class LightingController
         try {
             $db = Database::getConnection();
             $db->beginTransaction();
-            foreach ($data as $system) {
+            foreach ($data['systems'] as $system) {
                 $zoneName = $system['zone'] ?? null;
                 $size = $system['size'] ?? null;
                 $solution = $system['solution'] ?? null;
@@ -84,7 +84,8 @@ class LightingController
                 $emergency = $system['emergency'] ?? null;
                 $standBy = $system['standBy'] ?? null;
                 $standing = $system['standing'] ?? null;
-                if (!$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null || $standBy === null) {
+                $complex = $data['complex'] ?? null;
+                if (!$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null || $standBy === null || $complex === null) {
                     http_response_code(500);
                     echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
                 }
@@ -102,7 +103,7 @@ class LightingController
             standby, 
             specific_sum, 
             yearly_sum,
-            project_id, standing) VALUES (:link, :name, :size, :solution, :dim, :usage, :regulation, :natural, :emergency, :standby, :specific, :sum, :projectId, :standing)";
+            project_id, standing, complex) VALUES (:link, :name, :size, :solution, :dim, :usage, :regulation, :natural, :emergency, :standby, :specific, :sum, :projectId, :standing, :complexId)";
                 $stmt = $db->prepare($sql);
                 $stmt->execute([
                     ':link' => $link,
@@ -118,11 +119,12 @@ class LightingController
                     ':specific' => $calculated['specific'],
                     ':sum' => $calculated['sum'],
                     ':projectId' => $projectId,
-                    ':standing' => $standing
+                    ':standing' => $standing,
+                    ':complexId' => $complex
                 ]);
             }
 
-            $stmt = $db->prepare("INSERT INTO standings_to_other VALUES :standing, :reference, 'LIGHTING'");
+            $stmt = $db->prepare("INSERT INTO standings_to_other VALUES (:standing, :reference, 'LIGHTING')");
             $stmt->execute([
                 ':standing' => $standing,
                 ':reference' => $db->lastInsertId()

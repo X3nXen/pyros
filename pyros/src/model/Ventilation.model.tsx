@@ -52,6 +52,7 @@ export enum VentilationRunning {
 export interface VentilationFormData {
     id: string | null
     name: string
+    complex: string
     building: string | null
     servicedBuilding: Array<ServicedBuildingShort>
     type: VentilationBase
@@ -80,6 +81,7 @@ export interface VentilationFormData {
 export interface VentilationFormErrors {
     name: string
     building: string
+    complex: string
     servicedBuilding: string
     servicedSizes: Record<string, string> | null
     ventilationOther: string

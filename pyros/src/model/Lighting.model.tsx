@@ -1,3 +1,8 @@
+export interface LightingForm {
+    complex: string
+    systems: Array<LightingFormData>
+}
+
 export interface LightingFormData {
     id: string | null
     zone: string
@@ -10,6 +15,11 @@ export interface LightingFormData {
     emergency: boolean
     standBy: boolean
     standing: string | null
+}
+
+export interface SystemErrors {
+    complex: string
+    systems: Array<LightingErrors> | string | null
 }
 
 export interface LightingErrors {
