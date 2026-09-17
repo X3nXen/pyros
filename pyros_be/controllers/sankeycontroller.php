@@ -41,38 +41,29 @@ class SankeyController
                 return;
             }
 
-            $carrierRows = AuditService::getEnergyCarrierSummaryRows($standings);
+            $rawConsumptionData = AuditService::calculateTotalConsumptionList($standings);
+            // Megjegyzés: A calculateTotalConsumptionList már meghívja az adjustConsumptionList-et is a kódod alapján!
 
             $links = [];
             $buildingNode = 'Épület';
             $productNode = 'Tevékenység';
             $vehicleNode = 'Szállítás';
 
-            $parseValue = function ($val) {
-                if (is_numeric($val))
-                    return (float) $val;
-                if (empty($val))
-                    return 0.0;
-                $clean = preg_replace('/[^\d\,\.]/', '', str_replace(['&nbsp;', "\xC2\xA0", ' ', 'kWh'], '', $val));
-                $clean = str_replace(',', '.', $clean);
-                return (float) $clean;
-            };
+            foreach ($rawConsumptionData as $sourceKey => $data) {
+                $sourceName = AuditService::EnergySources[$sourceKey] ?? ucfirst(strtolower($sourceKey));
 
-            foreach ($carrierRows as $row) {
-                $source = trim(strip_tags($row['carrier_name'] ?? 'Energia'));
-
-                $bVal = $parseValue($row['carrier_building'] ?? 0);
-                $pVal = $parseValue($row['carrier_product'] ?? 0);
-                $vVal = $parseValue($row['carrier_vehicle'] ?? 0);
+                $bVal = (float) ($data['subs']['BUILDING']);
+                $pVal = (float) ($data['subs']['SERVICE']);
+                $vVal = (float) ($data['subs']['CARRY']);
 
                 if ($bVal > 0) {
-                    $links[] = ['from' => $source, 'to' => $buildingNode, 'flow' => $bVal];
+                    $links[] = ['from' => $sourceName, 'to' => $buildingNode, 'flow' => $bVal];
                 }
                 if ($pVal > 0) {
-                    $links[] = ['from' => $source, 'to' => $productNode, 'flow' => $pVal];
+                    $links[] = ['from' => $sourceName, 'to' => $productNode, 'flow' => $pVal];
                 }
                 if ($vVal > 0) {
-                    $links[] = ['from' => $source, 'to' => $vehicleNode, 'flow' => $vVal];
+                    $links[] = ['from' => $sourceName, 'to' => $vehicleNode, 'flow' => $vVal];
                 }
             }
 

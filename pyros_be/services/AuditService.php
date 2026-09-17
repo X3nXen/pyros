@@ -1,15 +1,21 @@
 <?php
+
+use PhpOffice\PhpWord\TemplateProcessor;
 class AuditService
 {
+    public static function xmlEscape($val)
+    {
+        return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+    }
     // Szótárak központosítása statikus tömbökként
-    public static array $energySources = [
+    public const EnergySources = [
         'COAL' => 'Szén',
         'GASOLINE' => 'Gázolaj',
         'PETROL' => 'Benzin',
         'GAS' => 'Földgáz',
         'ELECTRICITY' => 'Elektromos áram',
         'REMOTE' => 'Távhő',
-        'PAKURA' => 'Pakura',
+        'PAKURA' => 'Petrolkoksz',
         'PB' => 'PB Gáz',
         'PROPANE' => 'Propán',
         'LPG' => 'LPG',
@@ -17,7 +23,7 @@ class AuditService
         'SOLAR' => 'Napenergia'
     ];
 
-    public static array $energyMeasurements = [
+    public const EnergyMeasurements = [
         'KWH' => 'kWh',
         'MJ' => 'MJ',
         'MCUBE' => 'm³',
@@ -25,7 +31,7 @@ class AuditService
         'MWH' => 'MWh'
     ];
 
-    public static array $months = [
+    public const MonthAbbrreviationToFull = [
         'jan' => ['name' => 'január', 'num' => '01'],
         'feb' => ['name' => 'február', 'num' => '02'],
         'mar' => ['name' => 'március', 'num' => '03'],
@@ -40,59 +46,51 @@ class AuditService
         'dec' => ['name' => 'december', 'num' => '12'],
     ];
 
-    /**
-     * Összesített havi fogyasztási adatok feldolgozása telephelyek szerint
-     */
-    public static function processMonthlyConsumption(array $rawData): array
+    public static function processMonthlyConsumptionList(array $rawData)
     {
-        $complexesData = [];
+        /*
+        $grouped = [
+            telephely_neve => [
+                év1.hónap1 => [
+                    source1 => [
+                        metric: metric
+                        data: data
+                    ] 
+                ]
+            ]
+        ]
+        */
 
+        $grouped = [];
         foreach ($rawData as $row) {
-            $complexLabel = (!empty($row['name']) ? $row['name'] : "Telephely");
+            $complexName = (!empty($row['name']) ? $row['name'] : 'Telephely');
+            $rawSource = self::EnergySources[$row['source']];
+            $rawUnit = self::EnergyMeasurements[$row['unit']];
 
-            $rawSource = $row['source'];
-            $rawUnit = $row['measurement'] ?? '';
-
-            $sourceLabel = self::$energySources[$rawSource] ?? $rawSource;
-            $unitLabel = self::$energyMeasurements[$rawUnit] ?? $rawUnit;
-
-            $consumptionJson = json_decode($row['consumption'], true);
-
-            if (!is_array($consumptionJson)) {
-                continue;
+            if (!isset($grouped[$complexName])) {
+                $grouped[$complexName] = [];
             }
-
+            $consumptionJson = json_decode($row['consumption'], true);
             foreach ($consumptionJson as $year => $months) {
-                if (!is_array($months))
+                if (!is_array($months)) {
                     continue;
-
-                foreach ($months as $monthKey => $value) {
-                    if ($value !== null && isset(self::$months[$monthKey])) {
-                        $sortKey = $year . '-' . self::$months[$monthKey]['num'];
-                        $displayLabel = $year . '. ' . self::$months[$monthKey]['name'];
-
-                        $finalValue = ($rawSource === 'SOLAR') ? -abs($value) : $value;
-
-                        $complexesData[$complexLabel][$sortKey]['label'] = $displayLabel;
-
-                        if (!isset($complexesData[$complexLabel][$sortKey]['items'][$rawSource])) {
-                            $complexesData[$complexLabel][$sortKey]['items'][$rawSource] = [
-                                'source' => $sourceLabel,
-                                'value' => 0,
-                                'unit' => $unitLabel
-                            ];
-                        }
-
-                        $complexesData[$complexLabel][$sortKey]['items'][$rawSource]['value'] += $finalValue;
+                }
+                foreach ($months as $month => $value) {
+                    $monthName = self::MonthAbbrreviationToFull[$month]['name'];
+                    if (!isset($grouped[$complexName][$year . '.' . $monthName])) {
+                        $grouped[$complexName][$year . '.' . $monthName] = [];
                     }
+                    if (!isset($grouped[$complexName][$year . '.' . $monthName][$rawSource])) {
+                        $grouped[$complexName][$year . '.' . $monthName][$rawSource] = ["metric" => $rawUnit, "total" => 0.0];
+                    }
+                    $grouped[$complexName][$year . '.' . $monthName][$rawSource]['total'] += $value;
                 }
             }
         }
-
-        return $complexesData;
+        return $grouped;
     }
 
-    public static function calculateTotalConsumption(?string $consumptionJson, string $source = ''): float
+    public static function calculateTotalConsumption(string $consumptionJson): float
     {
         if (empty($consumptionJson)) {
             return 0;
@@ -105,7 +103,7 @@ class AuditService
 
         if (isset($data['total']) && is_numeric($data['total'])) {
             $total = (float) $data['total'];
-            return ($source === 'SOLAR') ? -abs($total) : $total;
+            return $total;
         }
 
         $total = 0;
@@ -126,73 +124,262 @@ class AuditService
             }
         }
 
-        return ($source === 'SOLAR') ? -abs($total) : $total;
+        return $total;
     }
 
-    public static function getEnergyCarrierSummaryRows(array $standings): array
+    /**
+     * A nyers adat parsingja nekünk érdekes/használható formában
+     * @param array $standings (A mérések összes adatja)
+     * @return array (A várt struktúra: [
+            source => [
+                total => 0,
+                metric => metric,
+                subs => [
+                    BUILDING => 0,
+                    CARRY => 0,
+                    SERVICE => 0
+                    SUM => 0
+                ]
+            ]
+        ])
+     */
+    public static function calculateTotalConsumptionList(array $standings): array
     {
-        $carriers = [];
-
+        /*$grouped = [
+            "<source>" => [
+                "total" => 0,
+                "metric" => '<metric>',
+                "subs" => [
+                    'BUILDING' => 0,
+                    'CARRY' => 0,
+                    'SERVICE' => 0
+                    'SUM' => 0
+                ]
+            ]
+        ];*/
+        $grouped = [];
         foreach ($standings as $row) {
-            $rawSource = strtoupper(trim($row['source'] ?? ''));
-            if (empty($rawSource)) {
+            $source = strtoupper(trim($row['source']));
+            if (empty($source)) {
                 continue;
             }
-
-            $carrierName = self::$energySources[$rawSource] ?? $rawSource;
-
-            if (!isset($carriers[$carrierName])) {
-                $carriers[$carrierName] = [
-                    'raw_source' => $rawSource,
-                    'total' => 0.0,
-                    'building' => 0.0,
-                    'service' => 0.0,
-                    'carry' => 0.0
+            if (!isset($grouped[$source])) {
+                $grouped[$source] = [
+                    "total" => 0.0,
+                    "metric" => $row['measurement'],
+                    "subs" => ['BUILDING' => 0.0, 'CARRY' => 0.0, 'SERVICE' => 0.0, 'SUM' => 0.0],
                 ];
             }
-
-            $consumptionValue = self::calculateTotalConsumption($row['consumption'] ?? '', $rawSource);
-
-            // 1. Teljes fogyasztás gyűjtése (Főmérők vagy önálló mérési pontok)
-            if (in_array($row['measurement_type'] ?? '', ['MAIN', 'VIRTUAL']) && empty($row['sub_to'])) {
-                $carriers[$carrierName]['total'] += $consumptionValue;
-            }
-
-            // 2. Kategóriák szerinti gyűjtés
-            $purpose = strtoupper(trim($row['purpose'] ?? ''));
-            if ($purpose === 'BUILDING') {
-                $carriers[$carrierName]['building'] += $consumptionValue;
-            } elseif ($purpose === 'SERVICE') {
-                $carriers[$carrierName]['service'] += $consumptionValue;
-            } elseif (in_array($purpose, ['CARRY', 'TRANSPORT', 'VEHICLE', 'SZALLITAS'])) {
-                $carriers[$carrierName]['carry'] += $consumptionValue;
+            if ($row['measurement_type'] == 'MAIN') {
+                $grouped[$source]['total'] += self::calculateTotalConsumption($row['consumption']);
+                $grouped[$source]['metric'] = $row['measurement'];
+            } else {
+                $total = self::calculateTotalConsumption($row['consumption']);
+                $grouped[$source]['subs'][$row['purpose']] += $total;
+                $grouped[$source]['subs']['SUM'] += $total;
             }
         }
+        //Adat átszervezése
+        foreach ($grouped as $source => &$source_data) {
+            if ($source == 'GAS' || $source == 'REMOTE' || $source == 'COAL' || $source == 'PAKURA' || $source == 'WOOD' || $source == 'SOLAR') {
+                $carryTotal = $source_data['subs']['CARRY'];
+                $source_data['subs']['CARRY'] = 0.0;
+                $source_data['subs']['SUM'] = ($source_data['subs']['SUM'] - $carryTotal) > 0 ? $source_data['subs']['SUM'] - $carryTotal : 0;
+                $source_data['subs']['SERVICE'] = $source_data['total'] - $source_data['subs']['BUILDING'];
+            } else if ($source == 'PETROL' || $source == 'GASOLINE') {
+                $buildingTotal = $source_data['subs']['BUILDING'];
+                $source_data['subs']['BUILDING'] = 0.0;
+                $source_data['subs']['SUM'] = ($source_data['subs']['SUM'] - $buildingTotal) > 0 ? $source_data['subs']['SUM'] - $buildingTotal : 0;
+                $source_data['subs']['SERVICE'] = $source_data['total'] - $source_data['subs']['CARRY'];
+            } else {
+                $source_data['subs']['SERVICE'] = $source_data['total'] - ($source_data['subs']['CARRY'] + $source_data['subs']['BUILDING']);
+            }
+        }
+        return $grouped;
+    }
 
-        $carrierRows = [];
+    /**
+     * Vezetői összefoglaló adatai, illetve annak egész dokumentumot érintő beillesztései
+     * @param array $data (A feldolgozandó adatok, json parse-olás után asszociatív tömbben) 
+     * @param TemplateProcessor $templateProcessor (A PHPWord TemplateProcessora, ami lehetővé teszi a beillesztést)
+     * @return void
+     */
+    public static function createIntroductionChapter(array $data, TemplateProcessor $templateProcessor): void
+    {
+        $companyName = $data['fullName'] ?? '';
+        $ownerPercentageText = $data['foreign'] ? ($data['percent'] ?? 0) . '%-ban külföldi' : 'magyar';
+        $income = $data['income'] ?? 0;
+        $incomeInThousands = (float) $income / 1000;
+        $formattedIncome = number_format($incomeInThousands, 0, ',', '.');
+        $templateProcessor->setValue('company_name', AuditService::xmlEscape($companyName));
+        $templateProcessor->setValue('foundation_year', AuditService::xmlEscape($data['foundationYear'] ?? ''));
+        $templateProcessor->setValue('owner_percentage', AuditService::xmlEscape($ownerPercentageText));
+        $templateProcessor->setValue('company_product', AuditService::xmlEscape($data['mainActivity'] ?? ''));
+        $templateProcessor->setValue('company_place', AuditService::xmlEscape($data['companyPlace'] ?? ''));
+        $templateProcessor->setValue('data_year', AuditService::xmlEscape($data['dataYear'] ?? ''));
+        $templateProcessor->setValue('employee_count', AuditService::xmlEscape($data['employeeCount'] ?? ''));
+        $templateProcessor->setValue('profit', AuditService::xmlEscape($formattedIncome ?? '') . ' ');
+    }
 
-        foreach ($carriers as $name => $data) {
-            $building = $data['building'];
-            $carry = $data['carry'];
-            $total = $data['total'];
+    /**
+     * A Fogyasztások felosztása táblázat feltöltése adatokkal
+     * @param array $data (A szervezett fogyasztási adatok)
+     * @param TemplateProcessor $templateProcessor (A PHPWordból származó TemplateProcessor)
+     * @param bool $needTotal (A 2 fejezet különbsége, hogy van vagy nincs Összesen oszlop)
+     * @return void
+     */
+    public static function createConsumptionList(array $data, TemplateProcessor $templateProcessor, bool $needTotal): void
+    {
+        if (!empty($data)) {
+            $rowVariablePrefix = $needTotal ? "carrier" : "carrier2";
+            $templateProcessor->cloneRow($rowVariablePrefix, count($data));
+            $i = 1;
+            foreach ($data as $index => $row) {
+                $norm_metric = self::EnergyMeasurements[$row['metric']];
+                $norm_carrier_name = self::xmlEscape(self::EnergySources[$index]);
+                $norm_building = self::xmlEscape(number_format($row['subs']['BUILDING'], 2, ',', ' ') . ' ' . $norm_metric);
+                $norm_service = self::xmlEscape(number_format($row['subs']['SERVICE'], 2, ',', ' ') . ' ' . $norm_metric);
+                $norm_carry = self::xmlEscape(number_format($row['subs']['CARRY'], 2, ',', ' ') . ' ' . $norm_metric);
+                $norm_total = self::xmlEscape(number_format($row['total'], 2, ',', ' ') . ' ' . $norm_metric);
 
-            // Biztonsági korrekció: ha a részösszegek meghaladják a total-t (pl. sub-metering miatt), 
-            // a total felveszi a részösszegek max értékét.
-            $total = max($total, $building + $carry + $data['service']);
+                $templateProcessor->setValue($rowVariablePrefix . "#{$i}", $norm_carrier_name);
+                $templateProcessor->setValue($rowVariablePrefix . "_building#{$i}", $norm_building);
+                $templateProcessor->setValue($rowVariablePrefix . "_product#{$i}", $norm_service);
+                $templateProcessor->setValue($rowVariablePrefix . "_vehicle#{$i}", $norm_carry);
+                if ($needTotal) {
+                    $templateProcessor->setValue($rowVariablePrefix . "_total#{$i}", $norm_total);
+                }
+                $i++;
+            }
+        } else {
+            $templateProcessor->setValue('carrier', self::xmlEscape('Nincs adat'));
+            $templateProcessor->setValue('carrier_building', self::xmlEscape('-'));
+            $templateProcessor->setValue('carrier_product', self::xmlEscape('-'));
+            $templateProcessor->setValue('carrier_vehicle', self::xmlEscape('-'));
+            $templateProcessor->setValue('carrier_total', self::xmlEscape('-'));
+        }
+    }
 
-            // Tevékenység (Product) = ami megmarad az Épület és Szállítás levonása után
-            $product = max(0.0, $total - $building - $carry);
-
-            $carrierRows[] = [
-                'carrier_name' => $name,
-                'carrier_building' => number_format($building, 0, ',', ' ') . ' kWh',
-                'carrier_product' => number_format($product, 0, ',', ' ') . ' kWh',
-                'carrier_vehicle' => number_format($carry, 0, ',', ' ') . ' kWh',
-                'carrier_total' => number_format($total, 0, ',', ' ') . ' kWh',
-            ];
+    public static function createCurrentPricesSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        if (!empty($data) && isset($data[0]['date_from'], $data[0]['date_to'])) {
+            $dateFrom = new DateTime($data[0]['date_from']);
+            $dateTo = new DateTime($data[0]['date_to']);
+            $auditInterval = $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d');
+        } else {
+            $auditInterval = 'Nincs megadva';
         }
 
-        return $carrierRows;
+        $templateProcessor->setValue('audit_interval', self::xmlEscape($auditInterval));
+
+        $marketData = EnergyPriceService::getMarketPrices();
+
+        $eurHuf = $marketData['eur_huf_rate'] ?? 0;
+        $gasEurMwh = $marketData['natural_gas_price'] ?? 0;
+        $electricEurMwh = $marketData['electric_energy_price'] ?? 0;
+
+        $gasConverted = ($gasEurMwh * $eurHuf) / 1000;
+        $electricConverted = ($electricEurMwh * $eurHuf) / 1000;
+
+        $gasSpecific = $gasConverted + 15.0;
+        $electricSpecific = $electricConverted + 30.915;
+
+        $templateProcessor->setValue('eur_huf_rate', self::xmlEscape(number_format($eurHuf, 2, ',', ' ')));
+        $templateProcessor->setValue('natural_gas_price', self::xmlEscape(number_format($gasEurMwh, 2, ',', ' ')));
+        $templateProcessor->setValue('electric_energy_price', self::xmlEscape(number_format($electricEurMwh, 2, ',', ' ')));
+
+        $templateProcessor->setValue('natural_gas_converted', self::xmlEscape(number_format($gasConverted, 2, ',', ' ')));
+        $templateProcessor->setValue('natural_gas_specific', self::xmlEscape(number_format($gasSpecific, 2, ',', ' ')));
+
+        $templateProcessor->setValue('electric_converted', self::xmlEscape(number_format($electricConverted, 2, ',', ' ')));
+        $templateProcessor->setValue('electric_energy_specific', self::xmlEscape(number_format($electricSpecific, 3, ',', ' ')));
+    }
+
+    public static function createInvestmentSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        $bubor = $data['buborPercent'] ?? 0;
+        $bond = $data['bondPercent'] ?? 0;
+        $mnb = $data['mnbPercent'] ?? 0;
+
+        $templateProcessor->setValue('bubor_rate', self::xmlEscape($bubor));
+        $templateProcessor->setValue('bond_rate', self::xmlEscape($bond));
+        $templateProcessor->setValue('mnb_rate', self::xmlEscape($mnb));
+
+        $interest_rate = 0.3 * (((float) $bubor) / 100) + 0.5 * (((float) $bond) / 100) + 0.2 * (((float) $mnb) / 100);
+        $interest_rate = round(($interest_rate + 0.03) * 100, 2);
+        $templateProcessor->setValue('interest_rate', self::xmlEscape($interest_rate));
+        $templateProcessor->setValue('current_date', date('Y.m.d'));
+    }
+
+    public static function createComplexesTable(array $data, TemplateProcessor $templateProcessor)
+    {
+        $templateProcessor->setValue('telephelyein', count($data) > 1 ? 'telephelyein' : 'telephelyén');
+
+        if (!empty($data)) {
+            $complex_index = 1;
+            $templateProcessor->cloneBlock('block_complex', count($data), true, true);
+            foreach ($data as $field) {
+                $fieldJson = json_decode($field['complex_json'], true);
+                if (!$fieldJson) {
+                    continue;
+                }
+
+                $norm_name = self::xmlEscape(
+                    ($fieldJson['postal'] ?? '') . ' ' .
+                    ($fieldJson['city'] ?? '') . ', ' .
+                    ($fieldJson['address'] ?? '') . '; ' .
+                    ($fieldJson['name'] ?? '')
+                );
+                $replacements = [];
+                foreach ($fieldJson['working'] as $working) {
+                    $replacements[] = ["complex_function#{$complex_index}" => self::xmlEscape("Tevékenység: " . $working['workType']), "complex_shift#{$complex_index}" => self::xmlEscape("Munkarend: " . $working['workHours'])];
+                }
+                $templateProcessor->setValue("complex_name#{$complex_index}", $norm_name);
+                $templateProcessor->cloneRowAndSetValues("function_shift_row#{$complex_index}", $replacements);
+
+                $complex_index++;
+            }
+        } else {
+            $templateProcessor->deleteBlock('block_complex');
+        }
+    }
+
+    public static function createStandingByComplexSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        /*
+        $grouped = [
+            telephely_neve => [
+                év1.hónap1 => [
+                    source1 => [
+                        metric: metric
+                        data: data
+                    ] 
+                ]
+            ]
+        ]
+        */
+        if (!empty($data)) {
+            $complex_index = 1;
+            $templateProcessor->cloneBlock('block_consumption', count($data), true, true);
+            foreach ($data as $complex => $dateRow) {
+                $replacements = [];
+                $norm_complex_name = self::xmlEscape($complex);
+                foreach ($dateRow as $month => $sources) {
+                    foreach ($sources as $source => $value) {
+                        $replacements[] = [
+                            "consumption_month#{$complex_index}" => self::xmlEscape($month),
+                            "consumption_carrier#{$complex_index}" => self::xmlEscape($source),
+                            "consumption_amount#{$complex_index}" => self::xmlEscape(number_format($value['total'], 2, '.', ',') . $value['metric'])
+                        ];
+                    }
+                }
+                $templateProcessor->setValue("consumption_complex_name#{$complex_index}", $norm_complex_name);
+                $templateProcessor->cloneRowAndSetValues("consumption_month_row#{$complex_index}", $replacements);
+                $complex_index++;
+            }
+        } else {
+            $templateProcessor->deleteBlock('block_consumption');
+        }
     }
 
     public static function buildStandingTree(
