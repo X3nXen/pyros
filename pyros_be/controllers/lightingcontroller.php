@@ -85,7 +85,8 @@ class LightingController
                 $standBy = $system['standBy'] ?? null;
                 $standing = $system['standing'] ?? null;
                 $complex = $data['complex'] ?? null;
-                if (!$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null || $standBy === null || $complex === null) {
+                $building = $system['building'] ?? null;
+                if (!$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null || $standBy === null || $complex === null || $building === null) {
                     http_response_code(500);
                     echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
                 }
@@ -103,7 +104,7 @@ class LightingController
             standby, 
             specific_sum, 
             yearly_sum,
-            project_id, standing, complex) VALUES (:link, :name, :size, :solution, :dim, :usage, :regulation, :natural, :emergency, :standby, :specific, :sum, :projectId, :standing, :complexId)";
+            project_id, standing, complex, building) VALUES (:link, :name, :size, :solution, :dim, :usage, :regulation, :natural, :emergency, :standby, :specific, :sum, :projectId, :standing, :complexId, :buildingId)";
                 $stmt = $db->prepare($sql);
                 $stmt->execute([
                     ':link' => $link,
@@ -120,7 +121,8 @@ class LightingController
                     ':sum' => $calculated['sum'],
                     ':projectId' => $projectId,
                     ':standing' => $standing,
-                    ':complexId' => $complex
+                    ':complexId' => $complex,
+                    ':buildingId' => $building
                 ]);
             }
 

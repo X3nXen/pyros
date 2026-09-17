@@ -102,7 +102,7 @@ export function validateStandings(
             errors.dateFrom = errors.dateTo =
                 'A kezdő dátum nem lehet később, mint a végdátum!'
             hasError = true
-        } else if (payload.dateTo.diff(payload.dateFrom, 'month') < 12) {
+        } else if (payload.dateTo.diff(payload.dateFrom, 'day') < 364) {
             errors.dateFrom = errors.dateTo =
                 'A kezdő és vég dátum között legalább 12 hónapnak kell lennie!'
             hasError = true
@@ -551,9 +551,14 @@ export function validateLightingSystem(payload: LightingForm) {
     payload.systems.forEach((e) => {
         let localHasError = false
         const localErrors: LightingErrors = {
+            building: '',
             zone: '',
             size: '',
             standing: '',
+        }
+        if (!e.building || e.building === '') {
+            localErrors.building = 'Add meg az épületet!'
+            localHasError = true
         }
         if (!e.zone || e.zone === '') {
             localErrors.zone = 'Add meg a zóna nevét!'

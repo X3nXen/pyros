@@ -9,6 +9,9 @@ function parseStandingsExcel(string $filePath, string $startDateStr, string $end
     $start = new DateTime($startDateStr);
     $end = new DateTime($endDateStr);
 
+    $current = (clone $start)->modify('first day of this month');
+    $endMonth = (clone $end)->modify('first day of this month');
+
     $monthKeys = [
         1 => 'jan',
         2 => 'feb',
@@ -25,10 +28,7 @@ function parseStandingsExcel(string $filePath, string $startDateStr, string $end
     ];
 
     $result = [];
-    $currentRow = 3;
-
-    $current = (clone $start)->modify('first day of this month');
-    $endMonth = (clone $end)->modify('first day of this month');
+    $currentRow = 2;
 
     while ($current <= $endMonth) {
         $year = $current->format('Y');
@@ -41,7 +41,9 @@ function parseStandingsExcel(string $filePath, string $startDateStr, string $end
 
         $rawVal = $sheet->getCell('C' . $currentRow)->getCalculatedValue();
 
-        $result[$year][$monthKey] = ($rawVal !== null && $rawVal !== '') ? (float) $rawVal : null;
+        if ($rawVal !== null && $rawVal !== '') {
+            $result[$year][$monthKey] = (float) $rawVal;
+        }
 
         $currentRow++;
         $current->modify('+1 month');

@@ -26,6 +26,7 @@ import FormSendProtocol from '../controllers/Forms.control'
 import { useAppSelector } from '../store'
 import type { StandingsShort } from '../model/Standings.model'
 import type { ComplexShortData } from '../model/Complex.model'
+import type { BuildingShort } from '../model/Building.model'
 
 export default function LightingSystem() {
     const [formData, setFormData] = useState<LightingForm>({
@@ -47,6 +48,7 @@ export default function LightingSystem() {
             ...formData.systems,
             {
                 id: null,
+                building: '',
                 zone: '',
                 size: 0,
                 solution: LightingSolutions[0],
@@ -65,6 +67,7 @@ export default function LightingSystem() {
     }
 
     const standings = useAppSelector((state) => state.project.subStandings)
+    const buildings = useAppSelector((state) => state.project.buildings)
 
     function handleActiveLightingSystemChange(
         field: keyof LightingFormData,
@@ -90,7 +93,7 @@ export default function LightingSystem() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -151,6 +154,60 @@ export default function LightingSystem() {
                     }}
                 >
                     <h1>Világítási rendszerek rögzítése</h1>
+                    <FormControl
+                        error={
+                            formErrors !== null &&
+                            activeLightingIndex !== null &&
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !== 'none'
+                        }
+                    >
+                        <InputLabel id="building-select">Épület</InputLabel>
+                        <Select
+                            label="Épület"
+                            labelId="building-select"
+                            value={
+                                formData.systems[activeLightingIndex!].building
+                            }
+                            onChange={(e) =>
+                                handleActiveLightingSystemChange(
+                                    'building',
+                                    e.target.value
+                                )
+                            }
+                        >
+                            {buildings.map(
+                                (e: BuildingShort, index: number) => (
+                                    <MenuItem
+                                        key={'building-' + index}
+                                        value={e.id}
+                                    >
+                                        {e.name}
+                                    </MenuItem>
+                                )
+                            )}
+                        </Select>
+                        {formErrors !== null &&
+                            activeLightingIndex !== null &&
+                            !!formErrors.systems &&
+                            formErrors.systems[activeLightingIndex] !==
+                                'none' &&
+                            (
+                                formErrors.systems[
+                                    activeLightingIndex
+                                ] as LightingErrors
+                            ).building && (
+                                <FormHelperText>
+                                    {
+                                        (
+                                            formErrors.systems[
+                                                activeLightingIndex
+                                            ] as LightingErrors
+                                        ).building
+                                    }
+                                </FormHelperText>
+                            )}
+                    </FormControl>
                     <FormControl
                         error={
                             formErrors !== null &&

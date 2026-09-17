@@ -67,16 +67,16 @@ export default function Standings() {
         )
         if (result && result.success) {
             const savedMeasurement: StandingsShort = {
-                id: formData.id!,
+                id: result.id!,
                 name: formData.name,
             }
 
-            if (formData.measurementType === MeasurementTypes.MAIN) {
+            if (formData.measurementType === ('MAIN' as MeasurementTypes)) {
                 dispatch(addMainStandingLocally(savedMeasurement))
             } else {
                 dispatch(addSubStandingLocally(savedMeasurement))
             }
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -114,7 +114,6 @@ export default function Standings() {
                             ...formData,
                             measurementType: e.target.value,
                         })
-                        console.log(formData)
                     }}
                 >
                     {Object.keys(MeasurementTypes).map((e: string) => {

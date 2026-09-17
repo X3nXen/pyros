@@ -96,7 +96,7 @@ export default function Compressed() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

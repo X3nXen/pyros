@@ -45,7 +45,7 @@ export default function Product() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
             dispatch(setHasPrimaryProductLocally(formData.isPrimary))
         }
     }

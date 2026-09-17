@@ -91,7 +91,7 @@ export default function Cooling() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

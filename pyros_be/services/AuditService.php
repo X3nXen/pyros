@@ -205,9 +205,16 @@ class AuditService
         if (!isset($standingsById[$standingId]))
             return;
 
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $standing = $standingsById[$standingId];
         $totalConsumption = self::calculateTotalConsumption($standing['consumption'], $standing['source']);
-        $unitLabel = self::$energyMeasurements[$standing['measurement']] ?? $standing['measurement'];
+
+        $rawUnit = self::$energyMeasurements[$standing['measurement']] ?? $standing['measurement'];
+        $unitLabel = $xmlEscape($rawUnit);
+
         $formattedValue = number_format($totalConsumption, 0, ',', ' ') . ' ' . $unitLabel;
 
         $table->addRow(null, ['cantSplit' => true]);
@@ -224,6 +231,7 @@ class AuditService
         $valueColWidth = 3000;
 
         $nameCell = $table->addCell($nameColWidth, $cellOptions);
+        $standingName = $xmlEscape($standing['name']);
 
         if ($level === 0) {
             $nameParagraphStyle = [
@@ -231,7 +239,7 @@ class AuditService
                 'spaceAfter' => 20,
                 'spaceBefore' => 20
             ];
-            $nameCell->addText($standing['name'], $fontStyle, $nameParagraphStyle);
+            $nameCell->addText($standingName, $fontStyle, $nameParagraphStyle);
         } else {
             $nameParagraphStyle = [
                 'alignment' => 'right',
@@ -239,7 +247,7 @@ class AuditService
                 'spaceAfter' => 20,
                 'spaceBefore' => 20
             ];
-            $nameCell->addText('• ' . $standing['name'], $fontStyle, $nameParagraphStyle);
+            $nameCell->addText('• ' . $standingName, $fontStyle, $nameParagraphStyle);
         }
 
         $deadCell = $table->addCell($deadCellColWidth, $cellOptions);
@@ -261,6 +269,11 @@ class AuditService
 
     public static function buildBuildingsTable(\PhpOffice\PhpWord\Element\Table &$table, array &$buildings, array &$improveable_list)
     {
+        // Biztonságos XML escape segédfüggvény
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'building' => 2500,
             'complex' => 2300,
@@ -281,8 +294,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -309,10 +320,6 @@ class AuditService
             'borderSize' => 6,
             'borderColor' => '000000'
         ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
-        ];
         $dataParagraphStyleLeft = [
             'alignment' => 'left',
             'spaceBefore' => 40,
@@ -328,30 +335,39 @@ class AuditService
             $table->addRow(null, ['cantSplit' => true]);
             $qfValue = is_numeric($b['qf']) ? (float) $b['qf'] : 0;
             $statusText = ($qfValue > 150) ? 'Fejlesztendő' : 'Megfelelő';
+
+            $buildingNameRaw = $b['building_name'] ?? '';
+            $complexNameRaw = $b['complex_name'] ?? '';
+
             if ($qfValue > 150) {
                 if (!isset($improveable_list['building'])) {
                     $improveable_list['building'] = [];
                 }
-                $improveable_list['building'][] = $b['building_name'];
+                $improveable_list['building'][] = $buildingNameRaw;
             }
 
             $cell1 = $table->addCell($colWidths['building'], $dataCellStyle);
-            $cell1->addText($b['building_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
+            $cell1->addText($xmlEscape($buildingNameRaw), null, $dataParagraphStyleLeft);
 
             $cell2 = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $cell2->addText($b['complex_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
+            $cell2->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleLeft);
 
             $cell3 = $table->addCell($colWidths['qf'], $dataCellStyle);
             $formattedQf = number_format($qfValue, 2, ',', ' ') . ' kWh/m²a';
-            $cell3->addText($formattedQf, $dataFontStyle, $dataParagraphStyleCenter);
+            $cell3->addText($formattedQf, null, $dataParagraphStyleCenter);
 
             $cell4 = $table->addCell($colWidths['status'], $dataCellStyle);
-            $cell4->addText($statusText, $dataFontStyle, $dataParagraphStyleCenter);
+            $cell4->addText($statusText, null, $dataParagraphStyleCenter);
         }
     }
 
     public static function buildHeatingTable(\PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, array &$improveable_list)
     {
+        // Biztonságos XML escape segédfüggvény
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'complex' => 1500,
             'name' => 1500,
@@ -373,8 +389,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -399,10 +413,6 @@ class AuditService
             'borderSize' => 6,
             'borderColor' => '000000'
         ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
-        ];
         $dataParagraphStyleCenter = [
             'alignment' => 'center',
             'spaceBefore' => 40,
@@ -411,42 +421,54 @@ class AuditService
 
         foreach ($heating_systems as $h) {
             $heaters = json_decode($h['heaters'], true);
+            if (!is_array($heaters))
+                continue;
+
+            $complexNameRaw = $h['complex_name'] ?? '';
+
             foreach ($heaters as $index => $heater) {
                 $table->addRow(null, ['cantSplit' => true]);
 
                 if ($index === 0) {
                     $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
                     $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                    $complexCell->addText($h['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                    $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
                 } else {
                     $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
                     $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
                 }
 
+                $heaterNameRaw = $heater['name'] ?? '';
+                $heaterTypeRaw = $heater['heatingType'] ?? '';
+
                 $heaterNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-                $heaterNameCell->addText($heater['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterNameCell->addText($xmlEscape($heaterNameRaw), null, $dataParagraphStyleCenter);
 
                 $heaterTypeCell = $table->addCell($colWidths['type'], $dataCellStyle);
-                $heaterTypeCell->addText($heater["heatingType"], $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterTypeCell->addText($xmlEscape($heaterTypeRaw), null, $dataParagraphStyleCenter);
 
                 $heaterPoints = self::calculateHeaterPoints($heater);
                 if ($heaterPoints['status'] === "Fejlesztendő") {
                     if (!isset($improveable_list['heaters'])) {
                         $improveable_list['heaters'] = [];
                     }
-                    $improveable_list['heaters'][] = $heater['name'];
+                    $improveable_list['heaters'][] = $heaterNameRaw;
                 }
                 $heaterPointCell = $table->addCell($colWidths['points'], $dataCellStyle);
-                $heaterPointCell->addText($heaterPoints['points'], $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterPointCell->addText($xmlEscape($heaterPoints['points']), null, $dataParagraphStyleCenter);
 
                 $heaterStatusCell = $table->addCell($colWidths['status'], $dataCellStyle);
-                $heaterStatusCell->addText($heaterPoints['status'], $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterStatusCell->addText($xmlEscape($heaterPoints['status']), null, $dataParagraphStyleCenter);
             }
         }
     }
 
-    public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, $improveable_list): void
+    public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'complex' => 1500,
             'name' => 1500,
@@ -468,8 +490,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -494,10 +514,6 @@ class AuditService
             'borderSize' => 6,
             'borderColor' => '000000'
         ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
-        ];
         $dataParagraphStyleCenter = [
             'alignment' => 'center',
             'spaceBefore' => 40,
@@ -506,27 +522,40 @@ class AuditService
 
         foreach ($heating_systems as $h) {
             $heaters = json_decode($h['emitters'], true);
-            foreach ($heaters as $index => $emitter) {
-                if ($emitter['type'] !== 'HMV') {
-                    continue;
-                }
+            if (!is_array($heaters)) {
+                continue;
+            }
+
+            $complexNameRaw = $h['complex_name'] ?? '';
+
+            $hmvHeaters = array_filter($heaters, function ($emitter) {
+                return isset($emitter['type']) && $emitter['type'] === 'HMV';
+            });
+
+            if (empty($hmvHeaters)) {
+                continue;
+            }
+
+            $rowIndex = 0;
+            foreach ($hmvHeaters as $emitter) {
                 $table->addRow(null, ['cantSplit' => true]);
 
-                if ($index === 0) {
+                if ($rowIndex === 0) {
                     $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
                     $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                    $complexCell->addText($h['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                    $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
                 } else {
                     $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
                     $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
                 }
 
+                $emitterNameRaw = $emitter['name'] ?? '';
                 $heaterNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-                $heaterNameCell->addText($emitter['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterNameCell->addText($xmlEscape($emitterNameRaw), null, $dataParagraphStyleCenter);
 
-                $hmvPoints = self::HMV_REGULATION_VALUES[$emitter['hmvRegulation']];
+                $hmvPoints = self::HMV_REGULATION_VALUES[$emitter['hmvRegulation'] ?? ''] ?? 0;
                 $heaterTypeCell = $table->addCell($colWidths['points'], $dataCellStyle);
-                $heaterTypeCell->addText($hmvPoints . "%", $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterTypeCell->addText($xmlEscape($hmvPoints . "%"), null, $dataParagraphStyleCenter);
 
                 $status = $hmvPoints === 100 ? "Megfelelő" : "Fejlesztendő";
                 $etc = "Cirkuláció és szabályozás optimalizálása, ahol a pontszám alacsony";
@@ -534,20 +563,26 @@ class AuditService
                     if (!isset($improveable_list['hmv'])) {
                         $improveable_list['hmv'] = [];
                     }
-                    $improveable_list['hmv'][] = $h['name'];
+                    $improveable_list['hmv'][] = $complexNameRaw;
                 }
 
                 $heaterPointCell = $table->addCell($colWidths['status'], $dataCellStyle);
-                $heaterPointCell->addText($status, $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterPointCell->addText($xmlEscape($status), null, $dataParagraphStyleCenter);
 
                 $heaterStatusCell = $table->addCell($colWidths['etc'], $dataCellStyle);
-                $heaterStatusCell->addText($etc, $dataFontStyle, $dataParagraphStyleCenter);
+                $heaterStatusCell->addText($xmlEscape($etc), null, $dataParagraphStyleCenter);
+
+                $rowIndex++;
             }
         }
     }
 
     public static function buildLightingTable(PhpOffice\PhpWord\Element\Table &$table, array &$lighting_systems): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'complex' => 1500,
             'zone' => 1500,
@@ -569,8 +604,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -580,24 +613,24 @@ class AuditService
 
         $table->addRow(600, $headerRowStyle);
         $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header1->addText($xmlEscape("Telephely"), $headerFontStyle, $headerParagraphStyle);
+
         $header2 = $table->addCell($colWidths['zone'], $headerCellStyle);
-        $header2->addText("Zóna", $headerFontStyle, $headerParagraphStyle);
+        $header2->addText($xmlEscape("Zóna"), $headerFontStyle, $headerParagraphStyle);
+
         $header3 = $table->addCell($colWidths['specific'], $headerCellStyle);
-        $header3->addText("Kalkulált fajlagos fogyasztás", $headerFontStyle, $headerParagraphStyle);
+        $header3->addText($xmlEscape("Kalkulált fajlagos fogyasztás"), $headerFontStyle, $headerParagraphStyle);
+
         $header4 = $table->addCell($colWidths['annual'], $headerCellStyle);
-        $header4->addText("Éves fogyasztás", $headerFontStyle, $headerParagraphStyle);
+        $header4->addText($xmlEscape("Éves fogyasztás"), $headerFontStyle, $headerParagraphStyle);
+
         $header5 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $header5->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
+        $header5->addText($xmlEscape("Besorolás"), $headerFontStyle, $headerParagraphStyle);
 
         $dataCellStyle = [
             'valign' => 'center',
             'borderSize' => 6,
             'borderColor' => '000000'
-        ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
         ];
         $dataParagraphStyleCenter = [
             'alignment' => 'center',
@@ -607,33 +640,39 @@ class AuditService
 
         foreach ($lighting_systems as $index => $system) {
             $table->addRow(null, ['cantSplit' => true]);
+
             $complexCell = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $complexCell->addText($system['complex_name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $complexCell->addText($xmlEscape($system['complex_name'] ?? ''), null, $dataParagraphStyleCenter);
 
             $zoneCell = $table->addCell($colWidths['zone'], $dataCellStyle);
-            $zoneCell->addText($system['name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $zoneCell->addText($xmlEscape($system['name'] ?? ''), null, $dataParagraphStyleCenter);
 
             $specificCell = $table->addCell($colWidths['specific'], $dataCellStyle);
             $textRun = $specificCell->addTextRun($dataParagraphStyleCenter);
 
-            $textRun->addText($system['specific_sum'] . " kWh/m", $dataFontStyle);
+            $specificSumVal = is_numeric($system['specific_sum'] ?? 0) ? (string) $system['specific_sum'] : '0';
+            $textRun->addText($xmlEscape($specificSumVal), null);
+            $textRun->addText($xmlEscape(" kWh/m"), null);
+            $textRun->addText("2", ['superScript' => true]);
+            $textRun->addText($xmlEscape("a"), null);
 
-            $superScriptStyle = array_merge($dataFontStyle, ['superScript' => true]);
-            $textRun->addText("2", $superScriptStyle);
-
-            $textRun->addText("a", $dataFontStyle);
-
-            $consumption = self::calculateTotalConsumption($system['consumption'], $system['source']);
+            $consumption = self::calculateTotalConsumption($system['consumption'] ?? 0, $system['source'] ?? '');
             $annualCell = $table->addCell($colWidths['annual'], $dataCellStyle);
-            $annualCell->addText($consumption . "kWh", $dataFontStyle, $dataParagraphStyleCenter);
+            $annualCell->addText($xmlEscape($consumption . " kWh"), null, $dataParagraphStyleCenter);
+
+            $status = (($system['solution'] === "LED – bármely lámpatest-változat" && ((float) $system['building_size']) * 0.8 <= $system['size']) ? "Megfelelő" : "Fejlesztendő");
 
             $statusCell = $table->addCell($colWidths['status'], $dataCellStyle);
-            $statusCell->addText('Megfelelő/Fejlesztendő', $dataFontStyle, $dataParagraphStyleCenter);
+            $statusCell->addText($xmlEscape($status), null, $dataParagraphStyleCenter);
         }
     }
 
     public static function buildCoolingTable(PhpOffice\PhpWord\Element\Table &$table, array &$cooling_systems, array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'complex' => 1500,
             'name' => 1500,
@@ -656,8 +695,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -684,10 +721,6 @@ class AuditService
             'borderSize' => 6,
             'borderColor' => '000000'
         ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
-        ];
         $dataParagraphStyleCenter = [
             'alignment' => 'center',
             'spaceBefore' => 40,
@@ -696,8 +729,13 @@ class AuditService
 
         foreach ($cooling_systems as $h) {
             $coolers = json_decode($h['heaters'], true);
+            if (!is_array($coolers))
+                continue;
+
+            $complexNameRaw = $h['name'] ?? '';
+
             foreach ($coolers as $index => $cooler) {
-                if (!is_numeric(array_search($cooler['heatingType'], self::COOLER_TYPES))) {
+                if (!isset($cooler['heatingType']) || !is_numeric(array_search($cooler['heatingType'], self::COOLER_TYPES))) {
                     continue;
                 }
                 $table->addRow(null, ['cantSplit' => true]);
@@ -705,48 +743,55 @@ class AuditService
                 if ($index === 0) {
                     $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
                     $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                    $complexCell->addText($h['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                    $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
                 } else {
                     $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
                     $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
                 }
 
+                $coolerNameRaw = $cooler['name'] ?? '';
+                $coolerTypeRaw = $cooler['heatingType'] ?? '';
+
                 $coolerNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-                $coolerNameCell->addText($cooler['name'], $dataFontStyle, $dataParagraphStyleCenter);
+                $coolerNameCell->addText($xmlEscape($coolerNameRaw), null, $dataParagraphStyleCenter);
 
                 $coolerTypeCell = $table->addCell($colWidths['type'], $dataCellStyle);
-                $coolerTypeCell->addText($cooler["heatingType"], $dataFontStyle, $dataParagraphStyleCenter);
+                $coolerTypeCell->addText($xmlEscape($coolerTypeRaw), null, $dataParagraphStyleCenter);
 
                 $coolerPoints = self::calculateCoolerPoints($cooler);
                 if ($coolerPoints['combined'] < 75) {
                     if (!isset($improveable_list['coolers'])) {
                         $improveable_list['coolers'] = [];
                     }
-                    $improveable_list['coolers'][] = $cooler['name'];
+                    $improveable_list['coolers'][] = $coolerNameRaw;
                 }
                 $coolerBasePointCell = $table->addCell($colWidths['base_points'], $dataCellStyle);
-                $coolerBasePointCell->addText($coolerPoints['base'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+                $coolerBasePointCell->addText($xmlEscape($coolerPoints['base'] . "%"), null, $dataParagraphStyleCenter);
 
                 $coolerRegulationCell = $table->addCell($colWidths['regulation_points'], $dataCellStyle);
-                $coolerRegulationCell->addText($coolerPoints['regulation'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+                $coolerRegulationCell->addText($xmlEscape($coolerPoints['regulation'] . "%"), null, $dataParagraphStyleCenter);
 
                 $coolerCombinedCell = $table->addCell($colWidths['status'], $dataCellStyle);
-                $coolerCombinedCell->addText($coolerPoints['combined'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+                $coolerCombinedCell->addText($xmlEscape($coolerPoints['combined'] . "%"), null, $dataParagraphStyleCenter);
             }
         }
     }
 
     public static function buildHVACTable(PhpOffice\PhpWord\Element\Table &$table, array &$hvacSystems, array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
-            'complex' => 1125,
-            'building' => 1125,
-            'name' => 1125,
-            'sfp' => 1125,
-            'sfp_points' => 1125,
-            'heat' => 1125,
-            "heat_points" => 1125,
-            "insulation_points" => 1125
+            'complex' => 1000,
+            'building' => 1400,
+            'name' => 1400,
+            'sfp' => 1000,
+            'sfp_points' => 1100,
+            'heat' => 1400,
+            'heat_points' => 1300,
+            'insulation_points' => 1200
         ];
 
         $headerRowStyle = [
@@ -762,8 +807,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -773,30 +816,48 @@ class AuditService
 
         $table->addRow(600, $headerRowStyle);
         $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $header1->addText($xmlEscape("Telephely"), $headerFontStyle, $headerParagraphStyle);
+
         $header2 = $table->addCell($colWidths['building'], $headerCellStyle);
-        $header2->addText("Hely", $headerFontStyle, $headerParagraphStyle);
+        $header2->addText($xmlEscape("Hely"), $headerFontStyle, $headerParagraphStyle);
+
         $header3 = $table->addCell($colWidths['name'], $headerCellStyle);
-        $header3->addText("Rendszer", $headerFontStyle, $headerParagraphStyle);
+        $header3->addText($xmlEscape("Rendszer"), $headerFontStyle, $headerParagraphStyle);
+
         $header4 = $table->addCell($colWidths['sfp'], $headerCellStyle);
-        $header4->addText("SFP\n(W/m3/s)", $headerFontStyle, $headerParagraphStyle);
+        $textRun4 = $header4->addTextRun($headerParagraphStyle);
+        $textRun4->addText($xmlEscape("SFP"), $headerFontStyle);
+        $textRun4->addTextBreak();
+        $textRun4->addText($xmlEscape("(W/m³/s)"), $headerFontStyle);
+
         $header5 = $table->addCell($colWidths['sfp_points'], $headerCellStyle);
-        $header5->addText("SFP\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
+        $textRun5 = $header5->addTextRun($headerParagraphStyle);
+        $textRun5->addText($xmlEscape("SFP"), $headerFontStyle);
+        $textRun5->addTextBreak();
+        $textRun5->addText($xmlEscape("megfelelőség"), $headerFontStyle);
+
         $header6 = $table->addCell($colWidths['heat'], $headerCellStyle);
-        $header6->addText("Hővisszanyerés\ntípusa", $headerFontStyle, $headerParagraphStyle);
-        $header6 = $table->addCell($colWidths['heat_points'], $headerCellStyle);
-        $header6->addText("Hővisszanyerés\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
-        $header6 = $table->addCell($colWidths['insulation_points'], $headerCellStyle);
-        $header6->addText("Szigetelés\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
+        $textRun6 = $header6->addTextRun($headerParagraphStyle);
+        $textRun6->addText($xmlEscape("Hővisszanyerés"), $headerFontStyle);
+        $textRun6->addTextBreak();
+        $textRun6->addText($xmlEscape("típusa"), $headerFontStyle);
+
+        $header7 = $table->addCell($colWidths['heat_points'], $headerCellStyle);
+        $textRun7 = $header7->addTextRun($headerParagraphStyle);
+        $textRun7->addText($xmlEscape("Hővisszanyerés"), $headerFontStyle);
+        $textRun7->addTextBreak();
+        $textRun7->addText($xmlEscape("megfelelőség"), $headerFontStyle);
+
+        $header8 = $table->addCell($colWidths['insulation_points'], $headerCellStyle);
+        $textRun8 = $header8->addTextRun($headerParagraphStyle);
+        $textRun8->addText($xmlEscape("Szigetelés"), $headerFontStyle);
+        $textRun8->addTextBreak();
+        $textRun8->addText($xmlEscape("megfelelőség"), $headerFontStyle);
 
         $dataCellStyle = [
             'valign' => 'center',
             'borderSize' => 6,
             'borderColor' => '000000'
-        ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
         ];
         $dataParagraphStyleCenter = [
             'alignment' => 'center',
@@ -805,44 +866,57 @@ class AuditService
         ];
 
         foreach ($hvacSystems as $system) {
-            $systemDetails = json_decode($system['json'], true);
+            $systemDetails = json_decode($system['json'], true) ?? [];
             $table->addRow(null, ['cantSplit' => true]);
 
+            $complexNameRaw = $system['complex_name'] ?? '';
+            $buildingNameRaw = $system['building_name'] ?? '';
+            $systemNameRaw = $system['name'] ?? '';
+            $sfpRaw = $system['sfp'] ?? 0;
+
             $complexCell = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $complexCell->addText($system['complex_name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
+
             $buildingCell = $table->addCell($colWidths['building'], $dataCellStyle);
-            $buildingCell->addText($system['building_name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $buildingCell->addText($xmlEscape($buildingNameRaw), null, $dataParagraphStyleCenter);
+
             $nameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-            $nameCell->addText($system['name'], $dataFontStyle, $dataParagraphStyleCenter);
+            $nameCell->addText($xmlEscape($systemNameRaw), null, $dataParagraphStyleCenter);
 
-            $calculated = self::calculateVentilationGoodness($systemDetails, (float) $system['sfp']);
+            $calculated = self::calculateVentilationGoodness($systemDetails, (float) $sfpRaw);
 
-            if (($calculated["sfp_goodness"] + $calculated['retriever_goodness'] + $calculated['insulation_goodness']) / 3 < 75) {
+            $avgGoodness = ($calculated["sfp_goodness"] + $calculated['retriever_goodness'] + $calculated['insulation_goodness']) / 3;
+            if ($avgGoodness < 75) {
                 if (!isset($improveable_list['hvac'])) {
                     $improveable_list['hvac'] = [];
                 }
-                $improveable_list['hvac'][] = $system['name'];
+                $improveable_list['hvac'][] = $systemNameRaw;
             }
 
             $sfpCell = $table->addCell($colWidths['sfp'], $dataCellStyle);
-            $sfpCell->addText($system['sfp'] . "", $dataFontStyle, $dataParagraphStyleCenter);
+            $sfpCell->addText($xmlEscape((string) $sfpRaw), null, $dataParagraphStyleCenter);
 
             $sfpGoodnessCell = $table->addCell($colWidths['sfp_points'], $dataCellStyle);
-            $sfpGoodnessCell->addText($calculated['sfp_goodness'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+            $sfpGoodnessCell->addText($xmlEscape($calculated['sfp_goodness'] . "%"), null, $dataParagraphStyleCenter);
 
+            $retrieverText = $systemDetails['retriever'] ?? '';
             $retrieverCell = $table->addCell($colWidths['heat'], $dataCellStyle);
-            $retrieverCell->addText($systemDetails['retriever'], $dataFontStyle, $dataParagraphStyleCenter);
+            $retrieverCell->addText($xmlEscape($retrieverText), null, $dataParagraphStyleCenter);
 
             $retrieverGoodnessCell = $table->addCell($colWidths['heat_points'], $dataCellStyle);
-            $retrieverGoodnessCell->addText($calculated['retriever_goodness'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+            $retrieverGoodnessCell->addText($xmlEscape($calculated['retriever_goodness'] . "%"), null, $dataParagraphStyleCenter);
 
             $insulationGoodnessCell = $table->addCell($colWidths['insulation_points'], $dataCellStyle);
-            $insulationGoodnessCell->addText($calculated['insulation_goodness'] . "%", $dataFontStyle, $dataParagraphStyleCenter);
+            $insulationGoodnessCell->addText($xmlEscape($calculated['insulation_goodness'] . "%"), null, $dataParagraphStyleCenter);
         }
     }
 
     public static function buildProductTable(\PhpOffice\PhpWord\Element\Table &$table, array $allProduct, string $auditInterval): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'name' => 4500,
             'amount' => 4500
@@ -860,17 +934,10 @@ class AuditService
 
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
 
         $dataCellStyle = [
             'valign' => 'center'
-        ];
-
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
         ];
 
         $paragraphCenter = [
@@ -885,7 +952,7 @@ class AuditService
         $hCell1->addText("Termék megnevezése", $headerFontStyle, $paragraphCenter);
 
         $hCell2 = $table->addCell($colWidths['amount'], $headerCellStyle);
-        $hCell2->addText("Mennyiség (" . $auditInterval . ")", $headerFontStyle, $paragraphCenter);
+        $hCell2->addText("Mennyiség (" . $xmlEscape($auditInterval) . ")", $headerFontStyle, $paragraphCenter);
 
         foreach ($allProduct as $product) {
             $table->addRow(null, ['cantSplit' => true]);
@@ -893,31 +960,25 @@ class AuditService
             $jsonData = json_decode($product['json'] ?? '{}', true);
             $rawSum = $jsonData['sum'] ?? 0.0;
 
-            $formattedAmount = number_format((float) $rawSum, 0, ',', ' ') . ' ' . ($product['metric'] ?? '');
+            $productNameRaw = $product['product_name'] ?? '';
+            $metricRaw = $product['metric'] ?? '';
+
+            $formattedAmount = number_format((float) $rawSum, 0, ',', ' ') . ' ' . $metricRaw;
 
             $cellName = $table->addCell($colWidths['name'], $dataCellStyle);
-            $cellName->addText($product['product_name'] ?? '', $dataFontStyle, $paragraphCenter);
+            $cellName->addText($xmlEscape($productNameRaw), null, $paragraphCenter);
 
             $cellAmount = $table->addCell($colWidths['amount'], $dataCellStyle);
-            $cellAmount->addText($formattedAmount, $dataFontStyle, $paragraphCenter);
+            $cellAmount->addText($xmlEscape($formattedAmount), null, $paragraphCenter);
         }
-    }
-
-    public static function convertToKwh(float $value, string $unit): float
-    {
-        return
-            match (strtoupper($unit)) {
-                'MWH' => $value * 1000,
-                'MJ' => $value / 3.6,
-                'GJ' => $value * 277.777778,
-                'MCUBE' => $value * 9.5,
-                'KWH' => $value,
-                default => $value,
-            };
     }
 
     public static function buildVehiclesTable(\PhpOffice\PhpWord\Element\Table &$table, array &$vehicles, array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $colWidths = [
             'vehicle' => 2500,
             'complex' => 2300,
@@ -937,8 +998,6 @@ class AuditService
         ];
         $headerFontStyle = [
             'bold' => true,
-            'size' => 10,
-            'name' => 'Calibri'
         ];
         $headerParagraphStyle = [
             'alignment' => 'center',
@@ -949,25 +1008,27 @@ class AuditService
         $table->addRow(600, $headerRowStyle);
 
         $cell1 = $table->addCell($colWidths['vehicle'], $headerCellStyle);
-        $cell1->addText("Jármű\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
+        $textRun1 = $cell1->addTextRun($headerParagraphStyle);
+        $textRun1->addText($xmlEscape("Jármű"), $headerFontStyle);
+        $textRun1->addTextBreak();
+        $textRun1->addText($xmlEscape("megnevezése"), $headerFontStyle);
 
         $cell2 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $cell2->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
+        $cell2->addText($xmlEscape("Telephely"), $headerFontStyle, $headerParagraphStyle);
 
         $cell3 = $table->addCell($colWidths['qf'], $headerCellStyle);
-        $cell3->addText("Kalkulált fajlagos\nenergiafelhasználás", $headerFontStyle, $headerParagraphStyle);
+        $textRun3 = $cell3->addTextRun($headerParagraphStyle);
+        $textRun3->addText($xmlEscape("Kalkulált fajlagos"), $headerFontStyle);
+        $textRun3->addTextBreak();
+        $textRun3->addText($xmlEscape("energiafelhasználás"), $headerFontStyle);
 
         $cell4 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $cell4->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
+        $cell4->addText($xmlEscape("Besorolás"), $headerFontStyle, $headerParagraphStyle);
 
         $dataCellStyle = [
             'valign' => 'center',
             'borderSize' => 6,
             'borderColor' => '000000'
-        ];
-        $dataFontStyle = [
-            'size' => 9.5,
-            'name' => 'Calibri'
         ];
         $dataParagraphStyleLeft = [
             'alignment' => 'left',
@@ -985,25 +1046,41 @@ class AuditService
 
             $calc = self::calculateVehicleQf($v);
 
+            $vehicleNameRaw = $v['vehicle_name'] ?? $v['name'] ?? '';
+            $complexNameRaw = $v['complex_name'] ?? '';
+
             $c1 = $table->addCell($colWidths['vehicle'], $dataCellStyle);
-            $c1->addText($v['vehicle_name'] ?? $v['name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
+            $c1->addText($xmlEscape($vehicleNameRaw), null, $dataParagraphStyleLeft);
 
             $c2 = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $c2->addText($v['complex_name'] ?? '', $dataFontStyle, $dataParagraphStyleLeft);
+            $c2->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleLeft);
 
             $c3 = $table->addCell($colWidths['qf'], $dataCellStyle);
-            if ($calc['status'] === "Fejlesztendő") {
+            if (($calc['status'] ?? '') === "Fejlesztendő") {
                 if (!isset($improveable_list['vehicle'])) {
                     $improveable_list['vehicle'] = [];
                 }
-                $improveable_list['vehicle'][] = $v['vehicle_name'];
+                $improveable_list['vehicle'][] = $vehicleNameRaw;
             }
-            $formattedQf = number_format($calc['qf'], 2, ',', ' ') . ' ' . $calc['unit'];
-            $c3->addText($formattedQf, $dataFontStyle, $dataParagraphStyleCenter);
+            $formattedQf = number_format($calc['qf'] ?? 0, 2, ',', ' ') . ' ' . ($calc['unit'] ?? '');
+            $c3->addText($xmlEscape($formattedQf), null, $dataParagraphStyleCenter);
 
             $c4 = $table->addCell($colWidths['status'], $dataCellStyle);
-            $c4->addText($calc['status'], $dataFontStyle, $dataParagraphStyleCenter);
+            $c4->addText($xmlEscape($calc['status'] ?? ''), null, $dataParagraphStyleCenter);
         }
+    }
+
+    public static function convertToKwh(float $value, string $unit): float
+    {
+        return
+            match (strtoupper($unit)) {
+                'MWH' => $value * 1000,
+                'MJ' => $value / 3.6,
+                'GJ' => $value * 277.777778,
+                'MCUBE' => $value * 9.5,
+                'KWH' => $value,
+                default => $value,
+            };
     }
 
     public static function calculateVehicleQf(array $vehicle): array
@@ -1024,13 +1101,13 @@ class AuditService
             $capacity = (float) ($vehicle['capacity'] ?? 0);
 
             if ($usageMetric === 'tkm') {
-                $divisor = $usage1;
-                $unitLabel = 'kWh/tkm';
-                $threshold = 0.247;
-            } elseif ($usageMetric === 'km') {
                 $weight = $usage2 > 0 ? $usage2 : ($capacity > 0 ? $capacity : 1.0);
                 $divisor = $usage1 * $weight;
                 $unitLabel = 'kWh/tkm';
+                $threshold = 0.247;
+            } elseif ($usageMetric === 'km') {
+                $divisor = $usage1;
+                $unitLabel = 'kWh/km';
                 $threshold = 0.247;
             } else {
                 $divisor = $usage1;
@@ -1038,14 +1115,22 @@ class AuditService
                 $threshold = self::getForkliftThresholdKwhPerHour($capacity, $fuel);
             }
 
-            $qf = ($divisor > 0) ? ($totalKwh / $divisor) : 0;
-            $status = ($threshold > 0 && $qf > $threshold) ? 'Fejlesztendő' : 'Megfelelő';
+            if ($fuel == "Elektromos áram" && $vehicle['measurement_type'] == "VIRTUAL") {
+                return [
+                    'qf' => $threshold,
+                    'unit' => $unitLabel,
+                    'status' => "Megfelelő"
+                ];
+            } else {
+                $qf = ($divisor > 0) ? ($totalKwh / $divisor) : 0;
+                $status = ($threshold > 0 && $qf > $threshold) ? 'Fejlesztendő' : 'Megfelelő';
 
-            return [
-                'qf' => $qf,
-                'unit' => $unitLabel,
-                'status' => $status
-            ];
+                return [
+                    'qf' => $qf,
+                    'unit' => $unitLabel,
+                    'status' => $status
+                ];
+            }
         } else if (str_contains($category, 'áruszállít') || str_contains($category, 'aruszallit') || str_contains($category, 'teher')) {
             $rawConsumption = $vehicle['consumption'] ?? null;
             $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
@@ -1213,40 +1298,62 @@ class AuditService
         $fuelClean = mb_strtolower(trim($fuel));
 
         $matrix = [
-            '1.5' => ['dízel' => 2.19, 'lpg' => 2.30, 'elektr' => 4.47],
-            '2.0' => ['dízel' => 2.57, 'lpg' => 2.70, 'elektr' => 4.81],
-            '2.5' => ['dízel' => 2.97, 'lpg' => 3.26, 'elektr' => 7.16],
-            '3.0' => ['dízel' => 3.23, 'lpg' => 3.55, 'elektr' => 7.56],
-            '3.5' => ['dízel' => 3.90, 'lpg' => 3.79, 'elektr' => 8.33],
-            '4.0' => ['dízel' => 4.44, 'lpg' => 4.29, 'elektr' => 8.70],
-            '4.5' => ['dízel' => 4.91, 'lpg' => 4.63, 'elektr' => 9.30],
-            '5.0' => ['dízel' => 5.95, 'lpg' => 4.94, 'elektr' => 10.38],
-            '5.5' => ['dízel' => 6.97, 'lpg' => 5.31, 'elektr' => 12.80],
-            '6.0' => ['dízel' => 7.48, 'lpg' => 7.09, 'elektr' => 12.20],
-            '6.5' => ['dízel' => 0.00, 'lpg' => 0.00, 'elektr' => 12.20],
-            '7.0' => ['dízel' => 8.80, 'lpg' => 7.83, 'elektr' => 13.40],
-            '7.5' => ['dízel' => 8.90, 'lpg' => 0.00, 'elektr' => 0.00],
-            '8.0' => ['dízel' => 9.72, 'lpg' => 9.93, 'elektr' => 0.00],
-            '9.0' => ['dízel' => 11.11, 'lpg' => 10.70, 'elektr' => 0.00],
-            '10.0' => ['dízel' => 13.00, 'lpg' => 0.00, 'elektr' => 0.00],
+            //'1.5'
+            'A' => ['dízel' => 2.19, 'lpg' => 2.30, 'elektr' => 4.47],
+            //'2.0'
+            'B' => ['dízel' => 2.57, 'lpg' => 2.70, 'elektr' => 4.81],
+            //2.5
+            'C' => ['dízel' => 2.97, 'lpg' => 3.26, 'elektr' => 7.16],
+            //'3.0'
+            'D' => ['dízel' => 3.23, 'lpg' => 3.55, 'elektr' => 7.56],
+            //'3.5'
+            'E' => ['dízel' => 3.90, 'lpg' => 3.79, 'elektr' => 8.33],
+            //'4.0'
+            'F' => ['dízel' => 4.44, 'lpg' => 4.29, 'elektr' => 8.70],
+            //'4.5'
+            'G' => ['dízel' => 4.91, 'lpg' => 4.63, 'elektr' => 9.30],
+            //'5.0'
+            'H' => ['dízel' => 5.95, 'lpg' => 4.94, 'elektr' => 10.38],
+            //'5.5'
+            'I' => ['dízel' => 6.97, 'lpg' => 5.31, 'elektr' => 12.80],
+            //'6.0'
+            'J' => ['dízel' => 7.48, 'lpg' => 7.09, 'elektr' => 12.20],
+            //'6.5'
+            'K' => ['dízel' => 0.00, 'lpg' => 0.00, 'elektr' => 12.20],
+            //'7.0'
+            'L' => ['dízel' => 8.80, 'lpg' => 7.83, 'elektr' => 13.40],
+            //'7.5'
+            'M' => ['dízel' => 8.90, 'lpg' => 0.00, 'elektr' => 0.00],
+            //'8.0'
+            'N' => ['dízel' => 9.72, 'lpg' => 9.93, 'elektr' => 0.00],
+            //'9.0'
+            'O' => ['dízel' => 11.11, 'lpg' => 10.70, 'elektr' => 0.00],
+            //'10.0'
+            'P' => ['dízel' => 13.00, 'lpg' => 0.00, 'elektr' => 0.00],
         ];
 
         if ($capacity <= 0) {
             return 0.0;
         }
 
-        $closestCap = '1.5';
-        $minDiff = null;
-
-        foreach ($matrix as $capKey => $values) {
-            $diff = abs($capacity - (float) $capKey);
-            if ($minDiff === null || $diff < $minDiff) {
-                $minDiff = $diff;
-                $closestCap = (string) $capKey;
-            }
-        }
-
-        $row = $matrix[$closestCap];
+        $row = match (true) {
+            $capacity >= 1.5 && $capacity < 2.0 => $matrix['A'],
+            $capacity < 2.5 => $matrix['B'],
+            $capacity < 3 => $matrix['C'],
+            $capacity < 3.5 => $matrix['D'],
+            $capacity < 4.0 => $matrix['E'],
+            $capacity < 4.5 => $matrix['F'],
+            $capacity < 5.0 => $matrix['G'],
+            $capacity < 5.5 => $matrix['H'],
+            $capacity < 6.0 => $matrix['I'],
+            $capacity < 6.5 => $matrix['J'],
+            $capacity < 7.0 => $matrix['K'],
+            $capacity < 7.5 => $matrix['L'],
+            $capacity < 8.0 => $matrix['M'],
+            $capacity < 9.0 => $matrix['N'],
+            $capacity < 10.0 => $matrix['O'],
+            default => $matrix['P']
+        };
 
         if (str_contains($fuelClean, 'elektromos') || str_contains($fuelClean, 'eletromos')) {
             return $row['elektr'];
@@ -1265,14 +1372,17 @@ class AuditService
 
     public static function appendCompressedAirTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = [], array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
         $colSpan = max(1, $machineCount);
 
         $labelWidth = 2400;
         $valWidth = 1300;
-        $boldFont = ['bold' => true, 'size' => 8.5, 'name' => 'Calibri'];
-        $font = ['size' => 8.5, 'name' => 'Calibri'];
+        $boldFont = ['bold' => true];
         $headerStyle = ['bgColor' => 'D9D9D9'];
         $centerPara = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 10, 'spaceAfter' => 10];
         $leftPara = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT, 'spaceBefore' => 10, 'spaceAfter' => 10];
@@ -1288,44 +1398,43 @@ class AuditService
             'width' => 100 * 50
         ]);
 
-        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $font, $boldFont, $leftPara, $centerPara, $headerStyle) {
+        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $boldFont, $leftPara, $centerPara, $headerStyle, $xmlEscape) {
             $table->addRow();
             $cellStyle = $isHeader ? $headerStyle : [];
 
-            $table->addCell($labelWidth, $cellStyle)->addText($label, $boldFont, $leftPara);
+            $table->addCell($labelWidth, $cellStyle)->addText($xmlEscape($label), $boldFont, $leftPara);
 
             $valCell = $table->addCell($valWidth * $colSpan, array_merge(['gridSpan' => $colSpan], $cellStyle));
-            $valCell->addText($value, $isHeader ? $boldFont : $font, $centerPara);
+            $valCell->addText($xmlEscape($value), $isHeader ? $boldFont : null, $centerPara);
         };
 
-        $addSpannedRow('Rendszer megnevezése', $data['name'] ?? $defaultName, true);
-
+        $sysName = $data['name'] ?? $defaultName;
+        $addSpannedRow('Rendszer megnevezése', $sysName, true);
         $addSpannedRow('Telephely', $complexName, true);
-
         $addSpannedRow('Hálózati nyomás (bar)', isset($data['pressure']) ? $data['pressure'] . ' bar' : '');
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Kompresszor típusa', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['compressorType'] ?? '', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['compressorType'] ?? ''), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Mennyisége (db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['amount'] ?? 1) . ' db', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['amount'] ?? 1) . ' db'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Névleges teljesítmény (kW/db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['nominalOutput'] ?? '') . ' kW', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['nominalOutput'] ?? '') . ' kW'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Működési mód', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['mode'] ?? 'ON-OFF / Fr.váltós', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['mode'] ?? 'ON-OFF / Fr.váltós'), null, $centerPara);
         }
 
         $table->addRow();
@@ -1333,7 +1442,7 @@ class AuditService
         foreach ($machines as $m) {
             $meterId = $m['meter_id'] ?? $m['standing'] ?? null;
             $meterName = ($meterId && isset($meters[$meterId])) ? $meters[$meterId] : 'Nincs';
-            $table->addCell($valWidth)->addText($meterName, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($meterName), null, $centerPara);
         }
 
         $hasRoomForImprovement = false;
@@ -1342,7 +1451,7 @@ class AuditService
         $table->addCell($labelWidth)->addText('Van lehetőség a nyomás csökkentésére?', $boldFont, $leftPara);
         foreach ($machines as $m) {
             $isYes = !empty($m['pressureReduction']);
-            $table->addCell($valWidth)->addText($isYes ? 'IGEN' : 'NEM', $font, $centerPara);
+            $table->addCell($valWidth)->addText($isYes ? 'IGEN' : 'NEM', null, $centerPara);
 
             if (!$isYes) {
                 $hasRoomForImprovement = true;
@@ -1353,7 +1462,7 @@ class AuditService
         $table->addCell($labelWidth)->addText('Van lehetőség hálózati optimalizációra?', $boldFont, $leftPara);
         foreach ($machines as $m) {
             $isYes = !empty($m['systemOptimalization']);
-            $table->addCell($valWidth)->addText($isYes ? 'IGEN' : 'NEM', $font, $centerPara);
+            $table->addCell($valWidth)->addText($isYes ? 'IGEN' : 'NEM', null, $centerPara);
 
             if (!$isYes) {
                 $hasRoomForImprovement = true;
@@ -1364,7 +1473,7 @@ class AuditService
         $table->addCell($labelWidth)->addText('Van hulladékhő hasznosítás?', $boldFont, $leftPara);
         foreach ($machines as $m) {
             $wasteVal = trim($m['wasteUse'] ?? 'NINCS, LEHETŐSÉG SINCS');
-            $table->addCell($valWidth)->addText($wasteVal, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($wasteVal), null, $centerPara);
 
             if (str_contains(strtoupper($wasteVal), 'VAN RÁ LEHETŐSÉG')) {
                 $hasRoomForImprovement = true;
@@ -1376,7 +1485,7 @@ class AuditService
             if (!isset($improveable_list['technology'])) {
                 $improveable_list['technology'] = [];
             }
-            $improveable_list['technology'][] = $data['name'];
+            $improveable_list['technology'][] = $sysName;
         }
 
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
@@ -1384,6 +1493,10 @@ class AuditService
 
     public static function appendSteamTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = [], array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
         $colSpan = max(1, $machineCount);
@@ -1391,8 +1504,7 @@ class AuditService
         $labelWidth = 2400;
         $valWidth = 1300;
 
-        $boldFont = ['bold' => true, 'size' => 8.5, 'name' => 'Calibri'];
-        $font = ['size' => 8.5, 'name' => 'Calibri'];
+        $boldFont = ['bold' => true];
         $headerStyle = ['bgColor' => 'D9D9D9'];
 
         $centerPara = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 10, 'spaceAfter' => 10];
@@ -1410,44 +1522,43 @@ class AuditService
             'width' => 100 * 50
         ]);
 
-        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $font, $boldFont, $leftPara, $centerPara, $headerStyle) {
+        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $boldFont, $leftPara, $centerPara, $headerStyle, $xmlEscape) {
             $table->addRow();
             $cellStyle = $isHeader ? $headerStyle : [];
 
-            $table->addCell($labelWidth, $cellStyle)->addText($label, $boldFont, $leftPara);
+            $table->addCell($labelWidth, $cellStyle)->addText($xmlEscape($label), $boldFont, $leftPara);
 
             $valCell = $table->addCell($valWidth * $colSpan, array_merge(['gridSpan' => $colSpan], $cellStyle));
-            $valCell->addText($value, $isHeader ? $boldFont : $font, $centerPara);
+            $valCell->addText($xmlEscape($value), $isHeader ? $boldFont : null, $centerPara);
         };
 
-        $addSpannedRow('Rendszer megnevezése', $data['name'] ?? $defaultName, true);
-
+        $sysName = $data['name'] ?? $defaultName;
+        $addSpannedRow('Rendszer megnevezése', $sysName, true);
         $addSpannedRow('Telephely', $complexName ?: '-', true);
-
         $addSpannedRow('Hálózati nyomás (bar)', isset($data['pressure']) ? $data['pressure'] . ' bar' : '');
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Gőzfejlesztő típusa', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['type'] ?? '', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['type'] ?? ''), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Mennyisége (db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['amount'] ?? 1) . ' db', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['amount'] ?? 1) . ' db'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Névleges teljesítmény (kW/db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['nominalOutput'] ?? '') . ' kW', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['nominalOutput'] ?? '') . ' kW'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Működési mód', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['mode'] ?? 'nagy vízterű / gyorsgőzfejlesztő', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['mode'] ?? 'nagy vízterű / gyorsgőzfejlesztő'), null, $centerPara);
         }
 
         $table->addRow();
@@ -1455,7 +1566,7 @@ class AuditService
         foreach ($machines as $m) {
             $meterId = $m['standing'] ?? $m['meter_id'] ?? null;
             $meterName = ($meterId && isset($meters[$meterId])) ? $meters[$meterId] : 'Nincs';
-            $table->addCell($valWidth)->addText($meterName, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($meterName), null, $centerPara);
         }
 
         $hasRoomForImprovement = false;
@@ -1464,7 +1575,7 @@ class AuditService
         $table->addCell($labelWidth)->addText('Van füstgáz hasznosítás?', $boldFont, $leftPara);
         foreach ($machines as $m) {
             $smokeVal = trim($m['smokeUse'] ?? 'NINCS, LEHETŐSÉG SINCS');
-            $table->addCell($valWidth)->addText($smokeVal, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($smokeVal), null, $centerPara);
 
             if (str_contains(strtoupper($smokeVal), 'VAN RÁ LEHETŐSÉG')) {
                 $hasRoomForImprovement = true;
@@ -1477,13 +1588,17 @@ class AuditService
             if (!isset($improveable_list['technology'])) {
                 $improveable_list['technology'] = [];
             }
-            $improveable_list['technology'][] = $data['name'];
+            $improveable_list['technology'][] = $sysName;
         }
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
 
     public static function appendCoolingTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', array $meters = [], array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
         $colSpan = max(1, $machineCount);
@@ -1491,8 +1606,7 @@ class AuditService
         $labelWidth = 2400;
         $valWidth = 1300;
 
-        $boldFont = ['bold' => true, 'size' => 8.5, 'name' => 'Calibri'];
-        $font = ['size' => 8.5, 'name' => 'Calibri'];
+        $boldFont = ['bold' => true];
         $headerStyle = ['bgColor' => 'D9D9D9'];
 
         $centerPara = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 10, 'spaceAfter' => 10];
@@ -1510,40 +1624,41 @@ class AuditService
             'width' => 100 * 50
         ]);
 
-        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $font, $boldFont, $leftPara, $centerPara, $headerStyle) {
+        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $boldFont, $leftPara, $centerPara, $headerStyle, $xmlEscape) {
             $table->addRow();
             $cellStyle = $isHeader ? $headerStyle : [];
 
-            $table->addCell($labelWidth, $cellStyle)->addText($label, $boldFont, $leftPara);
+            $table->addCell($labelWidth, $cellStyle)->addText($xmlEscape($label), $boldFont, $leftPara);
 
             $valCell = $table->addCell($valWidth * $colSpan, array_merge(['gridSpan' => $colSpan], $cellStyle));
-            $valCell->addText($value, $isHeader ? $boldFont : $font, $centerPara);
+            $valCell->addText($xmlEscape($value), $isHeader ? $boldFont : null, $centerPara);
         };
 
-        $addSpannedRow('Rendszer megnevezése', $data['name'] ?? $defaultName, true);
+        $sysName = $data['name'] ?? $defaultName;
+        $addSpannedRow('Rendszer megnevezése', $sysName, true);
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Hűtőberendezés típusa', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['type'] ?? $m['chillerType'] ?? '', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['type'] ?? $m['chillerType'] ?? ''), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Mennyisége (db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['amount'] ?? 1) . ' db', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['amount'] ?? 1) . ' db'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Névleges teljesítmény (kW/db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['nominalOutput'] ?? '') . ' kW', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['nominalOutput'] ?? '') . ' kW'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Működési mód', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['mode'] ?? 'Direkt elpárolgás / szabadhűtés', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['mode'] ?? 'Direkt elpárolgás / szabadhűtés'), null, $centerPara);
         }
 
         $table->addRow();
@@ -1551,7 +1666,7 @@ class AuditService
         foreach ($machines as $m) {
             $meterId = $m['standing'] ?? $m['meter_id'] ?? null;
             $meterName = ($meterId && isset($meters[$meterId])) ? $meters[$meterId] : 'Nincs';
-            $table->addCell($valWidth)->addText($meterName, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($meterName), null, $centerPara);
         }
 
         $hasRoomForImprovement = false;
@@ -1559,7 +1674,7 @@ class AuditService
         $table->addCell($labelWidth)->addText('Van hulladékhő hasznosítás?', $boldFont, $leftPara);
         foreach ($machines as $m) {
             $wasteVal = trim($m['wasteUse'] ?? $m['heatRecovery'] ?? 'NINCS, LEHETŐSÉG SINCS');
-            $table->addCell($valWidth)->addText($wasteVal, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($wasteVal), null, $centerPara);
 
             if (str_contains(strtoupper($wasteVal), 'VAN RÁ LEHETŐSÉG')) {
                 $hasRoomForImprovement = true;
@@ -1571,13 +1686,17 @@ class AuditService
             if (!isset($improveable_list['technology'])) {
                 $improveable_list['technology'] = [];
             }
-            $improveable_list['technology'][] = $data['name'];
+            $improveable_list['technology'][] = $sysName;
         }
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
 
     public static function appendOtherTableToCell(\PhpOffice\PhpWord\Element\Cell &$cell, array $data, string $defaultName = '', string $complexName = '', array $meters = [], array &$improveable_list): void
     {
+        $xmlEscape = function ($val) {
+            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+        };
+
         $machines = $data['machines'] ?? [];
         $machineCount = count($machines);
         $colSpan = max(1, $machineCount);
@@ -1585,8 +1704,7 @@ class AuditService
         $labelWidth = 2400;
         $valWidth = 1300;
 
-        $boldFont = ['bold' => true, 'size' => 8.5, 'name' => 'Calibri'];
-        $font = ['size' => 8.5, 'name' => 'Calibri'];
+        $boldFont = ['bold' => true];
         $headerStyle = ['bgColor' => 'D9D9D9'];
 
         $centerPara = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 10, 'spaceAfter' => 10];
@@ -1603,34 +1721,36 @@ class AuditService
             'width' => 100 * 50
         ]);
 
-        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $font, $boldFont, $leftPara, $centerPara, $headerStyle) {
+        $addSpannedRow = function ($label, $value, $isHeader = false) use (&$table, $labelWidth, $valWidth, $colSpan, $boldFont, $leftPara, $centerPara, $headerStyle, $xmlEscape) {
             $table->addRow();
             $cellStyle = $isHeader ? $headerStyle : [];
 
-            $table->addCell($labelWidth, $cellStyle)->addText($label, $boldFont, $leftPara);
+            $table->addCell($labelWidth, $cellStyle)->addText($xmlEscape($label), $boldFont, $leftPara);
 
             $valCell = $table->addCell($valWidth * $colSpan, array_merge(['gridSpan' => $colSpan], $cellStyle));
-            $valCell->addText($value, $isHeader ? $boldFont : $font, $centerPara);
+            $valCell->addText($xmlEscape($value), $isHeader ? $boldFont : null, $centerPara);
         };
 
-        $addSpannedRow('Rendszer megnevezése', $data['name'] ?? $defaultName, true);
+        $sysName = $data['name'] ?? $defaultName;
+        $addSpannedRow('Rendszer megnevezése', $sysName, true);
         $addSpannedRow('Telephely', $complexName ?: '-', true);
+
         $table->addRow();
         $table->addCell($labelWidth)->addText('Technológiai berendezés típusa', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText($m['type'] ?? '', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($m['type'] ?? ''), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Mennyisége (db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['amount'] ?? 1) . ' db', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['amount'] ?? 1) . ' db'), null, $centerPara);
         }
 
         $table->addRow();
         $table->addCell($labelWidth)->addText('Névleges hőteljesítmény (kW/db)', $boldFont, $leftPara);
         foreach ($machines as $m) {
-            $table->addCell($valWidth)->addText(($m['nominalOutput'] ?? '') . ' kW', $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape(($m['nominalOutput'] ?? '') . ' kW'), null, $centerPara);
         }
 
         $table->addRow();
@@ -1638,7 +1758,7 @@ class AuditService
         foreach ($machines as $m) {
             $meterId = $m['standing'] ?? $m['meter_id'] ?? null;
             $meterName = ($meterId && isset($meters[$meterId])) ? $meters[$meterId] : 'Nincs';
-            $table->addCell($valWidth)->addText($meterName, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($meterName), null, $centerPara);
         }
 
         $hasRoomForImprovement = false;
@@ -1647,7 +1767,7 @@ class AuditService
         $table->addCell($labelWidth)->addText('Van hulladékhő hasznosítás?', $boldFont, $leftPara);
         foreach ($machines as $m) {
             $wasteVal = trim($m['wasteUse'] ?? 'NINCS, LEHETŐSÉG SINCS');
-            $table->addCell($valWidth)->addText($wasteVal, $font, $centerPara);
+            $table->addCell($valWidth)->addText($xmlEscape($wasteVal), null, $centerPara);
 
             if (str_contains(strtoupper($wasteVal), 'VAN RÁ LEHETŐSÉG')) {
                 $hasRoomForImprovement = true;
@@ -1659,7 +1779,7 @@ class AuditService
             if (!isset($improveable_list['technology'])) {
                 $improveable_list['technology'] = [];
             }
-            $improveable_list['technology'][] = $data['name'];
+            $improveable_list['technology'][] = $sysName;
         }
         $addSpannedRow('A technológiai alrendszer', $calculatedStatus, true);
     }
@@ -1787,8 +1907,8 @@ class AuditService
     {
         $energy_efficiency_multiplier = self::HEATER_ELECTRIC_CALC_MODE[$cooler['baseType']] *
             (1 + self::HEATER_ELECTRIC_CALC_INSTALLATION[$cooler['placementType']]) *
-            (1 + self::HEATER_ELECTRIC_CALC_SOURCE[$cooler['ambientMedium']]) *
-            (1 + self::HEATER_ELECTRIC_CALC_MEDIUM[$cooler['heatTransfer']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_MEDIUM[$cooler['ambientMedium']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_SOURCE[$cooler['heatTransfer']]) *
             (1 + self::HEATER_ELECTRIC_CALC_REFRIGERANT[$cooler['refrigerant']]) *
             (1 + self::HEATER_DESCRIPTIONS[$cooler['state']]);
         $multiplier = max([1.03, min([1.5, $energy_efficiency_multiplier])]);
@@ -1855,8 +1975,8 @@ class AuditService
         "R454B" => 0.01,
         "R407C" => -0.02,
         "R22" => -0.04,
-        "R134a (állandó sebesség)" => 0,
-        "R134a (VSD/centrifugás)" => 0.01,
+        "R134A (állandó sebesség)" => 0,
+        "R134A (VSD/centrifugás)" => 0.01,
         "R1234ze" => 0.01,
         "R290" => 0.02,
     ];

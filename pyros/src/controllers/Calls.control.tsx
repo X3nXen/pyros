@@ -74,17 +74,22 @@ export default class Calls {
         try {
             const formData = new FormData()
 
-            const { excelFile, file, ...restPayload } = payload
+            const { excelFile, file, dateFrom, dateTo, ...restPayload } =
+                payload
             const targetFile = excelFile || file
 
             if (targetFile) {
                 formData.append('excel', targetFile)
             }
 
-            formData.append(
-                'data',
-                JSON.stringify({ ...restPayload, project_id: projectId })
-            )
+            const cleanPayload = {
+                ...restPayload,
+                project_id: projectId,
+                dateFrom: dateFrom ? dateFrom.format('YYYY-MM-DD') : null,
+                dateTo: dateTo ? dateTo.format('YYYY-MM-DD') : null,
+            }
+
+            formData.append('data', JSON.stringify(cleanPayload))
 
             const response = await fetch(Calls.getApiLink() + '/standings', {
                 method: 'POST',
@@ -699,7 +704,6 @@ export default class Calls {
                     }))
                 }
             )
-            console.log(heaters)
             return {
                 success: true,
                 payload: heaters,

@@ -244,7 +244,6 @@ export default function HeatingSystem() {
             setFormErrors,
             projectId
         )
-        console.log(formData)
         if (result && result.success) {
             formData.heaters.forEach((e: HeaterFormData) => {
                 dispatch(
@@ -255,7 +254,7 @@ export default function HeatingSystem() {
                     })
                 )
             })
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

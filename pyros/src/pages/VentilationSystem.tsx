@@ -90,7 +90,7 @@ export default function VentilationSystem() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

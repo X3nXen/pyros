@@ -5,6 +5,7 @@ export interface LightingForm {
 
 export interface LightingFormData {
     id: string | null
+    building: string
     zone: string
     size: number
     solution: string
@@ -23,6 +24,7 @@ export interface SystemErrors {
 }
 
 export interface LightingErrors {
+    building: string
     zone: string
     size: string
     standing: string
@@ -72,6 +74,7 @@ export const LightingRegulation: Array<string> = [
     'Automatikus be- és kikapcsolás',
     'Kézi bekapcsolás/dimmelhető',
     'Kézi bekapcsolás, automatikus kikapcsolás',
+    'Megvilágítottsághoz automatikusan alkalmazkodó',
 ]
 
 export const LightingNaturalLightRatio: Array<string> = [

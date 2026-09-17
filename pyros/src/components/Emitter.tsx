@@ -24,7 +24,6 @@ import {
     type EmitterFormData,
 } from '../model/Emitter.model'
 import { SystemPurpose } from '../model/System.model'
-import { useState } from 'react'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 
 export default function EmitterForm(props: {
@@ -44,9 +43,7 @@ export default function EmitterForm(props: {
     systemPurpose: SystemPurpose
     emitterErrors: EmitterErrors | null
 }) {
-    const [currentEmitterType, setCurrentEmitterType] = useState<string | null>(
-        props.currentActiveEmitter.type
-    )
+    const currentEmitterType = props.currentActiveEmitter.type
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -184,7 +181,6 @@ export default function EmitterForm(props: {
                     value={props.currentActiveEmitter.type}
                     onChange={(e) => {
                         props.handleActiveEmitterChange('type', e.target.value)
-                        setCurrentEmitterType(e.target.value)
                     }}
                 >
                     {(props.systemPurpose === SystemPurpose.BOTH

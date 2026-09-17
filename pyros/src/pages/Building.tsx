@@ -50,15 +50,13 @@ export default function Building() {
             setFormErrors,
             projectId
         )
-        console.log(formData)
-        console.log(formErrors)
         if (result && result.success) {
             const savedBuilding: BuildingShort = {
-                id: formData.id as string,
+                id: result.id!,
                 name: formData.name,
             }
             dispatch(addBuildingLocally(savedBuilding))
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

@@ -92,7 +92,7 @@ export default function Steam() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
+    RewriteBase /pyros_be/
 
     # Rewrite requests to index.php?url=<request>
     RewriteCond %{REQUEST_FILENAME} !-f

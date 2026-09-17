@@ -57,7 +57,7 @@ export default function Vehicles() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

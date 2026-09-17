@@ -43,12 +43,40 @@ export default function Create() {
         }
     }, [projectId])
 
+    const processedSankeyLinks = (() => {
+        if (!sankeyLinks || sankeyLinks.length === 0) return []
+
+        const total = sankeyLinks.reduce((sum, link) => sum + link.flow, 0)
+        if (total === 0) return sankeyLinks
+
+        // Összesítjük az egyes 'to' csomópontokba áramló értékeket
+        const destinationTotals: Record<string, number> = {}
+        sankeyLinks.forEach((link) => {
+            destinationTotals[link.to] =
+                (destinationTotals[link.to] || 0) + link.flow
+        })
+
+        return sankeyLinks.map((link) => {
+            const percentage = (
+                (destinationTotals[link.to] / total) *
+                100
+            ).toFixed(1)
+            return {
+                ...link,
+                to: `${link.to} (${percentage}%)`,
+            }
+        })
+    })()
+
     useEffect(() => {
         let isSubscribed = true
 
         if (sankeyLinks === null || !projectId) return
 
         const handleDownload = async () => {
+            // Pici várakozás, hogy a Chart.js canvas biztosan kirajzolódjon a DOM-ban
+            await new Promise((resolve) => setTimeout(resolve, 400))
+
             let base64Image: string | null = null
 
             if (chartRef.current && sankeyLinks.length > 0) {
@@ -123,7 +151,7 @@ export default function Create() {
                             datasets: [
                                 {
                                     label: 'Energiaáramlás',
-                                    data: sankeyLinks,
+                                    data: processedSankeyLinks,
                                     colorFrom: '#0055A5',
                                     colorTo: '#28A745',
                                     colorMode: 'gradient',

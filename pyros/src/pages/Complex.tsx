@@ -96,11 +96,11 @@ export default function Complex() {
 
         if (result && result.success) {
             const savedResult: ComplexShortData = {
-                id: formData.id as string,
+                id: result.id!,
                 name: formData.name,
             }
             dispatch(addComplexLocally(savedResult))
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 

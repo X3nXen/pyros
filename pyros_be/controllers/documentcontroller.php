@@ -65,22 +65,31 @@ class DocumentController
                 'vehicle' => [],
                 'technology' => []
             ];
-            // 1. Vállalkozás bemutatása
+            //1. Vállalkozás bemutatása
             $stmt = $db->prepare("SELECT json FROM variables WHERE project_id = :projectId");
             $stmt->execute([':projectId' => $project_id]);
             $jsonData = json_decode($stmt->fetchColumn() ?: '{}', true);
-            $companyName = $jsonData['fullName'];
 
-            $templateProcessor->setValue('company_name', $companyName ?? '');
-            $templateProcessor->setValue('foundation_year', $jsonData['foundationYear'] ?? '');
-            $templateProcessor->setValue('owner_percentage', !empty($jsonData['foreign']) ? 'magyar' : ($jsonData['percent'] ?? 0) . '%-ban külföldi');
-            $templateProcessor->setValue('company_product', $jsonData['mainActivity'] ?? '');
-            $templateProcessor->setValue('company_place', $jsonData['companyPlace'] ?? '');
-            $templateProcessor->setValue('data_year', $jsonData['dataYear'] ?? '');
-            $templateProcessor->setValue('employee_count', $jsonData['employeeCount'] ?? '');
-            $templateProcessor->setValue('profit', $jsonData['income'] ?? '');
+            // Biztonságos XML escape segédfüggvény a kód tisztaságához
+            $xmlEscape = function ($val) {
+                return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
+            };
 
-            $stmt = $db->prepare("
+            $companyName = $jsonData['fullName'] ?? '';
+            $ownerPercentageText = !empty($jsonData['foreign']) ? 'magyar' : ($jsonData['percent'] ?? 0) . '%-ban külföldi';
+            $income = $jsonData['income'] ?? 0;
+            $incomeInThousands = (float) $income / 1000;
+            $formattedIncome = number_format($incomeInThousands, 0, ',', '.');
+            $templateProcessor->setValue('company_name', $xmlEscape($companyName));
+            $templateProcessor->setValue('foundation_year', $xmlEscape($jsonData['foundationYear'] ?? ''));
+            $templateProcessor->setValue('owner_percentage', $xmlEscape($ownerPercentageText));
+            $templateProcessor->setValue('company_product', $xmlEscape($jsonData['mainActivity'] ?? ''));
+            $templateProcessor->setValue('company_place', $xmlEscape($jsonData['companyPlace'] ?? ''));
+            $templateProcessor->setValue('data_year', $xmlEscape($jsonData['dataYear'] ?? ''));
+            $templateProcessor->setValue('employee_count', $xmlEscape($jsonData['employeeCount'] ?? ''));
+            $templateProcessor->setValue('profit', $xmlEscape($formattedIncome ?? '') . ' ');
+
+            /*$stmt = $db->prepare("
     SELECT id, name, measurement_type, sub_to, source, measurement, consumption, purpose 
     FROM standings 
     WHERE project_id = :projectId
@@ -96,18 +105,18 @@ class DocumentController
                 foreach ($carrierRows as $index => $row) {
                     $i = $index + 1;
 
-                    $templateProcessor->setValue("carrier#{$i}", $row['carrier_name']);
-                    $templateProcessor->setValue("carrier_building#{$i}", $row['carrier_building']);
-                    $templateProcessor->setValue("carrier_product#{$i}", $row['carrier_product']);
-                    $templateProcessor->setValue("carrier_vehicle#{$i}", $row['carrier_vehicle']);
-                    $templateProcessor->setValue("carrier_total#{$i}", $row['carrier_total']);
+                    $templateProcessor->setValue("carrier#{$i}", $xmlEscape($row['carrier_name'] ?? ''));
+                    $templateProcessor->setValue("carrier_building#{$i}", $xmlEscape($row['carrier_building'] ?? ''));
+                    $templateProcessor->setValue("carrier_product#{$i}", $xmlEscape($row['carrier_product'] ?? ''));
+                    $templateProcessor->setValue("carrier_vehicle#{$i}", $xmlEscape($row['carrier_vehicle'] ?? ''));
+                    $templateProcessor->setValue("carrier_total#{$i}", $xmlEscape($row['carrier_total'] ?? ''));
                 }
             } else {
-                $templateProcessor->setValue('carrier', 'Nincs adat');
-                $templateProcessor->setValue('carrier_building', '-');
-                $templateProcessor->setValue('carrier_product', '-');
-                $templateProcessor->setValue('carrier_vehicle', '-');
-                $templateProcessor->setValue('carrier_total', '-');
+                $templateProcessor->setValue('carrier', $xmlEscape('Nincs adat'));
+                $templateProcessor->setValue('carrier_building', $xmlEscape('-'));
+                $templateProcessor->setValue('carrier_product', $xmlEscape('-'));
+                $templateProcessor->setValue('carrier_vehicle', $xmlEscape('-'));
+                $templateProcessor->setValue('carrier_total', $xmlEscape('-'));
             }
 
             // Fogyasztások felosztása
@@ -117,16 +126,17 @@ class DocumentController
 
                 foreach ($carrierRows as $index => $row) {
                     $i = $index + 1;
-                    $templateProcessor->setValue("carrier2#{$i}", $row['carrier_name']);
-                    $templateProcessor->setValue("carrier2_building#{$i}", $row['carrier_building']);
-                    $templateProcessor->setValue("carrier2_product#{$i}", $row['carrier_product']);
-                    $templateProcessor->setValue("carrier2_vehicle#{$i}", $row['carrier_vehicle']);
+
+                    $templateProcessor->setValue("carrier2#{$i}", $xmlEscape($row['carrier_name'] ?? ''));
+                    $templateProcessor->setValue("carrier2_building#{$i}", $xmlEscape($row['carrier_building'] ?? ''));
+                    $templateProcessor->setValue("carrier2_product#{$i}", $xmlEscape($row['carrier_product'] ?? ''));
+                    $templateProcessor->setValue("carrier2_vehicle#{$i}", $xmlEscape($row['carrier_vehicle'] ?? ''));
                 }
             } else {
-                $templateProcessor->setValue('carrier2', 'Nincs adat');
-                $templateProcessor->setValue('carrier2_building', '-');
-                $templateProcessor->setValue('carrier2_product', '-');
-                $templateProcessor->setValue('carrier2_vehicle', '-');
+                $templateProcessor->setValue('carrier2', $xmlEscape('Nincs adat'));
+                $templateProcessor->setValue('carrier2_building', $xmlEscape('-'));
+                $templateProcessor->setValue('carrier2_product', $xmlEscape('-'));
+                $templateProcessor->setValue('carrier2_vehicle', $xmlEscape('-'));
             }
 
             if ($hasValidImage) {
@@ -137,38 +147,47 @@ class DocumentController
                     'ratio' => true
                 ]);
             } else {
-                $templateProcessor->setValue('sankey_diagram', 'A diagram nem áll rendelkezésre.');
+                $templateProcessor->setValue('sankey_diagram', $xmlEscape('A diagram nem áll rendelkezésre.'));
             }
             if (file_exists($sankeyImagePath)) {
                 @unlink($sankeyImagePath);
             }
 
             //Pénzügyi kalkuláció
-            $templateProcessor->setValue('bubor_rate', $jsonData['buborPercent']);
-            $templateProcessor->setValue('bond_rate', $jsonData['bondPercent']);
-            $templateProcessor->setValue('mnb_rate', $jsonData['mnbPercent']);
-            $interest_rate = 0.3 * (((float) $jsonData['buborPercent']) / 100) + 0.5 * (((float) $jsonData['bondPercent']) / 100) + 0.2 * (((float) $jsonData['mnbPercent']) / 100);
-            $interest_rate = round(($interest_rate + 0.03) * 100, 2);
-            $templateProcessor->setValue('interest_rate', $interest_rate);
+            $bubor = $jsonData['buborPercent'] ?? 0;
+            $bond = $jsonData['bondPercent'] ?? 0;
+            $mnb = $jsonData['mnbPercent'] ?? 0;
 
-            //Költségek kalkulációja
+            $templateProcessor->setValue('bubor_rate', $xmlEscape($bubor));
+            $templateProcessor->setValue('bond_rate', $xmlEscape($bond));
+            $templateProcessor->setValue('mnb_rate', $xmlEscape($mnb));
+
+            $interest_rate = 0.3 * (((float) $bubor) / 100) + 0.5 * (((float) $bond) / 100) + 0.2 * (((float) $mnb) / 100);
+            $interest_rate = round(($interest_rate + 0.03) * 100, 2);
+            $templateProcessor->setValue('interest_rate', $xmlEscape($interest_rate));
+
+            // Költségek kalkulációja
             $templateProcessor->setValue('current_date', date('Y.m.d'));
 
             $stmt = $db->prepare("SELECT date_from, date_to FROM standings WHERE project_id=:projectId LIMIT 1");
             $stmt->execute([':projectId' => $project_id]);
             $dates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $dateFrom = new DateTime($dates[0]['date_from']);
-            $dateTo = new DateTime($dates[0]['date_to']);
-            $auditInterval = $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d');
+            if (!empty($dates) && isset($dates[0]['date_from'], $dates[0]['date_to'])) {
+                $dateFrom = new DateTime($dates[0]['date_from']);
+                $dateTo = new DateTime($dates[0]['date_to']);
+                $auditInterval = $dateFrom->format('Y.m.d') . ' - ' . $dateTo->format('Y.m.d');
+            } else {
+                $auditInterval = 'Nincs megadva';
+            }
 
-            $templateProcessor->setValue('audit_interval', $auditInterval);
+            $templateProcessor->setValue('audit_interval', $xmlEscape($auditInterval));
 
             $marketData = EnergyPriceService::getMarketPrices();
 
-            $eurHuf = $marketData['eur_huf_rate'];
-            $gasEurMwh = $marketData['natural_gas_price'];
-            $electricEurMwh = $marketData['electric_energy_price'];
+            $eurHuf = $marketData['eur_huf_rate'] ?? 0;
+            $gasEurMwh = $marketData['natural_gas_price'] ?? 0;
+            $electricEurMwh = $marketData['electric_energy_price'] ?? 0;
 
             $gasConverted = ($gasEurMwh * $eurHuf) / 1000;
             $electricConverted = ($electricEurMwh * $eurHuf) / 1000;
@@ -176,15 +195,15 @@ class DocumentController
             $gasSpecific = $gasConverted + 15.0;
             $electricSpecific = $electricConverted + 30.915;
 
-            $templateProcessor->setValue('eur_huf_rate', number_format($eurHuf, 2, ',', ' '));
-            $templateProcessor->setValue('natural_gas_price', number_format($gasEurMwh, 2, ',', ' '));
-            $templateProcessor->setValue('electric_energy_price', number_format($electricEurMwh, 2, ',', ' '));
+            $templateProcessor->setValue('eur_huf_rate', $xmlEscape(number_format($eurHuf, 2, ',', ' ')));
+            $templateProcessor->setValue('natural_gas_price', $xmlEscape(number_format($gasEurMwh, 2, ',', ' ')));
+            $templateProcessor->setValue('electric_energy_price', $xmlEscape(number_format($electricEurMwh, 2, ',', ' ')));
 
-            $templateProcessor->setValue('natural_gas_converted', number_format($gasConverted, 2, ',', ' '));
-            $templateProcessor->setValue('natural_gas_specific', number_format($gasSpecific, 2, ',', ' '));
+            $templateProcessor->setValue('natural_gas_converted', $xmlEscape(number_format($gasConverted, 2, ',', ' ')));
+            $templateProcessor->setValue('natural_gas_specific', $xmlEscape(number_format($gasSpecific, 2, ',', ' ')));
 
-            $templateProcessor->setValue('electric_converted', number_format($electricConverted, 2, ',', ' '));
-            $templateProcessor->setValue('electric_energy_specific', number_format($electricSpecific, 3, ',', ' '));
+            $templateProcessor->setValue('electric_converted', $xmlEscape(number_format($electricConverted, 2, ',', ' ')));
+            $templateProcessor->setValue('electric_energy_specific', $xmlEscape(number_format($electricSpecific, 3, ',', ' ')));
 
             // 2. Telephelyek táblázat
             $stmt = $db->prepare("SELECT complex_json FROM complex WHERE project_id = :projectId");
@@ -193,38 +212,52 @@ class DocumentController
 
             $templateProcessor->setValue('telephelyein', count($complexes) > 1 ? 'telephelyein' : 'telephelyén');
 
-            $complexTable = new \PhpOffice\PhpWord\Element\Table([
-                'borderSize' => 0,
-                'borderColor' => 'FFFFFF',
-                'afterSpacing' => 100,
-            ]);
+            if (!empty($complexes)) {
+                $complexTable = new \PhpOffice\PhpWord\Element\Table([
+                    'borderSize' => 0,
+                    'borderColor' => 'FFFFFF',
+                    'afterSpacing' => 100,
+                ]);
 
-            foreach ($complexes as $index => $field) {
-                $fieldJson = json_decode($field['complex_json'], true);
-                if (!$fieldJson)
-                    continue;
+                foreach ($complexes as $index => $field) {
+                    $fieldJson = json_decode($field['complex_json'], true);
+                    if (!$fieldJson)
+                        continue;
 
-                $complexTable->addRow();
-                $cell = $complexTable->addCell(9000, ['gridSpan' => 2]);
-                $cell->addText(
-                    $fieldJson['postal'] . ' ' . $fieldJson['city'] . ', ' . $fieldJson['address'] . ' (' . $fieldJson['name'] . ')',
-                    ['bold' => true, 'size' => 11]
-                );
+                    $complexTable->addRow();
+                    $cell = $complexTable->addCell(9000, ['gridSpan' => 2]);
 
-                if (!empty($fieldJson['working']) && is_array($fieldJson['working'])) {
-                    foreach ($fieldJson['working'] as $working) {
+                    $addressText = $xmlEscape($fieldJson['postal'] ?? '') . ' ' .
+                        $xmlEscape($fieldJson['city'] ?? '') . ', ' .
+                        $xmlEscape($fieldJson['address'] ?? '') . ' (' .
+                        $xmlEscape($fieldJson['name'] ?? '') . ')';
+
+                    $cell->addText(
+                        $addressText,
+                        ['bold' => true, 'size' => 11]
+                    );
+
+                    if (!empty($fieldJson['working']) && is_array($fieldJson['working'])) {
+                        foreach ($fieldJson['working'] as $working) {
+                            $complexTable->addRow();
+
+                            $workTypeSafe = $xmlEscape($working['workType'] ?? '');
+                            $workHoursSafe = $xmlEscape($working['workHours'] ?? '');
+
+                            $complexTable->addCell(4500)->addText('• Tevékenység: ' . $workTypeSafe, ['size' => 10]);
+                            $complexTable->addCell(4500)->addText('Munkarend: ' . $workHoursSafe, ['size' => 10, 'italic' => true]);
+                        }
+                    }
+
+                    if ($index < count($complexes) - 1) {
                         $complexTable->addRow();
-                        $complexTable->addCell(4500)->addText('• Tevékenység: ' . $working['workType'], ['size' => 10]);
-                        $complexTable->addCell(4500)->addText('Munkarend: ' . $working['workHours'], ['size' => 10, 'italic' => true]);
+                        $complexTable->addCell(9000, ['gridSpan' => 2])->addText('');
                     }
                 }
-
-                if ($index < count($complexes) - 1) {
-                    $complexTable->addRow();
-                    $complexTable->addCell(9000, ['gridSpan' => 2])->addText('');
-                }
+                $templateProcessor->setComplexValue('complex_data', $complexTable);
+            } else {
+                $templateProcessor->setValue('complex_data', $xmlEscape('Nincs megadott telephely adat.'));
             }
-            $templateProcessor->setComplexValue('complex_data', $complexTable);
 
             // 3. Fogyasztási táblázat
             $stmt = $db->prepare("SELECT c.id as complex_id, c.name, st.source, st.measurement, st.consumption 
@@ -236,58 +269,64 @@ class DocumentController
 
             $groupedComplexData = AuditService::processMonthlyConsumption($stmt->fetchAll(PDO::FETCH_ASSOC));
 
-            $mainTable = new \PhpOffice\PhpWord\Element\Table([
-                'borderColor' => 'CCCCCC',
-                'borderSize' => 4,
-                'cellMarginTop' => 40,
-                'cellMarginBottom' => 40,
-                'cellMarginLeft' => 100,
-                'cellMarginRight' => 100,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
+            if (!empty($groupedComplexData)) {
+                $mainTable = new \PhpOffice\PhpWord\Element\Table([
+                    'borderColor' => 'CCCCCC',
+                    'borderSize' => 4,
+                    'cellMarginTop' => 40,
+                    'cellMarginBottom' => 40,
+                    'cellMarginLeft' => 100,
+                    'cellMarginRight' => 100,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                ]);
 
-            $isFirstComplex = true;
-            foreach ($groupedComplexData as $complexTitle => $groupedData) {
-                if (!$isFirstComplex) {
-                    $mainTable->addRow();
-                    $breakCell = $mainTable->addCell(9000, ['gridSpan' => 3, 'borderSize' => 0]);
-                    $breakCell->addText('<w:br w:type="page"/>');
-                }
-                $isFirstComplex = false;
+                $isFirstComplex = true;
+                foreach ($groupedComplexData as $complexTitle => $groupedData) {
+                    if (!$isFirstComplex) {
+                        $mainTable->addRow();
+                        $breakCell = $mainTable->addCell(9000, ['gridSpan' => 3, 'borderSize' => 0]);
 
-                $mainTable->addRow(250, ['cantSplit' => true]);
-                $mainTable->addCell(9000, ['gridSpan' => 3, 'bgColor' => 'D9D9D9', 'valign' => 'center'])
-                    ->addText('Mérési pont / Telephely: ' . $complexTitle, ['bold' => true, 'size' => 10]);
+                        $breakCell->addPageBreak();
+                    }
+                    $isFirstComplex = false;
 
-                $mainTable->addRow(220, ['tblHeader' => true, 'cantSplit' => true]);
-                $mainTable->addCell(3000, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Hónap', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                $mainTable->addCell(3500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Energiahordozó', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                $mainTable->addCell(2500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Fogyasztás', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
+                    $mainTable->addRow(250, ['cantSplit' => true]);
+                    $mainTable->addCell(9000, ['gridSpan' => 3, 'bgColor' => 'D9D9D9', 'valign' => 'center'])
+                        ->addText('Mérési pont / Telephely: ' . $xmlEscape($complexTitle), ['bold' => true, 'size' => 10]);
 
-                ksort($groupedData);
+                    $mainTable->addRow(220, ['tblHeader' => true, 'cantSplit' => true]);
+                    $mainTable->addCell(3000, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Hónap', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
+                    $mainTable->addCell(3500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Energiahordozó', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
+                    $mainTable->addCell(2500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Fogyasztás', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
 
-                foreach ($groupedData as $sortKey => $monthData) {
-                    $monthLabel = $monthData['label'];
-                    $items = array_values($monthData['items']);
+                    ksort($groupedData);
 
-                    foreach ($items as $index => $item) {
-                        $mainTable->addRow(200, ['cantSplit' => true]);
+                    foreach ($groupedData as $sortKey => $monthData) {
+                        $monthLabel = $xmlEscape($monthData['label']);
+                        $items = array_values($monthData['items']);
 
-                        if ($index === 0) {
-                            $mainTable->addCell(3000, ['vMerge' => 'restart', 'valign' => 'center'])
-                                ->addText($monthLabel, ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                        } else {
-                            $mainTable->addCell(3000, ['vMerge' => 'continue']);
+                        foreach ($items as $index => $item) {
+                            $mainTable->addRow(200, ['cantSplit' => true]);
+
+                            if ($index === 0) {
+                                $mainTable->addCell(3000, ['vMerge' => 'restart', 'valign' => 'center'])
+                                    ->addText($monthLabel, ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
+                            } else {
+                                $mainTable->addCell(3000, ['vMerge' => 'continue']);
+                            }
+
+                            $sourceSafe = $xmlEscape($item['source']);
+                            $mainTable->addCell(3500, ['valign' => 'center'])->addText($sourceSafe, ['size' => 9.5]);
+
+                            $formattedValue = number_format($item['value'], 0, ',', ' ') . ' ' . $xmlEscape($item['unit']);
+                            $mainTable->addCell(2500, ['valign' => 'center'])->addText($formattedValue, ['size' => 9.5], ['alignment' => 'right']);
                         }
-
-                        $mainTable->addCell(3500, ['valign' => 'center'])->addText($item['source'], ['size' => 9.5]);
-
-                        $formattedValue = number_format($item['value'], 0, ',', ' ') . ' ' . $item['unit'];
-                        $mainTable->addCell(2500, ['valign' => 'center'])->addText($formattedValue, ['size' => 9.5], ['alignment' => 'right']);
                     }
                 }
+                $templateProcessor->setComplexValue('standings_data_by_complex', $mainTable);
+            } else {
+                $templateProcessor->setValue('standings_data_by_complex', $xmlEscape('Nincs elérhető mérési adat telephelyenként.'));
             }
-            $templateProcessor->setComplexValue('standings_data_by_complex', $mainTable);
 
             // 4. Mérő hierarchia
             $stmt = $db->prepare("SELECT id, name, measurement_type, sub_to, source, measurement, consumption 
@@ -311,22 +350,26 @@ class DocumentController
                 }
             }
 
-            $hierarchyTable = new \PhpOffice\PhpWord\Element\Table([
-                'borderSize' => 0,
-                'borderColor' => 'FFFFFF',
-                'cellMarginLeft' => 40,
-                'cellMarginRight' => 40,
-                'cellMarginTop' => 20,
-                'cellMarginBottom' => 20,
-                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT
-            ]);
+            if (!empty($mainStandings)) {
+                $hierarchyTable = new \PhpOffice\PhpWord\Element\Table([
+                    'borderSize' => 0,
+                    'borderColor' => 'FFFFFF',
+                    'cellMarginLeft' => 40,
+                    'cellMarginRight' => 40,
+                    'cellMarginTop' => 20,
+                    'cellMarginBottom' => 20,
+                    'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT
+                ]);
 
-            foreach ($mainStandings as $mainId) {
-                AuditService::buildStandingTree($mainId, $standingsById, $childrenByParent, $hierarchyTable, 0);
+                foreach ($mainStandings as $mainId) {
+                    AuditService::buildStandingTree($mainId, $standingsById, $childrenByParent, $hierarchyTable, 0);
+                }
+
+                $templateProcessor->setComplexValue('standing_hierarchy', $hierarchyTable);
+            } else {
+                $templateProcessor->setValue('standing_hierarchy', $xmlEscape('Nincs elérhető mérési hierarchia adat.'));
             }
-
-            $templateProcessor->setComplexValue('standing_hierarchy', $hierarchyTable);
 
             //Épületenergetikai értékelés
 
@@ -344,66 +387,150 @@ class DocumentController
             $templateProcessor->setComplexValue('building_listing', $buildingsTable);
 
             // - Fűtési rendszerek értékelése
+            $starterIndex = 2;
 
-            $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
+            // --- 1. FŰTÉSI RENDSZEREK ---
+            $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name as complex_name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
+            $stmt->execute([':projectId' => $project_id]);
             $allHeating = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
             $heatingTable = new \PhpOffice\PhpWord\Element\Table([
                 'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
             ]);
-            AuditService::buildHeatingTable($heatingTable, $allHeating, $improveable_list);
 
-            $templateProcessor->setComplexValue('heating_listing', $heatingTable);
+            if (empty($allHeating)) {
+                $templateProcessor->setValue("subheading_building_heating", "");
+                $templateProcessor->setValue("heating_intro", "");
+                $templateProcessor->setValue("heating_subtext", "");
+                $templateProcessor->setValue('heating_listing', "");
+            } else {
+                $templateProcessor->setValue("subheading_building_heating", "7." . $starterIndex . ". Épületek fűtése");
+                AuditService::buildHeatingTable($heatingTable, $allHeating, $improveable_list);
+                $heatingIntro = "A(z) " . $xmlEscape($companyName) . " az alábbi fűtési rendszerekkel rendelkezik:";
+                $heatingSubtext = "A pontszám megállapításánál figyelembe vett szempontok: karbonintenzitás, elérhetőség, technológia korszerűsége, illetve a berendezés aktuális műszaki állapota.";
 
-            // - HMV rendszerek értékelése
-            $hmvTable = new \PhpOffice\PhpWord\Element\Table([
-                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
-            AuditService::buildHMVTable($hmvTable, $allHeating, $improveable_list);
-            $templateProcessor->setComplexValue("hmv_listing", $hmvTable);
+                $templateProcessor->setComplexValue('heating_listing', $heatingTable);
+                $templateProcessor->setValue("heating_intro", $heatingIntro);
+                $templateProcessor->setValue("heating_subtext", $heatingSubtext);
+                $starterIndex++;
+            }
 
-            // - Világítási rendszerek értékelése
+            // --- 2. HMV RENDSZEREK (Javított biztonságos ellenőrzéssel) ---
+            $emittersData = !empty($allHeating) ? json_decode($allHeating[0]['emitters'] ?? '[]', true) : [];
 
-            $stmt = $db->prepare("SELECT l.name, l.specific_sum, s.consumption, s.source, c.name as complex_name FROM lighting_systems l join standings s on l.standing = s.id join complex c on c.id = l.complex where l.project_id =:projectId");
+            if (empty($emittersData)) {
+                $templateProcessor->setValue("subheading_building_hmv", "");
+                $templateProcessor->setValue("hmv_intro", "");
+                $templateProcessor->setValue("hmv_subtext", "");
+                $templateProcessor->setValue('hmv_listing', "");
+            } else {
+                $templateProcessor->setValue("subheading_building_hmv", "7." . $starterIndex . ". Használati melegvíz készítés");
+
+                $hmvTable = new \PhpOffice\PhpWord\Element\Table([
+                    'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                ]);
+                $hmvIntro = "A(z) " . $xmlEscape($companyName) . " az alábbi használati melegvizes rendszerekkel rendelkezik:";
+                $hmvSubtext = "A pontszám megállapításánál figyelembe vett szempontok: melegvíz készítés szabályozási előfeltételei: Időprogram és/vagy hőmérsékleti értékek.";
+                AuditService::buildHMVTable($hmvTable, $allHeating, $improveable_list);
+
+                $templateProcessor->setComplexValue("hmv_listing", $hmvTable);
+                $templateProcessor->setValue("hmv_intro", $hmvIntro);
+                $templateProcessor->setValue("hmv_subtext", $hmvSubtext);
+
+                $starterIndex++;
+            }
+
+            // --- 3. VILÁGÍTÁSI RENDSZEREK ---
+            $stmt = $db->prepare("SELECT l.name, l.specific_sum, s.consumption, s.source, c.name as complex_name, l.size, b.size as building_size, l.solution FROM lighting_systems l join standings s on l.standing = s.id join complex c on c.id = l.complex join buildings b on b.id=l.building where l.project_id =:projectId");
             $stmt->execute([":projectId" => $project_id]);
             $allLighting = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $lightingTable = new \PhpOffice\PhpWord\Element\Table([
-                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
+            if (empty($allLighting)) {
+                $templateProcessor->setValue("subheading_building_lighting", "");
+                $templateProcessor->setValue("lighting_intro", "");
+                $templateProcessor->setValue("lighting_subtext", "");
+                $templateProcessor->setValue('lighting_listing', "");
+            } else {
+                $templateProcessor->setValue("subheading_building_lighting", "7." . $starterIndex . ". Világítási rendszerek");
+                $lightingTable = new \PhpOffice\PhpWord\Element\Table([
+                    'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                ]);
+                $lightingIntro = "A(z) " . $xmlEscape($companyName) . " az alábbi világítási zónákkal és rendszerekkel rendelkezik:";
+                $lightingSubtext = "A fajlagos érték kialakításánál az alábbi szempontok kerültek figyelembevételre: világítótest fajtája (Fénycső, Halogénizzó, LED, stb.), szabályozás módja (Kézi vagy Automatikus működtetés).";
 
-            AuditService::buildLightingTable($lightingTable, $allLighting);
-            $templateProcessor->setComplexValue("lighting_listing", $lightingTable);
+                AuditService::buildLightingTable($lightingTable, $allLighting);
+                $templateProcessor->setComplexValue("lighting_listing", $lightingTable);
+                $templateProcessor->setValue("lighting_intro", $lightingIntro);
+                $templateProcessor->setValue("lighting_subtext", $lightingSubtext);
+                $starterIndex++;
+            }
 
-            // - Komforthűtés rendszerek értékelése
-
+            // --- 4. KOMFORTHŰTÉS RENDSZEREK ---
             $stmt = $db->prepare("SELECT h.heaters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='COOL' OR purpose='BOTH')");
             $stmt->execute([':projectId' => $project_id]);
             $allCooling = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $coolingTable = new \PhpOffice\PhpWord\Element\Table([
-                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
-            AuditService::buildCoolingTable($coolingTable, $allCooling, $improveable_list);
 
-            $templateProcessor->setComplexValue('cooling_listing', $coolingTable);
+            if (empty($allCooling)) {
+                if (method_exists($templateProcessor, 'cloneBlock')) {
+                    $templateProcessor->cloneBlock('cooling_blocking', 0, true, false);
+                }
+                $templateProcessor->setValue("subheading_building_cooling", "");
+                $templateProcessor->setValue("cooling_intro", "");
+                $templateProcessor->setValue("cooling_subtext", "");
+                $templateProcessor->setValue('cooling_listing', "");
+            } else {
+                $templateProcessor->cloneBlock('cooling_blocking', 1, true, false);
+                $templateProcessor->setValue("subheading_building_cooling", "7." . $starterIndex . ". Komforthűtési rendszerek");
+                $coolingTable = new \PhpOffice\PhpWord\Element\Table([
+                    'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                ]);
 
-            // - Légkezelő rendszerek
+                $coolingIntro = "A(z) " . $xmlEscape($companyName) . " az alábbi komforthűtési rendszerekkel rendelkezik:";
+                $coolingSubtext = "A százalékos érték kialakításánál az alábbi szempontok kerültek figyelembevételre: alkalmazott hűtőközeg GWP értéke, berendezés működési módja (időjáráshoz alkalmazkodik vagy sem), berendezés műszaki állapota és az üzemelés körülményei.";
+
+                AuditService::buildCoolingTable($coolingTable, $allCooling, $improveable_list);
+
+                $templateProcessor->setValue("cooling_intro", $coolingIntro);
+                $templateProcessor->setValue("cooling_subtext", $coolingSubtext);
+                $templateProcessor->setComplexValue('cooling_listing', $coolingTable);
+                $starterIndex++;
+            }
+
+            // --- 5. LÉGKEZELŐ RENDSZEREK ---
             $stmt = $db->prepare("SELECT v.name, c.name as complex_name, b.name as building_name, v.sfp, v.category, v.json from ventilation_systems v join complex c on c.id=v.complex join buildings b on v.building = b.id WHERE v.project_id=:projectId");
             $stmt->execute([":projectId" => $project_id]);
             $allHvac = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $hvacTable = new \PhpOffice\PhpWord\Element\Table([
-                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
-            AuditService::buildHVACTable($hvacTable, $allHvac, $improveable_list);
 
-            $templateProcessor->setComplexValue('hvac_listing', $hvacTable);
+            if (empty($allHvac)) {
+                if (method_exists($templateProcessor, 'cloneBlock')) {
+                    $templateProcessor->cloneBlock('hvac_blocking', 0, true, false);
+                }
+                $templateProcessor->setValue("subheading_building_hvac", "");
+                $templateProcessor->setValue("hvac_intro", "");
+                $templateProcessor->setValue("hvac_subtext", "");
+                $templateProcessor->setValue('hvac_listing', "");
+            } else {
+                $templateProcessor->cloneBlock('hvac_blocking', 1, true, false);
+                $templateProcessor->setValue("subheading_building_hvac", "7." . $starterIndex . ". Légtechnikai rendszerek");
+                $hvacTable = new \PhpOffice\PhpWord\Element\Table([
+                    'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                ]);
+
+                $hvacIntro = "A(z) " . $xmlEscape($companyName) . " az alábbi légtechnikai rendszerekkel rendelkezik:";
+                $hvacSubtext = "Értelmezés: az SFP érték, hővisszanyerési hatékonyság és a szigeteltségi állapot 90% érték alatt fejlesztendő.";
+
+                AuditService::buildHVACTable($hvacTable, $allHvac, $improveable_list);
+
+                $templateProcessor->setComplexValue('hvac_listing', $hvacTable);
+                $templateProcessor->setValue("hvac_intro", $hvacIntro);
+                $templateProcessor->setValue("hvac_subtext", $hvacSubtext);
+                $starterIndex++;
+            }
 
             //Szállítás értékelése
             $stmt = $db->prepare("SELECT 
@@ -418,7 +545,8 @@ class DocumentController
                         v.fuel,
                         v.chargeable,
                         v.capacity,
-                        s.consumption, 
+                        s.consumption,
+                        s.measurement_type,
                         s.measurement, 
                         s.source 
                       FROM vehicles v 
@@ -428,20 +556,24 @@ class DocumentController
             $stmt->execute([':projectId' => $project_id]);
             $vehicleData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $vehiclesTable = new \PhpOffice\PhpWord\Element\Table([
-                'borderSize' => 6,
-                'borderColor' => '000000',
-                'cellMarginLeft' => 80,
-                'cellMarginRight' => 80,
-                'cellMarginTop' => 60,
-                'cellMarginBottom' => 60,
-                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
+            if (!empty($vehicleData)) {
+                $vehiclesTable = new \PhpOffice\PhpWord\Element\Table([
+                    'borderSize' => 6,
+                    'borderColor' => '000000',
+                    'cellMarginLeft' => 80,
+                    'cellMarginRight' => 80,
+                    'cellMarginTop' => 60,
+                    'cellMarginBottom' => 60,
+                    'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                ]);
 
-            AuditService::buildVehiclesTable($vehiclesTable, $vehicleData, $improveable_list);
+                AuditService::buildVehiclesTable($vehiclesTable, $vehicleData, $improveable_list);
 
-            $templateProcessor->setComplexValue('vehicle_listing', $vehiclesTable);
+                $templateProcessor->setComplexValue('vehicle_listing', $vehiclesTable);
+            } else {
+                $templateProcessor->setValue('vehicle_listing', $xmlEscape('Nincs megadott szállítási / jármű adat.'));
+            }
 
             //Technológia értékelése
             $stmt = $db->prepare("SELECT t.id, t.name, t.json, c.name as complex_name, t.technology_type FROM technology t join complex c on t.complex = c.id WHERE t.project_id = :projectId ORDER BY id ASC");
@@ -452,14 +584,20 @@ class DocumentController
                 $templateProcessor->setValue('technology_title', '');
                 $templateProcessor->setValue('technology_content', '');
 
-                //Technológia offset indexek fejezeteknek
                 $templateProcessor->setValue("technology_offset_index", 9);
                 $templateProcessor->setValue("technology_offset_2_index", 10);
                 $templateProcessor->setValue("technology_offset_3_index", 11);
-                $templateProcessor->deleteBlock('block_technology');
+
+                if (method_exists($templateProcessor, 'deleteBlock')) {
+                    @$templateProcessor->deleteBlock('block_technology');
+                }
             } else {
-                $templateProcessor->cloneBlock('block_technology', 1, true, false);
+                if (method_exists($templateProcessor, 'cloneBlock')) {
+                    @$templateProcessor->cloneBlock('block_technology', 1, true, false);
+                }
+
                 $templateProcessor->setValue('technology_title', '9.Technológiai alrendszerek energetikai értékelése');
+
                 $stmtMeters = $db->prepare("SELECT id, name FROM standings WHERE project_id = :projectId");
                 $stmtMeters->execute([':projectId' => $project_id]);
                 $meters = $stmtMeters->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -486,8 +624,10 @@ class DocumentController
 
                 $mainTable->addRow();
                 $mainCell = $mainTable->addCell(9000);
+
+                $safeCompanyName = $xmlEscape($companyName ?? 'GAZDÁLKODÓ SZERVEZET');
                 $mainCell->addText(
-                    "A " . htmlspecialchars($companyName ?? 'GAZDÁLKODÓ SZERVEZET') . "-nál/nél az alábbi technológiai alrendszerek kerültek kialakításra:",
+                    "A " . $safeCompanyName . "-nál/nél az alábbi technológiai alrendszerek kerültek kialakításra:",
                     null,
                     ['spaceAfter' => 120]
                 );
@@ -498,8 +638,6 @@ class DocumentController
 
                     foreach ($groupedTechs['COMPRESSED_AIR'] as $tech) {
                         $jsonData = json_decode($tech['json'], true) ?? [];
-
-                        // Átadjuk a $complexes és $meters tömböket is!
                         AuditService::appendCompressedAirTableToCell($mainCell, $jsonData, $tech['name'], $tech['complex_name'], $meters, $improveable_list);
                         $mainCell->addText("");
                     }
@@ -526,9 +664,8 @@ class DocumentController
 
                     foreach ($groupedTechs['COOLING'] as $tech) {
                         $jsonData = json_decode($tech['json'], true) ?? [];
-
                         AuditService::appendCoolingTableToCell($mainCell, $jsonData, $tech['name'], $meters, $improveable_list);
-                        $mainCell->addText(""); // Sorköz
+                        $mainCell->addText("");
                     }
 
                     $letterIndex = chr(ord($letterIndex) + 1);
@@ -550,7 +687,7 @@ class DocumentController
 
                 $templateProcessor->setComplexBlock('technology_content', $mainTable);
 
-                //Technológia offset indexek fejezeteknek
+                // Technológia offset indexek fejezeteknek
                 $templateProcessor->setValue("technology_offset_index", 10);
                 $templateProcessor->setValue("technology_offset_2_index", 11);
                 $templateProcessor->setValue("technology_offset_3_index", 12);
@@ -561,14 +698,19 @@ class DocumentController
             $stmt = $db->prepare("SELECT product_name, metric, is_primary, json FROM product WHERE project_id=:projectId");
             $stmt->execute([":projectId" => $project_id]);
             $allProduct = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $productTable = $productTable = new \PhpOffice\PhpWord\Element\Table([
-                'borderSize' => 6,
-                'borderColor' => '000000',
-                'cellMargin' => 80
-            ]);
-            AuditService::buildProductTable($productTable, $allProduct, $auditInterval);
 
-            $templateProcessor->setComplexValue("product_listing", $productTable);
+            if (!empty($allProduct)) {
+                $productTable = new \PhpOffice\PhpWord\Element\Table([
+                    'borderSize' => 6,
+                    'borderColor' => '000000',
+                    'cellMargin' => 80
+                ]);
+                AuditService::buildProductTable($productTable, $allProduct, $auditInterval);
+                $templateProcessor->setComplexValue("product_listing", $productTable);
+            } else {
+                $templateProcessor->setValue('product_listing', $xmlEscape('Nincs megadott termék adat.'));
+            }
+
             $totalActivityEnergyKwH = 0.0;
 
             if (!empty($carrierRows)) {
@@ -591,72 +733,68 @@ class DocumentController
             }
 
             if ($primaryProduct) {
-                $productNameLabel = $primaryProduct['product_name'];
-                if (!empty($primaryProduct['metric'])) {
-                    $productNameLabel .= ' (' . $primaryProduct['metric'] . ')';
+                $rawProductName = $primaryProduct['product_name'] ?? '';
+                $metric = $primaryProduct['metric'] ?? '';
+
+                $productNameLabel = $rawProductName;
+                if (!empty($metric)) {
+                    $productNameLabel .= ' (' . $metric . ')';
                 }
-                $templateProcessor->setValue('product_name', $productNameLabel);
+
+                $templateProcessor->setValue('product_name', $xmlEscape($productNameLabel));
 
                 $jsonData = json_decode($primaryProduct['json'] ?? '{}', true);
                 $primaryAmountSum = (float) ($jsonData['sum'] ?? 0.0);
 
                 if ($primaryAmountSum > 0) {
                     $etmValue = $totalActivityEnergyKwH / $primaryAmountSum;
+                    $formattedEtm = number_format($etmValue, 2, ',', ' ') . ' kWh/' . $metric;
 
-                    $formattedEtm = number_format($etmValue, 2, ',', ' ') . ' kWh/' . $primaryProduct['metric'];
-                    $templateProcessor->setValue('ETM', $formattedEtm);
+                    $templateProcessor->setValue('ETM', $xmlEscape($formattedEtm));
                 } else {
-                    $templateProcessor->setValue('ETM', '-');
+                    $templateProcessor->setValue('ETM', $xmlEscape('-'));
                 }
             } else {
-                $templateProcessor->setValue('product_name', 'főtermék');
-                $templateProcessor->setValue('ETM', '-');
+                $templateProcessor->setValue('product_name', $xmlEscape('főtermék'));
+                $templateProcessor->setValue('ETM', $xmlEscape('-'));
             }
 
-            // Javaslatok és források
-            $listingRun = new \PhpOffice\PhpWord\Element\TextRun();
-
-            $fontStyle = ['name' => 'Calibri', 'size' => 11];
-            $paragraphStyle = ['spaceAfter' => 60, 'spaceBefore' => 0];
-
-            $formatItems = function (array $items): string {
-                return !empty($items) ? implode(', ', $items) : 'Nem azonosítottunk fejlesztési lehetőséget.';
+            $xmlEscape = function ($val) {
+                return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
             };
 
-            $listingRun->addText("a) Kapacitás-optimalizálás: ", $fontStyle);
-            $listingRun->addText($formatItems($improveable_list['vehicle'] ?? []), $fontStyle);
-            $listingRun->addTextBreak(1);
+            $formatItems = function (array $items) use ($xmlEscape): string {
+                if (empty($items)) {
+                    return 'Nem azonosítottunk fejlesztési lehetőséget.';
+                }
+                return implode(', ', array_map($xmlEscape, $items));
+            };
 
-            $listingRun->addText("b) épületenergetikai javaslatok: ", $fontStyle);
-            $listingRun->addText($formatItems($improveable_list['building'] ?? []), $fontStyle);
-            $listingRun->addTextBreak(1);
+            $templateProcessor->setValue('suggestion_a', $xmlEscape($formatItems($improveable_list['building'] ?? [])));
 
             $mepItems = array_merge(
                 $improveable_list['hmv'] ?? [],
                 $improveable_list['coolers'] ?? [],
                 $improveable_list['hvac'] ?? []
             );
-            $listingRun->addText("c) épületgépészeti javaslatok: ", $fontStyle);
-            $listingRun->addText($formatItems($mepItems), $fontStyle);
-            $listingRun->addTextBreak(1);
-
-            $listingRun->addText("d) technológiai javaslatok: ", $fontStyle);
-            $listingRun->addText($formatItems($improveable_list['technology'] ?? []), $fontStyle);
-            $listingRun->addTextBreak(1);
-
-            $listingRun->addText("e) alternatív hőtermelési/hűtési javaslatok: ", $fontStyle);
-            $listingRun->addText($formatItems($improveable_list['heaters'] ?? []), $fontStyle);
-            $listingRun->addTextBreak(1);
-
-            $listingRun->addText("f) megújuló energiaforrás bevonási javaslatok: ", $fontStyle);
-            $listingRun->addText("Kapacitásbővítés vagy napelem rendszer telepítése javasolt.", $fontStyle);
-
-            $templateProcessor->setComplexValue('replaceable_listing', $listingRun);
+            $templateProcessor->setValue('suggestion_b', $xmlEscape($formatItems($mepItems)));
+            $templateProcessor->setValue('suggestion_c', $xmlEscape($formatItems($improveable_list['technology'] ?? [])));
+            $templateProcessor->setValue('suggestion_d', $xmlEscape($formatItems($improveable_list['vehicle'] ?? [])));
+            $templateProcessor->setValue('suggestion_e', $xmlEscape($formatItems($improveable_list['heaters'] ?? [])));
+            */
 
             // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';
-            $tempPath = sys_get_temp_dir() . '/' . $tempFileName;
+            $outputDir = __DIR__ . '/generated';
+            if (!file_exists($outputDir)) {
+                mkdir($outputDir, 0755, true);
+            }
+            $tempPath = $outputDir . '/' . $tempFileName;
             $templateProcessor->saveAs($tempPath);
+
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
 
             header('Content-Description: File Transfer');
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -668,7 +806,6 @@ class DocumentController
             header('Content-Length: ' . filesize($tempPath));
 
             readfile($tempPath);
-            unlink($tempPath);
             exit;
 
         } catch (Exception $e) {
