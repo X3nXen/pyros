@@ -71,6 +71,7 @@ class DocumentController
             $jsonData = json_decode($stmt->fetchColumn() ?: '{}', true);
 
             AuditService::createIntroductionChapter($jsonData, $templateProcessor);
+            $companyName = $jsonData['fullName'];
 
             $stmt = $db->prepare("
     SELECT id, name, measurement_type, sub_to, source, measurement, consumption, purpose 
@@ -123,6 +124,16 @@ class DocumentController
 
             AuditService::createStandingByComplexSection($groupedData, $templateProcessor);
 
+            // 4. Mérési hálózatok
+
+            $stmt = $db->prepare("SELECT id, name, measurement_type, sub_to, source, measurement, consumption 
+                                      FROM standings WHERE project_id = :projectId ORDER BY id ASC");
+            $stmt->execute([':projectId' => $project_id]);
+            $allStandings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $hierarchy_data = AuditService::buildStandingHierarchy($allStandings);
+            AuditService::createStandingHierarchySection($hierarchy_data, $templateProcessor);
+
             // 5. Költségek kalkulációja
 
             $stmt = $db->prepare("SELECT date_from, date_to FROM standings WHERE project_id=:projectId LIMIT 1");
@@ -135,128 +146,27 @@ class DocumentController
 
             AuditService::createInvestmentSection($jsonData, $templateProcessor);
 
+            // 7. Épületek energetikai értékelése
+            // 7.1 - Épületfizikai értékelés
+
+            $stmt = $db->prepare("SELECT b.name as building_name, b.qf, c.name as complex_name FROM buildings b join complex c on c.id = b.complex WHERE b.project_id=:projectId");
+            $stmt->execute([
+                ':projectId' => $project_id
+            ]);
+            $allBuildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $buildingData = AuditService::buildBuildingRows($allBuildings, $improveable_list);
+            AuditService::createBuildingListingSection($buildingData, $templateProcessor);
+
+            // 7.2? - Épületek fűtése
+            $starterIndex = 2;
+            $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name as complex_name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
+            $stmt->execute([':projectId' => $project_id]);
+            $allHeating = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $heaterData = AuditService::buildHeatingListingRows($allHeating, $improveable_list);
+            AuditService::createHeatingListingSection($heaterData, $templateProcessor, $starterIndex, $companyName);
             /*
-
-                        // 3. Fogyasztási táblázat
-
-                        $groupedComplexData = AuditService::processMonthlyConsumption();
-
-                        if (!empty($groupedComplexData)) {
-                            $mainTable = new \PhpOffice\PhpWord\Element\Table([
-                                'borderColor' => 'CCCCCC',
-                                'borderSize' => 4,
-                                'cellMarginTop' => 40,
-                                'cellMarginBottom' => 40,
-                                'cellMarginLeft' => 100,
-                                'cellMarginRight' => 100,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                            ]);
-
-                            $isFirstComplex = true;
-                            foreach ($groupedComplexData as $complexTitle => $groupedData) {
-                                if (!$isFirstComplex) {
-                                    $mainTable->addRow();
-                                    $breakCell = $mainTable->addCell(9000, ['gridSpan' => 3, 'borderSize' => 0]);
-
-                                    $breakCell->addPageBreak();
-                                }
-                                $isFirstComplex = false;
-
-                                $mainTable->addRow(250, ['cantSplit' => true]);
-                                $mainTable->addCell(9000, ['gridSpan' => 3, 'bgColor' => 'D9D9D9', 'valign' => 'center'])
-                                    ->addText('Mérési pont / Telephely: ' . AuditService::xmlEscape($complexTitle), ['bold' => true, 'size' => 10]);
-
-                                $mainTable->addRow(220, ['tblHeader' => true, 'cantSplit' => true]);
-                                $mainTable->addCell(3000, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Hónap', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                                $mainTable->addCell(3500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Energiahordozó', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                                $mainTable->addCell(2500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Fogyasztás', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-
-                                ksort($groupedData);
-
-                                foreach ($groupedData as $sortKey => $monthData) {
-                                    $monthLabel = AuditService::xmlEscape($monthData['label']);
-                                    $items = array_values($monthData['items']);
-
-                                    foreach ($items as $index => $item) {
-                                        $mainTable->addRow(200, ['cantSplit' => true]);
-
-                                        if ($index === 0) {
-                                            $mainTable->addCell(3000, ['vMerge' => 'restart', 'valign' => 'center'])
-                                                ->addText($monthLabel, ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                                        } else {
-                                            $mainTable->addCell(3000, ['vMerge' => 'continue']);
-                                        }
-
-                                        $sourceSafe = AuditService::xmlEscape($item['source']);
-                                        $mainTable->addCell(3500, ['valign' => 'center'])->addText($sourceSafe, ['size' => 9.5]);
-
-                                        $formattedValue = number_format($item['value'], 0, ',', ' ') . ' ' . AuditService::xmlEscape($item['unit']);
-                                        $mainTable->addCell(2500, ['valign' => 'center'])->addText($formattedValue, ['size' => 9.5], ['alignment' => 'right']);
-                                    }
-                                }
-                            }
-                            $templateProcessor->setComplexValue('standings_data_by_complex', $mainTable);
-                        } else {
-                            $templateProcessor->setValue('standings_data_by_complex', AuditService::xmlEscape('Nincs elérhető mérési adat telephelyenként.'));
-                        }
-
-                        // 4. Mérő hierarchia
-                        $stmt = $db->prepare("SELECT id, name, measurement_type, sub_to, source, measurement, consumption 
-                                      FROM standings WHERE project_id = :projectId ORDER BY id ASC");
-                        $stmt->execute([':projectId' => $project_id]);
-                        $allStandings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        $standingsById = [];
-                        $childrenByParent = [];
-                        $mainStandings = [];
-
-                        foreach ($allStandings as $standing) {
-                            $id = $standing['id'];
-                            $parentId = $standing['sub_to'];
-                            $standingsById[$id] = $standing;
-
-                            if (!empty($parentId)) {
-                                $childrenByParent[$parentId][] = $id;
-                            } else {
-                                $mainStandings[] = $id;
-                            }
-                        }
-
-                        if (!empty($mainStandings)) {
-                            $hierarchyTable = new \PhpOffice\PhpWord\Element\Table([
-                                'borderSize' => 0,
-                                'borderColor' => 'FFFFFF',
-                                'cellMarginLeft' => 40,
-                                'cellMarginRight' => 40,
-                                'cellMarginTop' => 20,
-                                'cellMarginBottom' => 20,
-                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT
-                            ]);
-
-                            foreach ($mainStandings as $mainId) {
-                                AuditService::buildStandingTree($mainId, $standingsById, $childrenByParent, $hierarchyTable, 0);
-                            }
-
-                            $templateProcessor->setComplexValue('standing_hierarchy', $hierarchyTable);
-                        } else {
-                            $templateProcessor->setValue('standing_hierarchy', AuditService::xmlEscape('Nincs elérhető mérési hierarchia adat.'));
-                        }
-
-                        //Épületenergetikai értékelés
-
-                        $stmt = $db->prepare("SELECT b.name as building_name, b.qf, c.name as complex_name FROM buildings b join complex c on c.id = b.complex WHERE b.project_id=:projectId");
-                        $stmt->execute([
-                            ':projectId' => $project_id
-                        ]);
-                        $allBuildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                        $buildingsTable = new \PhpOffice\PhpWord\Element\Table([
-                            'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                            'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                        ]);
-                        AuditService::buildBuildingsTable($buildingsTable, $allBuildings, $improveable_list);
-
-                        $templateProcessor->setComplexValue('building_listing', $buildingsTable);
 
                         // - Fűtési rendszerek értékelése
                         $starterIndex = 2;

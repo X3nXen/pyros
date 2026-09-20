@@ -134,7 +134,7 @@ export default function Standings() {
                     </FormHelperText>
                 )}
             </FormControl>
-            {formData.measurementType !== MeasurementTypes.MAIN ? (
+            {formData.measurementType !== ('MAIN' as MeasurementTypes) ? (
                 <FormControl>
                     <InputLabel id="standing-purpose-select">
                         Mérés célja

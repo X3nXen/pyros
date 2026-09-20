@@ -7,7 +7,6 @@ class AuditService
     {
         return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
     }
-    // Szótárak központosítása statikus tömbökként
     public const EnergySources = [
         'COAL' => 'Szén',
         'GASOLINE' => 'Gázolaj',
@@ -28,7 +27,10 @@ class AuditService
         'MJ' => 'MJ',
         'MCUBE' => 'm³',
         'GJ' => 'GJ',
-        'MWH' => 'MWh'
+        'MWH' => 'MWh',
+        'L' => 'l',
+        'KG' => 'kg',
+        'T' => 'tonna'
     ];
 
     public const MonthAbbrreviationToFull = [
@@ -65,7 +67,7 @@ class AuditService
         foreach ($rawData as $row) {
             $complexName = (!empty($row['name']) ? $row['name'] : 'Telephely');
             $rawSource = self::EnergySources[$row['source']];
-            $rawUnit = self::EnergyMeasurements[$row['unit']];
+            $rawUnit = self::EnergyMeasurements[$row['measurement']];
 
             if (!isset($grouped[$complexName])) {
                 $grouped[$complexName] = [];
@@ -76,16 +78,53 @@ class AuditService
                     continue;
                 }
                 foreach ($months as $month => $value) {
-                    $monthName = self::MonthAbbrreviationToFull[$month]['name'];
-                    if (!isset($grouped[$complexName][$year . '.' . $monthName])) {
-                        $grouped[$complexName][$year . '.' . $monthName] = [];
+                    if ($value !== null) {
+                        $monthName = self::MonthAbbrreviationToFull[$month]['name'];
+                        if (!isset($grouped[$complexName][$year . '.' . $monthName])) {
+                            $grouped[$complexName][$year . '.' . $monthName] = [];
+                        }
+                        if (!isset($grouped[$complexName][$year . '.' . $monthName][$rawSource])) {
+                            $grouped[$complexName][$year . '.' . $monthName][$rawSource] = ["metric" => $rawUnit, "total" => 0.0];
+                        }
+                        $grouped[$complexName][$year . '.' . $monthName][$rawSource]['total'] += $value;
                     }
-                    if (!isset($grouped[$complexName][$year . '.' . $monthName][$rawSource])) {
-                        $grouped[$complexName][$year . '.' . $monthName][$rawSource] = ["metric" => $rawUnit, "total" => 0.0];
-                    }
-                    $grouped[$complexName][$year . '.' . $monthName][$rawSource]['total'] += $value;
                 }
             }
+            $monthOrder = [
+                'január' => 1,
+                'február' => 2,
+                'március' => 3,
+                'április' => 4,
+                'május' => 5,
+                'június' => 6,
+                'július' => 7,
+                'augusztus' => 8,
+                'szeptember' => 9,
+                'október' => 10,
+                'november' => 11,
+                'december' => 12
+            ];
+            foreach ($grouped as $complexName => &$monthsData) {
+                uksort($monthsData, function ($a, $b) use ($monthOrder) {
+                    $posA = strpos($a, '.');
+                    $yearA = substr($a, 0, $posA);
+                    $monthNameA = mb_strtolower(substr($a, $posA + 1));
+
+                    $posB = strpos($b, '.');
+                    $yearB = substr($b, 0, $posB);
+                    $monthNameB = mb_strtolower(substr($b, $posB + 1));
+
+                    if ($yearA !== $yearB) {
+                        return $yearA <=> $yearB;
+                    }
+
+                    $indexA = $monthOrder[$monthNameA] ?? 0;
+                    $indexB = $monthOrder[$monthNameB] ?? 0;
+
+                    return $indexA <=> $indexB;
+                });
+            }
+            unset($monthsData);
         }
         return $grouped;
     }
@@ -369,7 +408,7 @@ class AuditService
                         $replacements[] = [
                             "consumption_month#{$complex_index}" => self::xmlEscape($month),
                             "consumption_carrier#{$complex_index}" => self::xmlEscape($source),
-                            "consumption_amount#{$complex_index}" => self::xmlEscape(number_format($value['total'], 2, '.', ',') . $value['metric'])
+                            "consumption_amount#{$complex_index}" => self::xmlEscape(number_format($value['total'], 2, '.', ',') . ' ' . $value['metric'])
                         ];
                     }
                 }
@@ -382,169 +421,140 @@ class AuditService
         }
     }
 
-    public static function buildStandingTree(
-        int $standingId,
-        array &$standingsById,
-        array &$childrenByParent,
-        \PhpOffice\PhpWord\Element\Table &$table,
-        int $level = 0
-    ): void {
-        if (!isset($standingsById[$standingId]))
-            return;
-
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $standing = $standingsById[$standingId];
-        $totalConsumption = self::calculateTotalConsumption($standing['consumption'], $standing['source']);
-
-        $rawUnit = self::$energyMeasurements[$standing['measurement']] ?? $standing['measurement'];
-        $unitLabel = $xmlEscape($rawUnit);
-
-        $formattedValue = number_format($totalConsumption, 0, ',', ' ') . ' ' . $unitLabel;
-
-        $table->addRow(null, ['cantSplit' => true]);
-
-        $fontStyle = [
-            'bold' => ($level === 0),
-            'size' => ($level === 0) ? 10 : 9.5
-        ];
-
-        $cellOptions = ['valign' => 'top'];
-
-        $nameColWidth = 2000;
-        $deadCellColWidth = 3000;
-        $valueColWidth = 3000;
-
-        $nameCell = $table->addCell($nameColWidth, $cellOptions);
-        $standingName = $xmlEscape($standing['name']);
-
-        if ($level === 0) {
-            $nameParagraphStyle = [
-                'alignment' => 'left',
-                'spaceAfter' => 20,
-                'spaceBefore' => 20
-            ];
-            $nameCell->addText($standingName, $fontStyle, $nameParagraphStyle);
-        } else {
-            $nameParagraphStyle = [
-                'alignment' => 'right',
-                'rightIndent' => 200,
-                'spaceAfter' => 20,
-                'spaceBefore' => 20
-            ];
-            $nameCell->addText('• ' . $standingName, $fontStyle, $nameParagraphStyle);
-        }
-
-        $deadCell = $table->addCell($deadCellColWidth, $cellOptions);
-
-        $valueCell = $table->addCell($valueColWidth, $cellOptions);
-        $valueParagraphStyle = [
-            'alignment' => 'left',
-            'spaceAfter' => 20,
-            'spaceBefore' => 20
-        ];
-        $valueCell->addText('Fogyasztás: ' . $formattedValue, $fontStyle, $valueParagraphStyle);
-
-        if (isset($childrenByParent[$standingId])) {
-            foreach ($childrenByParent[$standingId] as $childId) {
-                self::buildStandingTree($childId, $standingsById, $childrenByParent, $table, $level + 1);
+    public static function buildStandingHierarchy(array $data)
+    {
+        /* 
+            $hierarchy = [
+                ["mainName" => name, "subName" => name, "total" => total]
+            ]
+        */
+        $hierarchy = [];
+        foreach ($data as $standingRow) {
+            if ($standingRow['measurement_type'] !== 'MAIN') {
+                continue;
+            }
+            $mainId = $standingRow['id'];
+            $mainName = self::xmlEscape($standingRow['name']);
+            $unitName = self::xmlEscape(self::EnergyMeasurements[$standingRow['measurement']]);
+            $total = number_format(self::calculateTotalConsumption($standingRow['consumption']), 2, '.', ',');
+            $hierarchy[] = ["network_mainstanding" => $mainName, "network_subto" => "-", "network_consumption" => $total . " " . $unitName];
+            foreach ($data as $subStandings) {
+                if ($subStandings['measurement_type'] === 'MAIN' || $subStandings['sub_to'] !== $mainId) {
+                    continue;
+                }
+                $subName = self::xmlEscape($subStandings['name']);
+                $subTotal = number_format(self::calculateTotalConsumption($subStandings['consumption']), 2, '.', ',');
+                $hierarchy[] = ["network_mainstanding" => $mainName, "network_subto" => $subName, "network_consumption" => $subTotal . " " . $unitName];
             }
         }
+        return $hierarchy;
     }
 
-    public static function buildBuildingsTable(\PhpOffice\PhpWord\Element\Table &$table, array &$buildings, array &$improveable_list)
+    public static function createStandingHierarchySection(array $data, TemplateProcessor $templateProcessor)
     {
-        // Biztonságos XML escape segédfüggvény
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
+        $templateProcessor->cloneRowAndSetValues("network_standing_row", $data);
+    }
 
-        $colWidths = [
-            'building' => 2500,
-            'complex' => 2300,
-            'qf' => 2200,
-            'status' => 2000
-        ];
+    public static function buildBuildingRows(array $data, array &$improveable_list)
+    {
+        /*
 
-        // Stílusok a fejléchez
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-
-        $headerCell1 = $table->addCell($colWidths['building'], $headerCellStyle);
-        $headerCell1->addText("Épület\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
-
-        $headerCell2 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $headerCell2->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
-
-        $headerCell3 = $table->addCell($colWidths['qf'], $headerCellStyle);
-        $headerCell3->addText("Kalkulált fajlagos\nenergiafelhasználás", $headerFontStyle, $headerParagraphStyle);
-
-        $headerCell4 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $headerCell4->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleLeft = [
-            'alignment' => 'left',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($buildings as $b) {
-            $table->addRow(null, ['cantSplit' => true]);
-            $qfValue = is_numeric($b['qf']) ? (float) $b['qf'] : 0;
-            $statusText = ($qfValue > 150) ? 'Fejlesztendő' : 'Megfelelő';
-
-            $buildingNameRaw = $b['building_name'] ?? '';
-            $complexNameRaw = $b['complex_name'] ?? '';
-
-            if ($qfValue > 150) {
+        $grouped = [
+            ["building_listing_name" => name, "building_listing_complex" => complex, "building_listing_qf" => qf, "building_listing_status" => status]
+        ]
+        */
+        $grouped = [];
+        foreach ($data as $buildingRow) {
+            $buildingName = self::xmlEscape($buildingRow['building_name']);
+            $complexName = self::xmlEscape($buildingRow['complex_name']);
+            $qf = self::xmlEscape(number_format((float) $buildingRow['qf'], 2, ".", ",") . " kWh/m²a");
+            $status = '';
+            if ((float) $buildingRow['qf'] > 150) {
                 if (!isset($improveable_list['building'])) {
                     $improveable_list['building'] = [];
                 }
-                $improveable_list['building'][] = $buildingNameRaw;
+                $improveable_list['building'][] = $buildingName;
+                $status = self::xmlEscape("Fejlesztendő");
+            } else {
+                $status = self::xmlEscape("Megfelelő");
             }
+            $grouped[] = ["building_listing_name" => $buildingName, "building_listing_complex" => $complexName, "building_listing_qf" => $qf, "building_listing_status" => $status];
+        }
+        usort($grouped, function ($a, $b) {
+            return strcasecmp($a['building_listing_complex'], $b['building_listing_complex']);
+        });
+        return $grouped;
+    }
+    public static function createBuildingListingSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        $templateProcessor->cloneRowAndSetValues("building_listing_row", $data);
+    }
 
-            $cell1 = $table->addCell($colWidths['building'], $dataCellStyle);
-            $cell1->addText($xmlEscape($buildingNameRaw), null, $dataParagraphStyleLeft);
+    public static function calculateHeaterPoints(array $heater): array
+    {
+        $points = 100 * self::CARRIER_VALUES[$heater['carrier']] * self::REGULATION_VALUES[$heater['regulation']] * self::STATE_VALUES[$heater['state']];
+        return [
+            "points" => round($points, 2),
+            "status" => ($points > 60.0 ? "Megfelelő" : "Fejlesztendő")
+        ];
+    }
 
-            $cell2 = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $cell2->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleLeft);
+    public static function buildHeatingListingRows(array $data, array &$improveable_list)
+    {
+        /*
+        $grouped = [
+            ['heating_listing_complex' => complex, 'heating_listing_name' => name, 'heating_listing_type' => type, 'heating_listing_points' => points, 'heating_listing_status'=>status]
+        ]
+        */
+        if (empty($data) || !is_array($data)) {
+            return [];
+        }
+        $grouped = [];
+        foreach ($data as $heatingRow) {
+            $heaters = json_decode($heatingRow['heaters'], true);
+            if (!is_array($heaters))
+                continue;
+            $complex_name = self::xmlEscape($heatingRow['complex_name']);
+            foreach ($heaters as $index => $heater) {
+                $heaterName = self::xmlEscape($heater['name']);
+                $heaterType = self::xmlEscape($heater['heatingType']);
+                $heaterCalculated = self::calculateHeaterPoints($heater);
+                if ($heaterCalculated['status'] == 'Fejlesztendő') {
+                    if (!isset($improveable_list['heaters'])) {
+                        $improveable_list['heaters'] = [];
+                    }
+                    $improveable_list['heaters'][] = $heaterName;
+                }
+                $heaterPoints = self::xmlEscape($heaterCalculated['points']);
+                $heaterStatus = self::xmlEscape($heaterCalculated['status']);
+                $grouped[] = ['heating_listing_complex#1' => $complex_name, 'heating_listing_name#1' => $heaterName, 'heating_listing_type#1' => $heaterType, 'heating_listing_points#1' => $heaterPoints, 'heating_listing_status#1' => $heaterStatus];
+            }
+        }
+        usort($grouped, function ($a, $b) {
+            return strcasecmp($a['heater_listing_complex'], $b['heater_listing_complex']);
+        });
+        return $grouped;
+    }
 
-            $cell3 = $table->addCell($colWidths['qf'], $dataCellStyle);
-            $formattedQf = number_format($qfValue, 2, ',', ' ') . ' kWh/m²a';
-            $cell3->addText($formattedQf, null, $dataParagraphStyleCenter);
+    public static function createHeatingListingSection(array $data, TemplateProcessor $templateProcessor, int &$sectionIndex, string $companyName)
+    {
+        if (empty($data)) {
+            $templateProcessor->setValue("subheading_building_heating", "");
+            $templateProcessor->setValue("heating_intro", "");
+            $templateProcessor->setValue("heating_subtext", "");
+            $templateProcessor->deleteBlock("block_heating");
+        } else {
+            $subheading_text = self::xmlEscape("7." . $sectionIndex . ". Épületek fűtése");
+            $heatingIntro = self::xmlEscape("A(z) " . $companyName . " az alábbi fűtési rendszerekkel rendelkezik:");
+            $heatingSubtext = self::xmlEscape("A pontszám megállapításánál figyelembe vett szempontok: karbonintenzitás, elérhetőség, technológia korszerűsége, illetve a berendezés aktuális műszaki állapota.");
 
-            $cell4 = $table->addCell($colWidths['status'], $dataCellStyle);
-            $cell4->addText($statusText, null, $dataParagraphStyleCenter);
+            $templateProcessor->setValue("subheading_building_heating", $subheading_text);
+            $templateProcessor->setValue("heating_intro", $heatingIntro);
+            $templateProcessor->setValue("heating_subtext", $heatingSubtext);
+
+            $templateProcessor->cloneBlock("block_heating", 1, true, true);
+            $templateProcessor->cloneRowAndSetValues("heating_listing_row#1", $data);
+            $sectionIndex++;
         }
     }
 
@@ -2029,15 +2039,6 @@ class AuditService
         }
 
         return $normTable[$closestCapacity] ?? 0.0;
-    }
-
-    public static function calculateHeaterPoints(array $heater): array
-    {
-        $points = 100 * self::CARRIER_VALUES[$heater['carrier']] * self::REGULATION_VALUES[$heater['regulation']] * self::STATE_VALUES[$heater['state']];
-        return [
-            "points" => round($points, 2),
-            "status" => ($points > 60.0 ? "Megfelelő" : "Fejlesztendő")
-        ];
     }
 
     public const CARRIER_VALUES = [

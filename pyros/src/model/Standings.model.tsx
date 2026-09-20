@@ -21,6 +21,9 @@ export enum EnergyMeasurements {
     MCUBE = 'm3',
     GJ = 'GJ',
     MWH = 'MWh',
+    L = 'liter',
+    KG = 'kg',
+    T = 'tonna',
 }
 
 export enum MeasurementTypes {
