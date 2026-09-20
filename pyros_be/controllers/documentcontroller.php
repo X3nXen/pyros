@@ -166,37 +166,87 @@ class DocumentController
 
             $heaterData = AuditService::buildHeatingListingRows($allHeating, $improveable_list);
             AuditService::createHeatingListingSection($heaterData, $templateProcessor, $starterIndex, $companyName);
+
+            //7.3? - HMV készítés - later, when change is implemented regarding HMV systems
+            $hmvData = [];
+            AuditService::createHMVListingSection($hmvData, $templateProcessor, $starterIndex, $companyName);
+            //7.4? - Világítási rendszerek
+
+            $stmt = $db->prepare("SELECT l.name, l.specific_sum, s.consumption, s.source, c.name as complex_name, l.size, b.size as building_size, l.solution FROM lighting_systems l join standings s on l.standing = s.id join complex c on c.id = l.complex join buildings b on b.id=l.building where l.project_id =:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allLighting = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $lightingData = AuditService::buildLightingListingRows($allLighting, $improveable_list);
+            AuditService::createLightingListingSection($lightingData, $templateProcessor, $starterIndex, $companyName);
+
+            //7.5? - Hűtési rendszerek
+            $stmt = $db->prepare("SELECT h.heaters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='COOL' OR purpose='BOTH')");
+            $stmt->execute([':projectId' => $project_id]);
+            $allCooling = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $coolingData = AuditService::buildCoolingListingRows($allCooling, $improveable_list);
+            AuditService::createCoolingListingSection($coolingData, $templateProcessor, $starterIndex, $companyName);
+
+            //7.6? - Légkezelő rendszerek
+
+            $stmt = $db->prepare("SELECT v.name, c.name as complex_name, b.name as building_name, v.sfp, v.category, v.json from ventilation_systems v join complex c on c.id=v.complex join buildings b on v.building = b.id WHERE v.project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allHvac = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $hvacData = AuditService::buildHVACListingRows($allHvac, $improveable_list);
+            AuditService::createHVACListingSection($hvacData, $templateProcessor, $starterIndex, $companyName);
+
+            // 8. - Szállítás értékelése
+            $stmt = $db->prepare("SELECT 
+                                    v.name AS vehicle_name, 
+                                    c.name AS complex_name, 
+                                    v.usage_value, 
+                                    v.usage_value2, 
+                                    v.usage_metric,
+                                    v.vehicle_category,
+                                    v.motor_size,
+                                    v.hibrid,
+                                    v.fuel,
+                                    v.chargeable,
+                                    v.capacity,
+                                    s.consumption,
+                                    s.measurement_type,
+                                    s.measurement, 
+                                    s.source 
+                                  FROM vehicles v 
+                                  JOIN complex c ON v.complex_id = c.id 
+                                  LEFT JOIN standings s ON v.standing_id = s.id 
+                                  WHERE v.project_id = :projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $vehicleData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $vehicleListing = AuditService::buildVehicleListingRows($vehicleData, $improveable_list);
+            AuditService::createVehicleListingSection($vehicleListing, $templateProcessor);
+
+            // 10. Technológia értékelése
+            $sectionOffset = 9;
+            $stmt = $db->prepare("SELECT t.id, t.name, t.json, c.name as complex_name, t.technology_type FROM technology t join complex c on t.complex = c.id WHERE t.project_id = :projectId ORDER BY id ASC");
+            $stmt->execute([':projectId' => $project_id]);
+            $technologies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            AuditService::createTechnologySection($technologies, $templateProcessor, $sectionOffset);
+
+            //11. Fogyasztások felosztása
+
+            AuditService::createConsumptionList($carrierRows, $templateProcessor, false);
+
+            // 12?. Energia teljesítmény mutató meghatározása
+
+            $stmt = $db->prepare("SELECT product_name, metric, is_primary, json FROM product WHERE project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allProduct = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $productListing = AuditService::buildProductListingRows($allProduct, $carrierRows);
+            AuditService::createProductListingSection($productListing, $templateProcessor);
+
+            // 13?. Javaslatok és források
+            AuditService::createImproveableListingSection($improveable_list, $templateProcessor);
             /*
-
-                        // - Fűtési rendszerek értékelése
-                        $starterIndex = 2;
-
-                        // --- 1. FŰTÉSI RENDSZEREK ---
-                        $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name as complex_name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
-                        $stmt->execute([':projectId' => $project_id]);
-                        $allHeating = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        $heatingTable = new \PhpOffice\PhpWord\Element\Table([
-                            'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                            'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                        ]);
-
-                        if (empty($allHeating)) {
-                            $templateProcessor->setValue("subheading_building_heating", "");
-                            $templateProcessor->setValue("heating_intro", "");
-                            $templateProcessor->setValue("heating_subtext", "");
-                            $templateProcessor->setValue('heating_listing', "");
-                        } else {
-                            $templateProcessor->setValue("subheading_building_heating", "7." . $starterIndex . ". Épületek fűtése");
-                            AuditService::buildHeatingTable($heatingTable, $allHeating, $improveable_list);
-                            $heatingIntro = "A(z) " . AuditService::xmlEscape($companyName) . " az alábbi fűtési rendszerekkel rendelkezik:";
-                            $heatingSubtext = "A pontszám megállapításánál figyelembe vett szempontok: karbonintenzitás, elérhetőség, technológia korszerűsége, illetve a berendezés aktuális műszaki állapota.";
-
-                            $templateProcessor->setComplexValue('heating_listing', $heatingTable);
-                            $templateProcessor->setValue("heating_intro", $heatingIntro);
-                            $templateProcessor->setValue("heating_subtext", $heatingSubtext);
-                            $starterIndex++;
-                        }
 
                         // --- 2. HMV RENDSZEREK (Javított biztonságos ellenőrzéssel) ---
                         $emittersData = !empty($allHeating) ? json_decode($allHeating[0]['emitters'] ?? '[]', true) : [];
@@ -222,139 +272,6 @@ class DocumentController
                             $templateProcessor->setValue("hmv_subtext", $hmvSubtext);
 
                             $starterIndex++;
-                        }
-
-                        // --- 3. VILÁGÍTÁSI RENDSZEREK ---
-                        $stmt = $db->prepare("SELECT l.name, l.specific_sum, s.consumption, s.source, c.name as complex_name, l.size, b.size as building_size, l.solution FROM lighting_systems l join standings s on l.standing = s.id join complex c on c.id = l.complex join buildings b on b.id=l.building where l.project_id =:projectId");
-                        $stmt->execute([":projectId" => $project_id]);
-                        $allLighting = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if (empty($allLighting)) {
-                            $templateProcessor->setValue("subheading_building_lighting", "");
-                            $templateProcessor->setValue("lighting_intro", "");
-                            $templateProcessor->setValue("lighting_subtext", "");
-                            $templateProcessor->setValue('lighting_listing', "");
-                        } else {
-                            $templateProcessor->setValue("subheading_building_lighting", "7." . $starterIndex . ". Világítási rendszerek");
-                            $lightingTable = new \PhpOffice\PhpWord\Element\Table([
-                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                            ]);
-                            $lightingIntro = "A(z) " . AuditService::xmlEscape($companyName) . " az alábbi világítási zónákkal és rendszerekkel rendelkezik:";
-                            $lightingSubtext = "A fajlagos érték kialakításánál az alábbi szempontok kerültek figyelembevételre: világítótest fajtája (Fénycső, Halogénizzó, LED, stb.), szabályozás módja (Kézi vagy Automatikus működtetés).";
-
-                            AuditService::buildLightingTable($lightingTable, $allLighting);
-                            $templateProcessor->setComplexValue("lighting_listing", $lightingTable);
-                            $templateProcessor->setValue("lighting_intro", $lightingIntro);
-                            $templateProcessor->setValue("lighting_subtext", $lightingSubtext);
-                            $starterIndex++;
-                        }
-
-                        // --- 4. KOMFORTHŰTÉS RENDSZEREK ---
-                        $stmt = $db->prepare("SELECT h.heaters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='COOL' OR purpose='BOTH')");
-                        $stmt->execute([':projectId' => $project_id]);
-                        $allCooling = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if (empty($allCooling)) {
-                            if (method_exists($templateProcessor, 'cloneBlock')) {
-                                $templateProcessor->cloneBlock('cooling_blocking', 0, true, false);
-                            }
-                            $templateProcessor->setValue("subheading_building_cooling", "");
-                            $templateProcessor->setValue("cooling_intro", "");
-                            $templateProcessor->setValue("cooling_subtext", "");
-                            $templateProcessor->setValue('cooling_listing', "");
-                        } else {
-                            $templateProcessor->cloneBlock('cooling_blocking', 1, true, false);
-                            $templateProcessor->setValue("subheading_building_cooling", "7." . $starterIndex . ". Komforthűtési rendszerek");
-                            $coolingTable = new \PhpOffice\PhpWord\Element\Table([
-                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                            ]);
-
-                            $coolingIntro = "A(z) " . AuditService::xmlEscape($companyName) . " az alábbi komforthűtési rendszerekkel rendelkezik:";
-                            $coolingSubtext = "A százalékos érték kialakításánál az alábbi szempontok kerültek figyelembevételre: alkalmazott hűtőközeg GWP értéke, berendezés működési módja (időjáráshoz alkalmazkodik vagy sem), berendezés műszaki állapota és az üzemelés körülményei.";
-
-                            AuditService::buildCoolingTable($coolingTable, $allCooling, $improveable_list);
-
-                            $templateProcessor->setValue("cooling_intro", $coolingIntro);
-                            $templateProcessor->setValue("cooling_subtext", $coolingSubtext);
-                            $templateProcessor->setComplexValue('cooling_listing', $coolingTable);
-                            $starterIndex++;
-                        }
-
-                        // --- 5. LÉGKEZELŐ RENDSZEREK ---
-                        $stmt = $db->prepare("SELECT v.name, c.name as complex_name, b.name as building_name, v.sfp, v.category, v.json from ventilation_systems v join complex c on c.id=v.complex join buildings b on v.building = b.id WHERE v.project_id=:projectId");
-                        $stmt->execute([":projectId" => $project_id]);
-                        $allHvac = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if (empty($allHvac)) {
-                            if (method_exists($templateProcessor, 'cloneBlock')) {
-                                $templateProcessor->cloneBlock('hvac_blocking', 0, true, false);
-                            }
-                            $templateProcessor->setValue("subheading_building_hvac", "");
-                            $templateProcessor->setValue("hvac_intro", "");
-                            $templateProcessor->setValue("hvac_subtext", "");
-                            $templateProcessor->setValue('hvac_listing', "");
-                        } else {
-                            $templateProcessor->cloneBlock('hvac_blocking', 1, true, false);
-                            $templateProcessor->setValue("subheading_building_hvac", "7." . $starterIndex . ". Légtechnikai rendszerek");
-                            $hvacTable = new \PhpOffice\PhpWord\Element\Table([
-                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                            ]);
-
-                            $hvacIntro = "A(z) " . AuditService::xmlEscape($companyName) . " az alábbi légtechnikai rendszerekkel rendelkezik:";
-                            $hvacSubtext = "Értelmezés: az SFP érték, hővisszanyerési hatékonyság és a szigeteltségi állapot 90% érték alatt fejlesztendő.";
-
-                            AuditService::buildHVACTable($hvacTable, $allHvac, $improveable_list);
-
-                            $templateProcessor->setComplexValue('hvac_listing', $hvacTable);
-                            $templateProcessor->setValue("hvac_intro", $hvacIntro);
-                            $templateProcessor->setValue("hvac_subtext", $hvacSubtext);
-                            $starterIndex++;
-                        }
-
-                        //Szállítás értékelése
-                        $stmt = $db->prepare("SELECT 
-                                    v.name AS vehicle_name, 
-                                    c.name AS complex_name, 
-                                    v.usage_value, 
-                                    v.usage_value2, 
-                                    v.usage_metric,
-                                    v.vehicle_category,
-                                    v.motor_size,
-                                    v.hibrid,
-                                    v.fuel,
-                                    v.chargeable,
-                                    v.capacity,
-                                    s.consumption,
-                                    s.measurement_type,
-                                    s.measurement, 
-                                    s.source 
-                                  FROM vehicles v 
-                                  JOIN complex c ON v.complex_id = c.id 
-                                  LEFT JOIN standings s ON v.standing_id = s.id 
-                                  WHERE v.project_id = :projectId");
-                        $stmt->execute([':projectId' => $project_id]);
-                        $vehicleData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if (!empty($vehicleData)) {
-                            $vehiclesTable = new \PhpOffice\PhpWord\Element\Table([
-                                'borderSize' => 6,
-                                'borderColor' => '000000',
-                                'cellMarginLeft' => 80,
-                                'cellMarginRight' => 80,
-                                'cellMarginTop' => 60,
-                                'cellMarginBottom' => 60,
-                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                            ]);
-
-                            AuditService::buildVehiclesTable($vehiclesTable, $vehicleData, $improveable_list);
-
-                            $templateProcessor->setComplexValue('vehicle_listing', $vehiclesTable);
-                        } else {
-                            $templateProcessor->setValue('vehicle_listing', AuditService::xmlEscape('Nincs megadott szállítási / jármű adat.'));
                         }
 
                         //Technológia értékelése
@@ -474,99 +391,7 @@ class DocumentController
                             $templateProcessor->setValue("technology_offset_2_index", 11);
                             $templateProcessor->setValue("technology_offset_3_index", 12);
                         }
-
-                        // Energia teljesítmény mutató
-
-                        $stmt = $db->prepare("SELECT product_name, metric, is_primary, json FROM product WHERE project_id=:projectId");
-                        $stmt->execute([":projectId" => $project_id]);
-                        $allProduct = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if (!empty($allProduct)) {
-                            $productTable = new \PhpOffice\PhpWord\Element\Table([
-                                'borderSize' => 6,
-                                'borderColor' => '000000',
-                                'cellMargin' => 80
-                            ]);
-                            AuditService::buildProductTable($productTable, $allProduct, $auditInterval);
-                            $templateProcessor->setComplexValue("product_listing", $productTable);
-                        } else {
-                            $templateProcessor->setValue('product_listing', AuditService::xmlEscape('Nincs megadott termék adat.'));
-                        }
-
-                        $totalActivityEnergyKwH = 0.0;
-
-                        if (!empty($carrierRows)) {
-                            foreach ($carrierRows as $cRow) {
-                                $cleanProductValue = str_replace([' ', ','], ['', '.'], $cRow['carrier_product'] ?? '0');
-                                $totalActivityEnergyKwH += (float) $cleanProductValue;
-                            }
-                        }
-
-                        $primaryProduct = null;
-                        foreach ($allProduct as $prod) {
-                            if (!empty($prod['is_primary'])) {
-                                $primaryProduct = $prod;
-                                break;
-                            }
-                        }
-
-                        if (!$primaryProduct && !empty($allProduct)) {
-                            $primaryProduct = $allProduct[0];
-                        }
-
-                        if ($primaryProduct) {
-                            $rawProductName = $primaryProduct['product_name'] ?? '';
-                            $metric = $primaryProduct['metric'] ?? '';
-
-                            $productNameLabel = $rawProductName;
-                            if (!empty($metric)) {
-                                $productNameLabel .= ' (' . $metric . ')';
-                            }
-
-                            $templateProcessor->setValue('product_name', AuditService::xmlEscape($productNameLabel));
-
-                            $jsonData = json_decode($primaryProduct['json'] ?? '{}', true);
-                            $primaryAmountSum = (float) ($jsonData['sum'] ?? 0.0);
-
-                            if ($primaryAmountSum > 0) {
-                                $etmValue = $totalActivityEnergyKwH / $primaryAmountSum;
-                                $formattedEtm = number_format($etmValue, 2, ',', ' ') . ' kWh/' . $metric;
-
-                                $templateProcessor->setValue('ETM', AuditService::xmlEscape($formattedEtm));
-                            } else {
-                                $templateProcessor->setValue('ETM', AuditService::xmlEscape('-'));
-                            }
-                        } else {
-                            $templateProcessor->setValue('product_name', AuditService::xmlEscape('főtermék'));
-                            $templateProcessor->setValue('ETM', AuditService::xmlEscape('-'));
-                        }
-
-                        AuditService::xmlEscape = function ($val) {
-                            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-                        };
-
-                        $formatItems = function (array $items) use (AuditService::xmlEscape): string {
-                            if (empty($items)) {
-                                return 'Nem azonosítottunk fejlesztési lehetőséget.';
-                            }
-                            return implode(', ', array_map(AuditService::xmlEscape, $items));
-                        };
-
-                        $templateProcessor->setValue('suggestion_a', AuditService::xmlEscape($formatItems($improveable_list['building'] ?? [])));
-
-                        $mepItems = array_merge(
-                            $improveable_list['hmv'] ?? [],
-                            $improveable_list['coolers'] ?? [],
-                            $improveable_list['hvac'] ?? []
-                        );
-                        $templateProcessor->setValue('suggestion_b', AuditService::xmlEscape($formatItems($mepItems)));
-                        $templateProcessor->setValue('suggestion_c', AuditService::xmlEscape($formatItems($improveable_list['technology'] ?? [])));
-                        $templateProcessor->setValue('suggestion_d', AuditService::xmlEscape($formatItems($improveable_list['vehicle'] ?? [])));
-                        $templateProcessor->setValue('suggestion_e', AuditService::xmlEscape($formatItems($improveable_list['heaters'] ?? [])));
-            */
-            //9. Fogyasztások felosztása
-
-            AuditService::createConsumptionList($carrierRows, $templateProcessor, false);
+*/
             // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';
             $outputDir = __DIR__ . '/generated';

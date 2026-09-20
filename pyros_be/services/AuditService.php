@@ -48,6 +48,113 @@ class AuditService
         'dec' => ['name' => 'december', 'num' => '12'],
     ];
 
+    public const CARRIER_VALUES = [
+        "H hőszivattyús elektromos áram" => 1.0,
+        "Biogáz" => 0.9,
+        "Távfűtés" => 0.8,
+        "Biomassza" => 0.75,
+        "Pellet" => 0.72,
+        "Csúcson kívüli elektromos áram" => 0.68,
+        "Elektromos áram" => 0.65,
+        "Földgáz" => 0.58,
+        "Tűzifa" => 0.52,
+        "PB-gáz" => 0.45,
+        "Tüzelőolaj" => 0.3,
+        "Szén" => 0.15,
+        "Egyéb" => 0.5
+    ];
+
+    public const REGULATION_VALUES = [
+        "Időjárásfüggő szabályozás" => 1.0,
+        "Központi értékről történő szabályozás" => 0.85,
+        "Fix értéktartás" => 0.7
+    ];
+
+    public const STATE_VALUES = [
+        "NEW" => 1.0,
+        "SERVICED" => 0.9,
+        "UNRELIABLE" => 0.5,
+        "OOO" => 0.0
+    ];
+
+    public const HMV_REGULATION_VALUES = [
+        "Nincs" => 0.0,
+        "Hőmérsékletre" => 33.3,
+        "Időprogramra" => 66.7,
+        "Hőmérsékletre és időprogramra" => 100
+    ];
+
+    public const COOLER_TYPES = [
+        'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)',
+        'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)',
+        'Elektromos üzemű hőszivattyú talajhő hőforrással',
+        'Elektromos üzemű hőszivattyú víz hőforrással',
+        'VRV/VRF',
+        'Split klíma',
+        'Technológiai hűtés (hőszivattyú)',
+        'Technológiai hűtés (folyadékhűtő)',
+        'Technológiai hűtés',
+        'Folyadékhűtő',
+        'Hőszivattyú'
+    ];
+
+    public const HEATER_DESCRIPTIONS = [
+        "NEW" => 0,
+        "SERVICED" => -0.02,
+        "UNRELIABLE" => -0.05,
+        "OOO" => -0.05
+    ];
+
+    public const HEATER_ELECTRIC_CALC_MODE = [
+        "Ismeretlen" => 0,
+        "On/Off működés, 1 hűtőkör" => 0.95,
+        "Többfokozatú működés, hűtőkörönként több kompresszor" => 1.04,
+        "Inverteres/fordulatszám szabályzott kompresszorok" => 1.18,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_INSTALLATION = [
+        "Ismeretlen" => 0,
+        "Gyári előírások betartásával, jól szellőző helyen" => 0,
+        "Részben zavart légárammal" => -0.05,
+        "Rosszul szellőző, zugos helyen" => -0.12,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_SOURCE = [
+        "Ismeretlen" => 0,
+        "Levegő" => -0.03,
+        "Nedvesített levegő" => 0,
+        "Talajszonda" => 0.04,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_MEDIUM = [
+        "Ismeretlen" => 0,
+        "Levegő" => 0,
+        "Víz (normál üzemi tartomány)" => -0.05,
+        "Víz (magas hőmérsékletű üzemi tartomány)" => -0.075,
+    ];
+
+    public const HEATER_ELECTRIC_CALC_REFRIGERANT = [
+        "Ismeretlen" => 0,
+        "R410A" => 0,
+        "R32" => 0.02,
+        "R454B" => 0.01,
+        "R407C" => -0.02,
+        "R22" => -0.04,
+        "R134A (állandó sebesség)" => 0,
+        "R134A (VSD/centrifugás)" => 0.01,
+        "R1234ze" => 0.01,
+        "R290" => 0.02,
+    ];
+    public const RETRIEVER_POINTS = [
+        "Keresztáramú" => [4, 6],
+        "Forgódobos" => [6, 10],
+        "Közvetítő közeges" => [2, 6],
+        "Hőcsöves" => [0, 0],
+        "Keverőkamra" => [0, 0],
+        "Egyéb" => [0, 0],
+        "Nincs" => [0, 0]
+    ];
+
     public static function processMonthlyConsumptionList(array $rawData)
     {
         /*
@@ -531,7 +638,7 @@ class AuditService
             }
         }
         usort($grouped, function ($a, $b) {
-            return strcasecmp($a['heater_listing_complex'], $b['heater_listing_complex']);
+            return strcasecmp($a['heater_listing_complex#1'], $b['heater_listing_complex#1']);
         });
         return $grouped;
     }
@@ -542,7 +649,7 @@ class AuditService
             $templateProcessor->setValue("subheading_building_heating", "");
             $templateProcessor->setValue("heating_intro", "");
             $templateProcessor->setValue("heating_subtext", "");
-            $templateProcessor->deleteBlock("block_heating");
+            $templateProcessor->cloneBlock("block_heating", 0, true, true);
         } else {
             $subheading_text = self::xmlEscape("7." . $sectionIndex . ". Épületek fűtése");
             $heatingIntro = self::xmlEscape("A(z) " . $companyName . " az alábbi fűtési rendszerekkel rendelkezik:");
@@ -558,108 +665,432 @@ class AuditService
         }
     }
 
-    public static function buildHeatingTable(\PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, array &$improveable_list)
+    public static function createHMVListingSection(array $data, TemplateProcessor $templateProcessor, int &$sectionIndex, string $companyName)
     {
-        // Biztonságos XML escape segédfüggvény
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $colWidths = [
-            'complex' => 1500,
-            'name' => 1500,
-            'type' => 3000,
-            'points' => 1000,
-            'status' => 2000
-        ];
-
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
-        $header2 = $table->addCell($colWidths['name'], $headerCellStyle);
-        $header2->addText("Hőtermelő\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
-        $header3 = $table->addCell($colWidths['type'], $headerCellStyle);
-        $header3->addText("Hőtermelő\ntípusa", $headerFontStyle, $headerParagraphStyle);
-        $header4 = $table->addCell($colWidths['points'], $headerCellStyle);
-        $header4->addText("Kalkulált\npontszám", $headerFontStyle, $headerParagraphStyle);
-        $header5 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $header5->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($heating_systems as $h) {
-            $heaters = json_decode($h['heaters'], true);
-            if (!is_array($heaters))
-                continue;
-
-            $complexNameRaw = $h['complex_name'] ?? '';
-
-            foreach ($heaters as $index => $heater) {
-                $table->addRow(null, ['cantSplit' => true]);
-
-                if ($index === 0) {
-                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
-                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                    $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
-                } else {
-                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
-                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                }
-
-                $heaterNameRaw = $heater['name'] ?? '';
-                $heaterTypeRaw = $heater['heatingType'] ?? '';
-
-                $heaterNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-                $heaterNameCell->addText($xmlEscape($heaterNameRaw), null, $dataParagraphStyleCenter);
-
-                $heaterTypeCell = $table->addCell($colWidths['type'], $dataCellStyle);
-                $heaterTypeCell->addText($xmlEscape($heaterTypeRaw), null, $dataParagraphStyleCenter);
-
-                $heaterPoints = self::calculateHeaterPoints($heater);
-                if ($heaterPoints['status'] === "Fejlesztendő") {
-                    if (!isset($improveable_list['heaters'])) {
-                        $improveable_list['heaters'] = [];
-                    }
-                    $improveable_list['heaters'][] = $heaterNameRaw;
-                }
-                $heaterPointCell = $table->addCell($colWidths['points'], $dataCellStyle);
-                $heaterPointCell->addText($xmlEscape($heaterPoints['points']), null, $dataParagraphStyleCenter);
-
-                $heaterStatusCell = $table->addCell($colWidths['status'], $dataCellStyle);
-                $heaterStatusCell->addText($xmlEscape($heaterPoints['status']), null, $dataParagraphStyleCenter);
-            }
+        if (empty($data)) {
+            $templateProcessor->setValue("subheading_building_hmv", "");
+            $templateProcessor->setValue("hmv_intro", "");
+            $templateProcessor->setValue("hmv_subtext", "");
+            $templateProcessor->cloneBlock("block_hmv", 0, true, true);
         }
     }
 
+    public static function buildLightingListingRows(array $data, array &$improveable_list)
+    {
+        /*
+        $grouped = [
+        lighting_listing_complex#1 => complex,
+        lighting_listing_zone#1 => zone,
+        lighting_listing_qf#1 => qf, 
+        lighting_listing_annual#1 => annual, 
+        lighting_listing_status => status
+        ]
+        */
+
+        $grouped = [];
+        foreach ($data as $index => $rowData) {
+            $complexName = self::xmlEscape($rowData['complex_name']);
+            $zoneName = self::xmlEscape($rowData['name']);
+            $specific_sum = self::xmlEscape(number_format($rowData['specific_sum'], 2, '.', ',') . 'kWh/m');
+            $annual_sum = self::xmlEscape(number_format(self::calculateTotalConsumption($rowData['consumption']), 2, '.', ',') . 'kWh');
+            $status = "";
+            if ($rowData['solution'] === "LED – bármely lámpatest-változat" && ((float) $rowData['building_size']) * 0.8 <= $rowData['size']) {
+                $status = self::xmlEscape('Megfelelő');
+            } else {
+                $status = self::xmlEscape('Fejlesztendő');
+                $improveable_list['lighting'][] = self::xmlEscape($zoneName . ' világítási rendszer');
+            }
+            $grouped[] = [
+                "lighting_listing_complex#1" => $complexName,
+                "lighting_listing_zone#1" => $zoneName,
+                "lighting_listing_qf#1" => $specific_sum,
+                "lighting_listing_annual#1" => $annual_sum,
+                "lighting_listing_status#1" => $status
+            ];
+        }
+        usort($grouped, function ($a, $b) {
+            return strcasecmp($a['lighting_listing_complex#1'], $b['lighting_listing_complex#1']);
+        });
+        return $grouped;
+    }
+
+    public static function createLightingListingSection(array $data, TemplateProcessor $templateProcessor, int &$sectionIndex, string $companyName)
+    {
+        if (empty($data)) {
+            $templateProcessor->setValue("subheading_building_lighting", "");
+            $templateProcessor->setValue("lighting_intro", "");
+            $templateProcessor->setValue("lighting_subtext", "");
+            $templateProcessor->cloneBlock("block_lighting", 0, true, true);
+        } else {
+            $subheading_text = self::xmlEscape("7." . $sectionIndex . ". Világítási rendszerek");
+            $lighting_intro = self::xmlEscape("A(z) " . $companyName . " az alábbi világítási zónákkal és rendszerekkel rendelkezik:");
+            $lighting_subtext = self::xmlEscape("A fajlagos érték kialakításánál az alábbi szempontok kerültek figyelembevételre: világítótest fajtája (Fénycső, Halogénizzó, LED, stb.), szabályozás módja (Kézi vagy Automatikus működtetés).");
+
+            $templateProcessor->setValue("subheading_building_lighting", $subheading_text);
+            $templateProcessor->setValue("lighting_intro", $lighting_intro);
+            $templateProcessor->setValue("lighting_subtext", $lighting_subtext);
+
+            $templateProcessor->cloneBlock("block_lighting", 1, true, true);
+            $templateProcessor->cloneRowAndSetValues("lighting_listing_row#1", $data);
+            $sectionIndex++;
+        }
+    }
+
+    public static function calculateCoolerPoints(array $cooler)
+    {
+        $energy_efficiency_multiplier = self::HEATER_ELECTRIC_CALC_MODE[$cooler['baseType']] *
+            (1 + self::HEATER_ELECTRIC_CALC_INSTALLATION[$cooler['placementType']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_MEDIUM[$cooler['ambientMedium']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_SOURCE[$cooler['heatTransfer']]) *
+            (1 + self::HEATER_ELECTRIC_CALC_REFRIGERANT[$cooler['refrigerant']]) *
+            (1 + self::HEATER_DESCRIPTIONS[$cooler['state']]);
+        $multiplier = max([1.03, min([1.5, $energy_efficiency_multiplier])]);
+        $scop_cop_ratio = round(($multiplier / 1) * 100, 2);
+        $base_points = ($scop_cop_ratio >= 120.8 ? 33 :
+            ($scop_cop_ratio >= 112.7 ? 30 :
+                ($scop_cop_ratio >= 104.5 ? 25 :
+                    ($scop_cop_ratio >= 96.4 ? 20 :
+                        ($scop_cop_ratio >= 88.2 ? 15 :
+                            ($scop_cop_ratio >= 80.0 ? 10 :
+                                ($scop_cop_ratio >= 71.9 ? 5 : 0)))))));
+        $regulation_points = match ($cooler['regulation']) {
+            'Fix értéktartás' => 0,
+            'Központi értékről történő szabályozás' => 5,
+            default => 10
+        };
+        $combined = $base_points + $regulation_points;
+        return [
+            "base" => round(($base_points / 33) * 100, 2),
+            "regulation" => round(($regulation_points / 10) * 100, 2),
+            "combined" => round(($combined / 43) * 100, 2),
+        ];
+    }
+
+    public static function buildCoolingListingRows(array $data, array &$improveable_list)
+    {
+        /*
+        grouped = [
+            [
+                "cooling_listing_complex#1" => complex, 
+                "cooling_listing_name#1" => name, 
+                "cooling_listing_type#1" => type
+                "cooling_listing_base#1" => base
+                "cooling_listing_reg#1" => reg
+                "cooling_listing_combined#1"=>combined
+            ]
+        ]
+        */
+        $grouped = [];
+        foreach ($data as $rowData) {
+            $coolers = json_decode($rowData['heaters'], true);
+            $complexName = self::xmlEscape($rowData['name']);
+
+            if (!is_array($coolers)) {
+                continue;
+            }
+
+            foreach ($coolers as $cooler) {
+                $coolerName = self::xmlEscape($cooler['name']);
+                $coolerType = self::xmlEscape($cooler['heatingType']);
+                $coolerPoints = self::calculateCoolerPoints($cooler);
+                if ($coolerPoints['combined'] < 75) {
+                    if (!isset($improveable_list['coolers'])) {
+                        $improveable_list['coolers'] = [];
+                    }
+                    $improveable_list['coolers'][] = $coolerName;
+                }
+                $coolerBase = self::xmlEscape(number_format($coolerPoints['base'], 2, '.', ',') . " %");
+                $coolerReg = self::xmlEscape(number_format($coolerPoints['regulation'], 2, '.', ',') . " %");
+                $coolerComb = self::xmlEscape(number_format($coolerPoints['combined'], 2, '.', ',') . " %");
+                $grouped[] = [
+                    "cooling_listing_complex#1" => $complexName,
+                    "cooling_listing_name#1" => $coolerName,
+                    "cooling_listing_type#1" => $coolerType,
+                    "cooling_listing_base#1" => $coolerBase,
+                    "cooling_listing_reg#1" => $coolerReg,
+                    "cooling_listing_combined#1" => $coolerComb
+                ];
+            }
+        }
+        usort($grouped, function ($a, $b) {
+            return strcasecmp($a['cooler_listing_complex#1'], $b['cooler_listing_complex#1']);
+        });
+        return $grouped;
+    }
+
+    public static function createCoolingListingSection(array $data, TemplateProcessor $templateProcessor, int &$sectionIndex, string $companyName)
+    {
+        if (empty($data)) {
+            $templateProcessor->setValue("subheading_building_cooling", "");
+            $templateProcessor->setValue("cooling_intro", "");
+            $templateProcessor->setValue("cooling_subtext", "");
+            $templateProcessor->cloneBlock("block_cooling", 0, true, true);
+        } else {
+            $subheading_text = self::xmlEscape("7." . $sectionIndex . ". Komforthűtési rendszerek");
+            $cooling_intro = self::xmlEscape("A(z) " . $companyName . " az alábbi komforthűtési rendszerekkel rendelkezik:");
+            $cooling_subtext = self::xmlEscape("A százalékos érték kialakításánál az alábbi szempontok kerültek figyelembevételre: alkalmazott hűtőközeg GWP értéke, berendezés működési módja (időjáráshoz alkalmazkodik vagy sem), berendezés műszaki állapota és az üzemelés körülményei.");
+
+            $templateProcessor->setValue("subheading_building_cooling", $subheading_text);
+            $templateProcessor->setValue("cooling_intro", $cooling_intro);
+            $templateProcessor->setValue("cooling_subtext", $cooling_subtext);
+
+            $templateProcessor->cloneBlock("block_cooling", 1, true, true);
+            $templateProcessor->cloneRowAndSetValues("cooling_listing_row#1", $data);
+            $sectionIndex++;
+        }
+    }
+
+    public static function calculateVentilationGoodness(array $hvacSystem, float $sfp): array
+    {
+        $sfp_points = match (true) {
+            $sfp < 500 => 15, $sfp < 750 => 13, $sfp < 1250 => 11,
+            $sfp < 2000 => 9, $sfp < 3000 => 7, $sfp < 4500 => 5,
+            default => 0
+        };
+        $sfp_goodness = round(($sfp_points / 15) * 100, 2);
+        $ins_thick = $hvacSystem['insulationWidth'] ?? 0;
+        $ins_point = match (true) {
+            $ins_thick < 10 => 0, $ins_thick < 20 => 1, $ins_thick < 40 => 2,
+            default => 3
+        };
+        $insulation_goodness = round(($ins_point / 3) * 100);
+        $hv_type = $hvacSystem['retriever'] ?? "Nincs";
+        $hv_year = (int) ($hvacSystem['retrieverYear'] ?? 0);
+        $hv_idx = ($hv_year < 2016) ? 0 : 1;
+        $hv_point = self::RETRIEVER_POINTS[$hv_type][$hv_idx] ?? 0;
+        $retriever_goodness = round(($hv_point / 10) * 100, 2);
+        return [
+            "sfp_goodness" => $sfp_goodness,
+            "retriever_goodness" => $retriever_goodness,
+            "insulation_goodness" => $insulation_goodness
+        ];
+    }
+    public static function buildHVACListingRows(array $data, array &$improveable_list)
+    {
+        /*
+        grouped = [
+            "hvac_listing_complex#1" => complex,
+            "hvac_listing_name#1" => name,
+            "hvac_listing_sfp#1" => sfp,
+            "hvac_listing_sfp_points#1" => sfp_points,
+            "hvac_listing_heat#1" => heat,
+            "hvac_listing_heat_points#1" => heat_points,
+            "hvac_listing_insulation#1" => insulation_points 
+        ]
+        */
+        $grouped = [];
+        foreach ($data as $rowData) {
+            $details = json_decode($rowData['json'], true);
+            $complexName = self::xmlEscape($rowData['complex_name']);
+            $systemName = self::xmlEscape($rowData['name']);
+            $sfpRaw = $rowData['sfp'] ?? 0;
+
+            $calculated = self::calculateVentilationGoodness($details, (float) $sfpRaw);
+
+            $avgGoodness = ($calculated["sfp_goodness"] + $calculated['retriever_goodness'] + $calculated['insulation_goodness']) / 3;
+            if ($avgGoodness < 75) {
+                if (!isset($improveable_list['hvac'])) {
+                    $improveable_list['hvac'] = [];
+                }
+                $improveable_list['hvac'][] = $systemName;
+            }
+
+            $sfp = self::xmlEscape(number_format($sfpRaw, 2, '.', ',') . " W/m3/s");
+            $sfp_points = self::xmlEscape($calculated['sfp_goodness'] . "%");
+            $retriever = self::xmlEscape($details['retriever']);
+            $retriever_points = self::xmlEscape($calculated['retriever_goodness'] . "%");
+            $insulation_points = self::xmlEscape($calculated['insulation_goodness'] . "%");
+            $grouped[] = [
+                "hvac_listing_complex#1" => $complexName,
+                "hvac_listing_name#1" => $systemName,
+                "hvac_listing_sfp#1" => $sfp,
+                "hvac_listing_sfp_points#1" => $sfp_points,
+                "hvac_listing_heat#1" => $retriever,
+                "hvac_listing_heat_points#1" => $retriever_points,
+                "hvac_listing_insulation#1" => $insulation_points
+            ];
+        }
+        usort($grouped, function ($a, $b) {
+            return strcasecmp($a['hvac_listing_complex#1'], $b['hvac_listing_complex#1']);
+        });
+        return $grouped;
+    }
+
+    public static function createHVACListingSection(array $data, TemplateProcessor $templateProcessor, int &$sectionIndex, string $companyName)
+    {
+        if (empty($data)) {
+            $templateProcessor->setValue("subheading_building_hvac", "");
+            $templateProcessor->setValue("hvac_intro", "");
+            $templateProcessor->setValue("hvac_subtext", "");
+            $templateProcessor->cloneBlock("block_hvac", 0, true, true);
+        } else {
+            $subheading_text = self::xmlEscape("7." . $sectionIndex . ". Komforthűtési rendszerek");
+            $hvac_intro = self::xmlEscape("A(z) " . $companyName . " az alábbi légtechnikai rendszerekkel rendelkezik:");
+            $hvac_subtext = self::xmlEscape("Értelmezés: az SFP érték, hővisszanyerési hatékonyság és a szigeteltségi állapot 90% érték alatt fejlesztendő.");
+
+            $templateProcessor->setValue("subheading_building_hvac", $subheading_text);
+            $templateProcessor->setValue("hvac_intro", $hvac_intro);
+            $templateProcessor->setValue("hvac_subtext", $hvac_subtext);
+
+            $templateProcessor->cloneBlock("block_hvac", 1, true, true);
+            $templateProcessor->cloneRowAndSetValues("hvac_listing_row#1", $data);
+            $sectionIndex++;
+        }
+    }
+
+    public static function buildVehicleListingRows(array $data, array &$improveable_list)
+    {
+        /*
+        $grouped = [
+            "vehicles_listing_name" => name,
+            "vehicles_listing_complex" => complex,
+            "vehicles_listing_qf" => qf,
+            "vehicles_listing_status" => status
+        ]
+        */
+        $grouped = [];
+        foreach ($data as $rowData) {
+            $vehicleName = self::xmlEscape($rowData['vehicle_name']);
+            $complexName = self::xmlEscape($rowData['complex_name']);
+            $calculated = self::calculateVehicleQf($rowData);
+            $qf = self::xmlEscape(number_format($calculated['qf'], 2, '.', ',') . $calculated['unit']);
+            $status = self::xmlEscape($calculated['status']);
+            if ($calculated['status'] === "Fejlesztendő") {
+                if (!isset($improveable_list['vehicle'])) {
+                    $improveable_list['vehicle'] = [];
+                }
+                $improveable_list['vehicle'][] = $vehicleName;
+            }
+            $grouped[] = [
+                "vehicles_listing_name" => $vehicleName,
+                "vehicles_listing_complex" => $complexName,
+                "vehicles_listing_qf" => $qf,
+                "vehicles_listing_status" => $status
+            ];
+        }
+        usort($grouped, function ($a, $b) {
+            return strcasecmp($a['vehicles_listing_complex'], $b['vehicles_listing_complex']);
+        });
+        return $grouped;
+    }
+
+    public static function createVehicleListingSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        $templateProcessor->cloneRowAndSetValues("vehicles_listing_row", $data);
+    }
+
+    public static function createTechnologySection(array $data, TemplateProcessor $templateProcessor, int $sectionOffset)
+    {
+        if (empty($data)) {
+            $templateProcessor->setValue("technology_title", "");
+            $templateProcessor->setValue("technology_intro", "");
+            $templateProcessor->cloneBlock("block_compressed_air", 0, true, true);
+            $templateProcessor->cloneBlock("block_steam", 0, true, true);
+            $templateProcessor->cloneBlock("block_tech_cooling", 0, true, true);
+            $templateProcessor->cloneBlock("block_other", 0, true, true);
+
+            $templateProcessor->setValue("technology_offset_index", 9);
+            $templateProcessor->setValue("technology_offset_2_index", 10);
+            $templateProcessor->setValue("technology_offset_3_index", 11);
+        } else {
+            $templateProcessor->setValue("technology_title", "9. Technológiai alrendszerek energetikai értékelése");
+            $templateProcessor->setValue("technology_offset_index", 10);
+            $templateProcessor->setValue("technology_offset_2_index", 11);
+            $templateProcessor->setValue("technology_offset_3_index", 12);
+        }
+    }
+
+    public static function buildProductListingRows(array $data, array $carrierRows)
+    {
+        /*
+        grouped = [
+            "rows" => [
+                ["product_listing_name" => name, "product_listing_amount" => amount]
+            ],
+            "calculated" => calculated
+        ]
+        */
+        $grouped = ["rows" => [], "primary" => null];
+        $primaryProduct = null;
+        foreach ($data as $rowData) {
+            $products = json_decode($rowData['json'], true);
+            if ($rowData['is_primary'] && $primaryProduct === null) {
+                $primaryProduct = ['data' => $rowData, 'sum' => $products['sum']];
+            }
+            $productName = self::xmlEscape($rowData['product_name']);
+            $sum = $products['sum'];
+            $formattedSum = self::xmlEscape(number_format($sum, 2, ".", ",") . " " . $products['metric']);
+            $grouped['rows'][] = ["product_listing_name" => $productName, "product_listing_amount" => $formattedSum];
+        }
+        $totalServicePower = 0.0;
+        /*$grouped = [
+            "<source>" => [
+                "total" => 0,
+                "metric" => '<metric>',
+                "subs" => [
+                    'BUILDING' => 0,
+                    'CARRY' => 0,
+                    'SERVICE' => 0
+                    'SUM' => 0
+                ]
+            ]
+        ];
+        */
+        foreach ($carrierRows as $source) {
+            $totalServicePower += (float) $source['subs']['SERVICE'];
+        }
+        if (!$primaryProduct || $primaryProduct == null) {
+            $primaryProduct = ['data' => $data[0], 'sum' => json_decode($data[0]['json'], true)['sum']];
+        }
+        if ($totalServicePower == 0.0) {
+            $totalServicePower = 1.0;
+        }
+        $primaryName = self::xmlEscape($primaryProduct['data']['product_name'] . " (" . $primaryProduct['data']['metric'] . ")");
+        $etm = self::xmlEscape(number_format($totalServicePower / (float) $primaryProduct['sum'], 2, ".", ",") . " kWh/" . $primaryProduct['data']['metric']);
+
+        $primaryData = ["primary_name" => $primaryName, 'etm' => $etm];
+        $grouped['primary'] = $primaryData;
+        usort($grouped['rows'], function ($a, $b) {
+            return strcasecmp($a['product_listing_name'], $b['product_listing_name']);
+        });
+        return $grouped;
+
+    }
+
+    public static function createProductListingSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        $templateProcessor->cloneRowAndSetValues("product_listing_row", $data['rows']);
+        $templateProcessor->setValue('product_name', $data['primary']['primary_name']);
+        $templateProcessor->setValue('ETM', $data['primary']['etm']);
+    }
+
+    public static function createImproveableListingSection(array $data, TemplateProcessor $templateProcessor)
+    {
+        /*
+        $improveable_list = [
+                'building' => [],
+                'heaters' => [],
+                'hmv' => [],
+                'coolers' => [],
+                'hvac' => [],
+                'vehicle' => [],
+                'technology' => []
+            ];*/
+        $buildingMachines = array_merge($data['heaters'], $data['hmv']);
+        $heatersCoolers = array_merge($data['heaters'], $data['coolers'], $data['hvac']);
+        $suggestionA = self::xmlEscape(implode(',', $data['building']));
+        $suggestionB = self::xmlEscape(implode(',', $buildingMachines));
+        $suggestionC = self::xmlEscape(implode(',', $data['technology']));
+        $suggestionD = self::xmlEscape(implode(',', $data['vehicle']));
+        $suggestionE = self::xmlEscape(implode(',', $heatersCoolers));
+
+        $templateProcessor->setValue("suggestion_a", $suggestionA);
+        $templateProcessor->setValue("suggestion_b", $suggestionB);
+        $templateProcessor->setValue("suggestion_c", $suggestionC);
+        $templateProcessor->setValue("suggestion_d", $suggestionD);
+        $templateProcessor->setValue("suggestion_e", $suggestionE);
+
+    }
     public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, &$improveable_list): void
     {
         $xmlEscape = function ($val) {
@@ -773,341 +1204,6 @@ class AuditService
             }
         }
     }
-
-    public static function buildLightingTable(PhpOffice\PhpWord\Element\Table &$table, array &$lighting_systems): void
-    {
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $colWidths = [
-            'complex' => 1500,
-            'zone' => 1500,
-            'specific' => 1750,
-            'annual' => 1750,
-            'status' => 2500
-        ];
-
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText($xmlEscape("Telephely"), $headerFontStyle, $headerParagraphStyle);
-
-        $header2 = $table->addCell($colWidths['zone'], $headerCellStyle);
-        $header2->addText($xmlEscape("Zóna"), $headerFontStyle, $headerParagraphStyle);
-
-        $header3 = $table->addCell($colWidths['specific'], $headerCellStyle);
-        $header3->addText($xmlEscape("Kalkulált fajlagos fogyasztás"), $headerFontStyle, $headerParagraphStyle);
-
-        $header4 = $table->addCell($colWidths['annual'], $headerCellStyle);
-        $header4->addText($xmlEscape("Éves fogyasztás"), $headerFontStyle, $headerParagraphStyle);
-
-        $header5 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $header5->addText($xmlEscape("Besorolás"), $headerFontStyle, $headerParagraphStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($lighting_systems as $index => $system) {
-            $table->addRow(null, ['cantSplit' => true]);
-
-            $complexCell = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $complexCell->addText($xmlEscape($system['complex_name'] ?? ''), null, $dataParagraphStyleCenter);
-
-            $zoneCell = $table->addCell($colWidths['zone'], $dataCellStyle);
-            $zoneCell->addText($xmlEscape($system['name'] ?? ''), null, $dataParagraphStyleCenter);
-
-            $specificCell = $table->addCell($colWidths['specific'], $dataCellStyle);
-            $textRun = $specificCell->addTextRun($dataParagraphStyleCenter);
-
-            $specificSumVal = is_numeric($system['specific_sum'] ?? 0) ? (string) $system['specific_sum'] : '0';
-            $textRun->addText($xmlEscape($specificSumVal), null);
-            $textRun->addText($xmlEscape(" kWh/m"), null);
-            $textRun->addText("2", ['superScript' => true]);
-            $textRun->addText($xmlEscape("a"), null);
-
-            $consumption = self::calculateTotalConsumption($system['consumption'] ?? 0, $system['source'] ?? '');
-            $annualCell = $table->addCell($colWidths['annual'], $dataCellStyle);
-            $annualCell->addText($xmlEscape($consumption . " kWh"), null, $dataParagraphStyleCenter);
-
-            $status = (($system['solution'] === "LED – bármely lámpatest-változat" && ((float) $system['building_size']) * 0.8 <= $system['size']) ? "Megfelelő" : "Fejlesztendő");
-
-            $statusCell = $table->addCell($colWidths['status'], $dataCellStyle);
-            $statusCell->addText($xmlEscape($status), null, $dataParagraphStyleCenter);
-        }
-    }
-
-    public static function buildCoolingTable(PhpOffice\PhpWord\Element\Table &$table, array &$cooling_systems, array &$improveable_list): void
-    {
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $colWidths = [
-            'complex' => 1500,
-            'name' => 1500,
-            'type' => 2100,
-            'base_points' => 1300,
-            'regulation_points' => 1300,
-            'status' => 1300
-        ];
-
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
-        $header2 = $table->addCell($colWidths['name'], $headerCellStyle);
-        $header2->addText("Berendezés\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
-        $header3 = $table->addCell($colWidths['type'], $headerCellStyle);
-        $header3->addText("Berendezés\ntípusa", $headerFontStyle, $headerParagraphStyle);
-        $header4 = $table->addCell($colWidths['base_points'], $headerCellStyle);
-        $header4->addText("Alap\npontszám\n(33)", $headerFontStyle, $headerParagraphStyle);
-        $header5 = $table->addCell($colWidths['regulation_points'], $headerCellStyle);
-        $header5->addText("Szabályozás\n(10)", $headerFontStyle, $headerParagraphStyle);
-        $header6 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $header6->addText("Összesített\n(43)", $headerFontStyle, $headerParagraphStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($cooling_systems as $h) {
-            $coolers = json_decode($h['heaters'], true);
-            if (!is_array($coolers))
-                continue;
-
-            $complexNameRaw = $h['name'] ?? '';
-
-            foreach ($coolers as $index => $cooler) {
-                if (!isset($cooler['heatingType']) || !is_numeric(array_search($cooler['heatingType'], self::COOLER_TYPES))) {
-                    continue;
-                }
-                $table->addRow(null, ['cantSplit' => true]);
-
-                if ($index === 0) {
-                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
-                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                    $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
-                } else {
-                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
-                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                }
-
-                $coolerNameRaw = $cooler['name'] ?? '';
-                $coolerTypeRaw = $cooler['heatingType'] ?? '';
-
-                $coolerNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-                $coolerNameCell->addText($xmlEscape($coolerNameRaw), null, $dataParagraphStyleCenter);
-
-                $coolerTypeCell = $table->addCell($colWidths['type'], $dataCellStyle);
-                $coolerTypeCell->addText($xmlEscape($coolerTypeRaw), null, $dataParagraphStyleCenter);
-
-                $coolerPoints = self::calculateCoolerPoints($cooler);
-                if ($coolerPoints['combined'] < 75) {
-                    if (!isset($improveable_list['coolers'])) {
-                        $improveable_list['coolers'] = [];
-                    }
-                    $improveable_list['coolers'][] = $coolerNameRaw;
-                }
-                $coolerBasePointCell = $table->addCell($colWidths['base_points'], $dataCellStyle);
-                $coolerBasePointCell->addText($xmlEscape($coolerPoints['base'] . "%"), null, $dataParagraphStyleCenter);
-
-                $coolerRegulationCell = $table->addCell($colWidths['regulation_points'], $dataCellStyle);
-                $coolerRegulationCell->addText($xmlEscape($coolerPoints['regulation'] . "%"), null, $dataParagraphStyleCenter);
-
-                $coolerCombinedCell = $table->addCell($colWidths['status'], $dataCellStyle);
-                $coolerCombinedCell->addText($xmlEscape($coolerPoints['combined'] . "%"), null, $dataParagraphStyleCenter);
-            }
-        }
-    }
-
-    public static function buildHVACTable(PhpOffice\PhpWord\Element\Table &$table, array &$hvacSystems, array &$improveable_list): void
-    {
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $colWidths = [
-            'complex' => 1000,
-            'building' => 1400,
-            'name' => 1400,
-            'sfp' => 1000,
-            'sfp_points' => 1100,
-            'heat' => 1400,
-            'heat_points' => 1300,
-            'insulation_points' => 1200
-        ];
-
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText($xmlEscape("Telephely"), $headerFontStyle, $headerParagraphStyle);
-
-        $header2 = $table->addCell($colWidths['building'], $headerCellStyle);
-        $header2->addText($xmlEscape("Hely"), $headerFontStyle, $headerParagraphStyle);
-
-        $header3 = $table->addCell($colWidths['name'], $headerCellStyle);
-        $header3->addText($xmlEscape("Rendszer"), $headerFontStyle, $headerParagraphStyle);
-
-        $header4 = $table->addCell($colWidths['sfp'], $headerCellStyle);
-        $textRun4 = $header4->addTextRun($headerParagraphStyle);
-        $textRun4->addText($xmlEscape("SFP"), $headerFontStyle);
-        $textRun4->addTextBreak();
-        $textRun4->addText($xmlEscape("(W/m³/s)"), $headerFontStyle);
-
-        $header5 = $table->addCell($colWidths['sfp_points'], $headerCellStyle);
-        $textRun5 = $header5->addTextRun($headerParagraphStyle);
-        $textRun5->addText($xmlEscape("SFP"), $headerFontStyle);
-        $textRun5->addTextBreak();
-        $textRun5->addText($xmlEscape("megfelelőség"), $headerFontStyle);
-
-        $header6 = $table->addCell($colWidths['heat'], $headerCellStyle);
-        $textRun6 = $header6->addTextRun($headerParagraphStyle);
-        $textRun6->addText($xmlEscape("Hővisszanyerés"), $headerFontStyle);
-        $textRun6->addTextBreak();
-        $textRun6->addText($xmlEscape("típusa"), $headerFontStyle);
-
-        $header7 = $table->addCell($colWidths['heat_points'], $headerCellStyle);
-        $textRun7 = $header7->addTextRun($headerParagraphStyle);
-        $textRun7->addText($xmlEscape("Hővisszanyerés"), $headerFontStyle);
-        $textRun7->addTextBreak();
-        $textRun7->addText($xmlEscape("megfelelőség"), $headerFontStyle);
-
-        $header8 = $table->addCell($colWidths['insulation_points'], $headerCellStyle);
-        $textRun8 = $header8->addTextRun($headerParagraphStyle);
-        $textRun8->addText($xmlEscape("Szigetelés"), $headerFontStyle);
-        $textRun8->addTextBreak();
-        $textRun8->addText($xmlEscape("megfelelőség"), $headerFontStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($hvacSystems as $system) {
-            $systemDetails = json_decode($system['json'], true) ?? [];
-            $table->addRow(null, ['cantSplit' => true]);
-
-            $complexNameRaw = $system['complex_name'] ?? '';
-            $buildingNameRaw = $system['building_name'] ?? '';
-            $systemNameRaw = $system['name'] ?? '';
-            $sfpRaw = $system['sfp'] ?? 0;
-
-            $complexCell = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
-
-            $buildingCell = $table->addCell($colWidths['building'], $dataCellStyle);
-            $buildingCell->addText($xmlEscape($buildingNameRaw), null, $dataParagraphStyleCenter);
-
-            $nameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-            $nameCell->addText($xmlEscape($systemNameRaw), null, $dataParagraphStyleCenter);
-
-            $calculated = self::calculateVentilationGoodness($systemDetails, (float) $sfpRaw);
-
-            $avgGoodness = ($calculated["sfp_goodness"] + $calculated['retriever_goodness'] + $calculated['insulation_goodness']) / 3;
-            if ($avgGoodness < 75) {
-                if (!isset($improveable_list['hvac'])) {
-                    $improveable_list['hvac'] = [];
-                }
-                $improveable_list['hvac'][] = $systemNameRaw;
-            }
-
-            $sfpCell = $table->addCell($colWidths['sfp'], $dataCellStyle);
-            $sfpCell->addText($xmlEscape((string) $sfpRaw), null, $dataParagraphStyleCenter);
-
-            $sfpGoodnessCell = $table->addCell($colWidths['sfp_points'], $dataCellStyle);
-            $sfpGoodnessCell->addText($xmlEscape($calculated['sfp_goodness'] . "%"), null, $dataParagraphStyleCenter);
-
-            $retrieverText = $systemDetails['retriever'] ?? '';
-            $retrieverCell = $table->addCell($colWidths['heat'], $dataCellStyle);
-            $retrieverCell->addText($xmlEscape($retrieverText), null, $dataParagraphStyleCenter);
-
-            $retrieverGoodnessCell = $table->addCell($colWidths['heat_points'], $dataCellStyle);
-            $retrieverGoodnessCell->addText($xmlEscape($calculated['retriever_goodness'] . "%"), null, $dataParagraphStyleCenter);
-
-            $insulationGoodnessCell = $table->addCell($colWidths['insulation_points'], $dataCellStyle);
-            $insulationGoodnessCell->addText($xmlEscape($calculated['insulation_goodness'] . "%"), null, $dataParagraphStyleCenter);
-        }
-    }
-
     public static function buildProductTable(\PhpOffice\PhpWord\Element\Table &$table, array $allProduct, string $auditInterval): void
     {
         $xmlEscape = function ($val) {
@@ -1170,103 +1266,6 @@ class AuditService
         }
     }
 
-    public static function buildVehiclesTable(\PhpOffice\PhpWord\Element\Table &$table, array &$vehicles, array &$improveable_list): void
-    {
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $colWidths = [
-            'vehicle' => 2500,
-            'complex' => 2300,
-            'qf' => 2200,
-            'status' => 2000
-        ];
-
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-
-        $cell1 = $table->addCell($colWidths['vehicle'], $headerCellStyle);
-        $textRun1 = $cell1->addTextRun($headerParagraphStyle);
-        $textRun1->addText($xmlEscape("Jármű"), $headerFontStyle);
-        $textRun1->addTextBreak();
-        $textRun1->addText($xmlEscape("megnevezése"), $headerFontStyle);
-
-        $cell2 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $cell2->addText($xmlEscape("Telephely"), $headerFontStyle, $headerParagraphStyle);
-
-        $cell3 = $table->addCell($colWidths['qf'], $headerCellStyle);
-        $textRun3 = $cell3->addTextRun($headerParagraphStyle);
-        $textRun3->addText($xmlEscape("Kalkulált fajlagos"), $headerFontStyle);
-        $textRun3->addTextBreak();
-        $textRun3->addText($xmlEscape("energiafelhasználás"), $headerFontStyle);
-
-        $cell4 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $cell4->addText($xmlEscape("Besorolás"), $headerFontStyle, $headerParagraphStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleLeft = [
-            'alignment' => 'left',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($vehicles as $v) {
-            $table->addRow(null, ['cantSplit' => true]);
-
-            $calc = self::calculateVehicleQf($v);
-
-            $vehicleNameRaw = $v['vehicle_name'] ?? $v['name'] ?? '';
-            $complexNameRaw = $v['complex_name'] ?? '';
-
-            $c1 = $table->addCell($colWidths['vehicle'], $dataCellStyle);
-            $c1->addText($xmlEscape($vehicleNameRaw), null, $dataParagraphStyleLeft);
-
-            $c2 = $table->addCell($colWidths['complex'], $dataCellStyle);
-            $c2->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleLeft);
-
-            $c3 = $table->addCell($colWidths['qf'], $dataCellStyle);
-            if (($calc['status'] ?? '') === "Fejlesztendő") {
-                if (!isset($improveable_list['vehicle'])) {
-                    $improveable_list['vehicle'] = [];
-                }
-                $improveable_list['vehicle'][] = $vehicleNameRaw;
-            }
-            $formattedQf = number_format($calc['qf'] ?? 0, 2, ',', ' ') . ' ' . ($calc['unit'] ?? '');
-            $c3->addText($xmlEscape($formattedQf), null, $dataParagraphStyleCenter);
-
-            $c4 = $table->addCell($colWidths['status'], $dataCellStyle);
-            $c4->addText($xmlEscape($calc['status'] ?? ''), null, $dataParagraphStyleCenter);
-        }
-    }
-
     public static function convertToKwh(float $value, string $unit): float
     {
         return
@@ -1287,7 +1286,7 @@ class AuditService
 
         if (str_contains($category, 'anyagmozgat') || str_contains($category, 'targonc')) {
             $rawConsumption = $vehicle['consumption'] ?? null;
-            $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
+            $totalConsumption = self::calculateTotalConsumption($rawConsumption);
 
             $fuel = $vehicle['fuel'] ?? 'Elektromos áram';
             $unit = $vehicle['measurement'] ?? 'KWH';
@@ -1330,7 +1329,7 @@ class AuditService
             }
         } else if (str_contains($category, 'áruszállít') || str_contains($category, 'aruszallit') || str_contains($category, 'teher')) {
             $rawConsumption = $vehicle['consumption'] ?? null;
-            $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
+            $totalConsumption = self::calculateTotalConsumption($rawConsumption);
 
             $fuel = $vehicle['fuel'] ?? 'Gázolaj';
             $unit = $vehicle['measurement'] ?? 'L';
@@ -1371,7 +1370,7 @@ class AuditService
         } else {
 
             $rawConsumption = $vehicle['consumption'] ?? null;
-            $totalConsumption = self::calculateTotalConsumption($rawConsumption, $vehicle['source'] ?? '');
+            $totalConsumption = self::calculateTotalConsumption($rawConsumption);
 
             $fuel = $vehicle['fuel'] ?? 'Benzin';
             $unit = $vehicle['measurement'] ?? 'L';
@@ -2040,168 +2039,4 @@ class AuditService
 
         return $normTable[$closestCapacity] ?? 0.0;
     }
-
-    public const CARRIER_VALUES = [
-        "H hőszivattyús elektromos áram" => 1.0,
-        "Biogáz" => 0.9,
-        "Távfűtés" => 0.8,
-        "Biomassza" => 0.75,
-        "Pellet" => 0.72,
-        "Csúcson kívüli elektromos áram" => 0.68,
-        "Elektromos áram" => 0.65,
-        "Földgáz" => 0.58,
-        "Tűzifa" => 0.52,
-        "PB-gáz" => 0.45,
-        "Tüzelőolaj" => 0.3,
-        "Szén" => 0.15,
-        "Egyéb" => 0.5
-    ];
-
-    public const REGULATION_VALUES = [
-        "Időjárásfüggő szabályozás" => 1.0,
-        "Központi értékről történő szabályozás" => 0.85,
-        "Fix értéktartás" => 0.7
-    ];
-
-    public const STATE_VALUES = [
-        "NEW" => 1.0,
-        "SERVICED" => 0.9,
-        "UNRELIABLE" => 0.5,
-        "OOO" => 0.0
-    ];
-
-    public const HMV_REGULATION_VALUES = [
-        "Nincs" => 0.0,
-        "Hőmérsékletre" => 33.3,
-        "Időprogramra" => 66.7,
-        "Hőmérsékletre és időprogramra" => 100
-    ];
-
-    public const COOLER_TYPES = [
-        'Elektromos üzemű hőszivattyú levegő hőforrással (vizes)',
-        'Elektromos üzemű hőszivattyú levegő hőforrással (hűtőgázos)',
-        'Elektromos üzemű hőszivattyú talajhő hőforrással',
-        'Elektromos üzemű hőszivattyú víz hőforrással',
-        'VRV/VRF',
-        'Split klíma',
-        'Technológiai hűtés (hőszivattyú)',
-        'Technológiai hűtés (folyadékhűtő)',
-        'Technológiai hűtés',
-        'Folyadékhűtő',
-        'Hőszivattyú'
-    ];
-
-    public static function calculateCoolerPoints(array $cooler)
-    {
-        $energy_efficiency_multiplier = self::HEATER_ELECTRIC_CALC_MODE[$cooler['baseType']] *
-            (1 + self::HEATER_ELECTRIC_CALC_INSTALLATION[$cooler['placementType']]) *
-            (1 + self::HEATER_ELECTRIC_CALC_MEDIUM[$cooler['ambientMedium']]) *
-            (1 + self::HEATER_ELECTRIC_CALC_SOURCE[$cooler['heatTransfer']]) *
-            (1 + self::HEATER_ELECTRIC_CALC_REFRIGERANT[$cooler['refrigerant']]) *
-            (1 + self::HEATER_DESCRIPTIONS[$cooler['state']]);
-        $multiplier = max([1.03, min([1.5, $energy_efficiency_multiplier])]);
-        $scop_cop_ratio = round(($multiplier / 1) * 100, 2);
-        $base_points = ($scop_cop_ratio >= 120.8 ? 33 :
-            ($scop_cop_ratio >= 112.7 ? 30 :
-                ($scop_cop_ratio >= 104.5 ? 25 :
-                    ($scop_cop_ratio >= 96.4 ? 20 :
-                        ($scop_cop_ratio >= 88.2 ? 15 :
-                            ($scop_cop_ratio >= 80.0 ? 10 :
-                                ($scop_cop_ratio >= 71.9 ? 5 : 0)))))));
-        $regulation_points = match ($cooler['regulation']) {
-            'Fix értéktartás' => 0,
-            'Központi értékről történő szabályozás' => 5,
-            default => 10
-        };
-        $combined = $base_points + $regulation_points;
-        return [
-            "base" => round(($base_points / 33) * 100, 2),
-            "regulation" => round(($regulation_points / 10) * 100, 2),
-            "combined" => round(($combined / 43) * 100, 2),
-        ];
-    }
-
-    public const HEATER_DESCRIPTIONS = [
-        "NEW" => 0,
-        "SERVICED" => -0.02,
-        "UNRELIABLE" => -0.05,
-        "OOO" => -0.05
-    ];
-
-    public const HEATER_ELECTRIC_CALC_MODE = [
-        "Ismeretlen" => 0,
-        "On/Off működés, 1 hűtőkör" => 0.95,
-        "Többfokozatú működés, hűtőkörönként több kompresszor" => 1.04,
-        "Inverteres/fordulatszám szabályzott kompresszorok" => 1.18,
-    ];
-
-    public const HEATER_ELECTRIC_CALC_INSTALLATION = [
-        "Ismeretlen" => 0,
-        "Gyári előírások betartásával, jól szellőző helyen" => 0,
-        "Részben zavart légárammal" => -0.05,
-        "Rosszul szellőző, zugos helyen" => -0.12,
-    ];
-
-    public const HEATER_ELECTRIC_CALC_SOURCE = [
-        "Ismeretlen" => 0,
-        "Levegő" => -0.03,
-        "Nedvesített levegő" => 0,
-        "Talajszonda" => 0.04,
-    ];
-
-    public const HEATER_ELECTRIC_CALC_MEDIUM = [
-        "Ismeretlen" => 0,
-        "Levegő" => 0,
-        "Víz (normál üzemi tartomány)" => -0.05,
-        "Víz (magas hőmérsékletű üzemi tartomány)" => -0.075,
-    ];
-
-    public const HEATER_ELECTRIC_CALC_REFRIGERANT = [
-        "Ismeretlen" => 0,
-        "R410A" => 0,
-        "R32" => 0.02,
-        "R454B" => 0.01,
-        "R407C" => -0.02,
-        "R22" => -0.04,
-        "R134A (állandó sebesség)" => 0,
-        "R134A (VSD/centrifugás)" => 0.01,
-        "R1234ze" => 0.01,
-        "R290" => 0.02,
-    ];
-
-    public static function calculateVentilationGoodness(array $hvacSystem, float $sfp): array
-    {
-        $sfp_points = match (true) {
-            $sfp < 500 => 15, $sfp < 750 => 13, $sfp < 1250 => 11,
-            $sfp < 2000 => 9, $sfp < 3000 => 7, $sfp < 4500 => 5,
-            default => 0
-        };
-        $sfp_goodness = round(($sfp_points / 15) * 100, 2);
-        $ins_thick = $hvacSystem['insulationWidth'] ?? 0;
-        $ins_point = match (true) {
-            $ins_thick < 10 => 0, $ins_thick < 20 => 1, $ins_thick < 40 => 2,
-            default => 3
-        };
-        $insulation_goodness = round(($ins_point / 3) * 100);
-        $hv_type = $hvacSystem['retriever'] ?? "Nincs";
-        $hv_year = (int) ($hvacSystem['retrieverYear'] ?? 0);
-        $hv_idx = ($hv_year < 2016) ? 0 : 1;
-        $hv_point = self::RETRIEVER_POINTS[$hv_type][$hv_idx] ?? 0;
-        $retriever_goodness = round(($hv_point / 10) * 100, 2);
-        return [
-            "sfp_goodness" => $sfp_goodness,
-            "retriever_goodness" => $retriever_goodness,
-            "insulation_goodness" => $insulation_goodness
-        ];
-    }
-
-    public const RETRIEVER_POINTS = [
-        "Keresztáramú" => [4, 6],
-        "Forgódobos" => [6, 10],
-        "Közvetítő közeges" => [2, 6],
-        "Hőcsöves" => [0, 0],
-        "Keverőkamra" => [0, 0],
-        "Egyéb" => [0, 0],
-        "Nincs" => [0, 0]
-    ];
 }
