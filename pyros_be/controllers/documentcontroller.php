@@ -284,132 +284,10 @@ class DocumentController
 
                             $starterIndex++;
                         }
-
-                        //Technológia értékelése
-                        $stmt = $db->prepare("SELECT t.id, t.name, t.json, c.name as complex_name, t.technology_type FROM technology t join complex c on t.complex = c.id WHERE t.project_id = :projectId ORDER BY id ASC");
-                        $stmt->execute([':projectId' => $project_id]);
-                        $technologies = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        if (empty($technologies)) {
-                            $templateProcessor->setValue('technology_title', '');
-                            $templateProcessor->setValue('technology_content', '');
-
-                            $templateProcessor->setValue("technology_offset_index", 9);
-                            $templateProcessor->setValue("technology_offset_2_index", 10);
-                            $templateProcessor->setValue("technology_offset_3_index", 11);
-
-                            if (method_exists($templateProcessor, 'deleteBlock')) {
-                                @$templateProcessor->deleteBlock('block_technology');
-                            }
-                        } else {
-                            if (method_exists($templateProcessor, 'cloneBlock')) {
-                                @$templateProcessor->cloneBlock('block_technology', 1, true, false);
-                            }
-
-                            $templateProcessor->setValue('technology_title', '9.Technológiai alrendszerek energetikai értékelése');
-
-                            $stmtMeters = $db->prepare("SELECT id, name FROM standings WHERE project_id = :projectId");
-                            $stmtMeters->execute([':projectId' => $project_id]);
-                            $meters = $stmtMeters->fetchAll(PDO::FETCH_KEY_PAIR);
-
-                            $groupedTechs = [
-                                'COMPRESSED_AIR' => [],
-                                'STEAM' => [],
-                                'COOLING' => [],
-                                'OTHER' => []
-                            ];
-
-                            foreach ($technologies as $tech) {
-                                $type = $tech['technology_type'];
-                                if (isset($groupedTechs[$type])) {
-                                    $groupedTechs[$type][] = $tech;
-                                }
-                            }
-
-                            $mainTable = new \PhpOffice\PhpWord\Element\Table([
-                                'borderSize' => 0,
-                                'borderColor' => 'FFFFFF',
-                                'cellMargin' => 0
-                            ]);
-
-                            $mainTable->addRow();
-                            $mainCell = $mainTable->addCell(9000);
-
-                            $safeCompanyName = AuditService::xmlEscape($companyName ?? 'GAZDÁLKODÓ SZERVEZET');
-                            $mainCell->addText(
-                                "A " . $safeCompanyName . "-nál/nél az alábbi technológiai alrendszerek kerültek kialakításra:",
-                                null,
-                                ['spaceAfter' => 120]
-                            );
-                            $letterIndex = 'a';
-
-                            if (!empty($groupedTechs['COMPRESSED_AIR'])) {
-                                $mainCell->addText($letterIndex . ") Sűrített levegős hálózat", ['bold' => true, 'size' => 11]);
-
-                                foreach ($groupedTechs['COMPRESSED_AIR'] as $tech) {
-                                    $jsonData = json_decode($tech['json'], true) ?? [];
-                                    AuditService::appendCompressedAirTableToCell($mainCell, $jsonData, $tech['name'], $tech['complex_name'], $meters, $improveable_list);
-                                    $mainCell->addText("");
-                                }
-
-                                $letterIndex = chr(ord($letterIndex) + 1);
-                            }
-
-                            if (!empty($groupedTechs['STEAM'])) {
-                                $mainCell->addText($letterIndex . ") Gőzrendszer", ['bold' => true, 'size' => 11]);
-
-                                foreach ($groupedTechs['STEAM'] as $tech) {
-                                    $jsonData = json_decode($tech['json'], true) ?? [];
-                                    $complexName = $tech['complex_name'] ?? '';
-
-                                    AuditService::appendSteamTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters, $improveable_list);
-                                    $mainCell->addText("");
-                                }
-
-                                $letterIndex = chr(ord($letterIndex) + 1);
-                            }
-
-                            if (!empty($groupedTechs['COOLING'])) {
-                                $mainCell->addText($letterIndex . ") Technológiai hűtés", ['bold' => true, 'size' => 11]);
-
-                                foreach ($groupedTechs['COOLING'] as $tech) {
-                                    $jsonData = json_decode($tech['json'], true) ?? [];
-                                    AuditService::appendCoolingTableToCell($mainCell, $jsonData, $tech['name'], $meters, $improveable_list);
-                                    $mainCell->addText("");
-                                }
-
-                                $letterIndex = chr(ord($letterIndex) + 1);
-                            }
-
-                            if (!empty($groupedTechs['OTHER'])) {
-                                $mainCell->addText($letterIndex . ") Egyéb technológiai hőhasználat", ['bold' => true, 'size' => 11]);
-
-                                foreach ($groupedTechs['OTHER'] as $tech) {
-                                    $jsonData = json_decode($tech['json'], true) ?? [];
-                                    $complexName = $tech['complex_name'] ?? '';
-
-                                    AuditService::appendOtherTableToCell($mainCell, $jsonData, $tech['name'], $complexName, $meters, $improveable_list);
-                                    $mainCell->addText("");
-                                }
-
-                                $letterIndex = chr(ord($letterIndex) + 1);
-                            }
-
-                            $templateProcessor->setComplexBlock('technology_content', $mainTable);
-
-                            // Technológia offset indexek fejezeteknek
-                            $templateProcessor->setValue("technology_offset_index", 10);
-                            $templateProcessor->setValue("technology_offset_2_index", 11);
-                            $templateProcessor->setValue("technology_offset_3_index", 12);
-                        }
 */
             // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';
-            $outputDir = __DIR__ . '/generated';
-            if (!file_exists($outputDir)) {
-                mkdir($outputDir, 0755, true);
-            }
-            $tempPath = $outputDir . '/' . $tempFileName;
+            $tempPath = sys_get_temp_dir() . '/' . $tempFileName;
             $templateProcessor->saveAs($tempPath);
 
             if (ob_get_level()) {
@@ -426,6 +304,7 @@ class DocumentController
             header('Content-Length: ' . filesize($tempPath));
 
             readfile($tempPath);
+            unlink($tempPath);
             exit;
 
         } catch (Exception $e) {
