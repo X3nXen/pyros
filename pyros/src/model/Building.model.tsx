@@ -52,41 +52,6 @@ export enum DoorWindowPreset {
     DW_F = 'Új műanyagkeret két vagy háromrétegű üveggel, low-E bevonattal',
 }
 
-export enum TypicalHeatingTypePreset {
-    TH_A = 'Elektromos radiátor vagy elektromos hősugárzó',
-    TH_B = 'Elektromos kazán',
-    TH_C = 'Elektromos hőtárolós kályha',
-    TH_D = 'Fűtőművi távfűtés',
-    TH_E = 'Fatüzelésű cserépkályha',
-    TH_F = 'Kandalló, kályha (zárt, hagyományos)',
-    TH_G = 'Kandalló (nyitott, hagyományos)',
-    TH_H = 'Gázkonvektor, gázüzemű sugárzóernyő',
-    TH_I = 'Széntüzelésű kazán',
-    TH_J = 'Pellettüzelésű kazán',
-    TH_K = 'Faelgázosító kazán',
-    TH_L = 'Levegő-víz hőszivattyú (magas hőmérséklet)',
-    TH_M = 'Levegő-víz hőszivattyú (alacsony hőmérséklet)',
-    TH_N = 'Hagyományos gázkazán fűtött téren belül',
-    TH_O = 'Kondenzációs gázkazán fűtött téren belül',
-    TH_P = 'Hagyományos gázkazán fűtött téren kívül',
-    TH_Q = 'Kondenzációs gázkazán fűtött téren kívül',
-}
-
-export enum WarmWaterCreationPreset {
-    WWC_A = 'Nincs',
-    WWC_B = 'Elektromos bojler',
-    WWC_C = 'Közvetlen gáztüzelésű berendezés',
-    WWC_D = 'Fűtőművi távfűtés',
-    WWC_E = 'Hőszivattyús',
-}
-
-export enum HeatingTypicalRegulationPreset {
-    HTR_A = 'Szabályozás helyiség szinten',
-    HTR_B = 'Időjáráskövető központi szabályozás',
-    HTR_C = 'Egyszerű központi szabályozás',
-    HTR_D = 'Szabályozatlan hőleadás',
-}
-
 export enum BuildingRunning {
     CONTINUOUS = 'Folyamatos',
     PARTITIONED = 'Szakaszos',
@@ -114,11 +79,6 @@ export interface BuildingFormData {
     ceilingInsulationWidth: number
     floorInsulation: number
     doorWindowType: DoorWindowPreset
-    heatingType: TypicalHeatingTypePreset
-    regulationMode: HeatingTypicalRegulationPreset
-    hmvCreation: WarmWaterCreationPreset
-    hmvContainment: boolean
-    hmvCirculation: boolean
     qf: number | null
     heatLoss: number | null
     imageFile: File | null
@@ -146,11 +106,6 @@ export const BuildingDefaults: BuildingFormData = {
     ceilingInsulationWidth: 0,
     doorWindowType: DoorWindowPreset.DW_A,
     floorInsulation: 0,
-    heatingType: TypicalHeatingTypePreset.TH_A,
-    regulationMode: HeatingTypicalRegulationPreset.HTR_A,
-    hmvCreation: WarmWaterCreationPreset.WWC_A,
-    hmvContainment: false,
-    hmvCirculation: false,
     qf: null,
     heatLoss: null,
     imageFile: null,

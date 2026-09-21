@@ -11,7 +11,11 @@ class ProductController
 
         switch ($method) {
             case 'GET':
-                $this->handleGet();
+                if (isset($_GET['primary'])) {
+                    $this->handlePrimaryRequest();
+                } else {
+                    $this->handleGet();
+                }
                 break;
 
             case 'POST':
@@ -22,6 +26,42 @@ class ProductController
                 http_response_code(405);
                 echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
                 break;
+        }
+    }
+
+    private function handlePrimaryRequest()
+    {
+        $projectId = $_GET['project_id'] ?? null;
+
+        if (!$projectId) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Hiányzó projekt azonosító!'
+            ]);
+            exit;
+        }
+
+        try {
+            $db = Database::getConnection();
+
+            $stmt = $db->prepare("SELECT COUNT(*) FROM product WHERE project_id = :projectId AND is_primary = 1");
+            $stmt->execute([':projectId' => $projectId]);
+            $count = (int) $stmt->fetchColumn();
+
+            http_response_code(200);
+            echo json_encode([
+                'is_primary' => $count > 0
+            ]);
+            exit;
+
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Adatbázis hiba: ' . $e->getMessage()
+            ]);
+            exit;
         }
     }
 
@@ -79,6 +119,7 @@ class ProductController
         }
 
         $metric = $data['metric'] ?? null;
+        $isPrimary = $data['isPrimary'] ?? false;
 
         if (!$metric) {
             http_response_code(422);
@@ -87,7 +128,6 @@ class ProductController
         }
 
         try {
-            $productName = 'Termék';
             $productionJson = json_encode([], JSON_UNESCAPED_UNICODE);
 
             $fileKey = isset($_FILES['excel']) ? 'excel' : (isset($_FILES['file']) ? 'file' : null);
@@ -96,19 +136,20 @@ class ProductController
                 // Kizárólag az Excel fájl elérési útját adjuk át
                 $parsed = parseProductExcel($_FILES[$fileKey]['tmp_name']);
 
-                $productName = $parsed['product_name'];
+                $productName = $data['name'] ?? $parsed['product_name'] ?? "Termék";
                 $productionJson = json_encode($parsed['json'], JSON_UNESCAPED_UNICODE);
             }
 
             $db = Database::getConnection();
 
-            $sql = "INSERT INTO product (product_name, metric, json, project_id) VALUES (:product_name, :metric, :json, :projectId)";
+            $sql = "INSERT INTO product (product_name, metric, json, project_id, is_primary) VALUES (:product_name, :metric, :json, :projectId, :isPrimary)";
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':product_name' => $productName,
                 ':metric' => $metric,
                 ':json' => $productionJson,
-                ':projectId' => $projectId
+                ':projectId' => $projectId,
+                ':isPrimary' => (int) $isPrimary
             ]);
 
             http_response_code(200);

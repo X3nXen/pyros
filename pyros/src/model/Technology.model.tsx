@@ -1,8 +1,12 @@
 export interface CompressedFormData {
     id: string | null
     name: string
+    complex: string
     pressure: number
     machines: Array<CompressorData>
+    pressureReduction: boolean
+    systemOptimalization: boolean
+    wasteUse: string
 }
 
 export interface CompressorFormErrors {
@@ -27,27 +31,26 @@ export interface CompressorData {
     compressorType: string
     amount: number
     nominalOutput: number
-    couldWasteUse: boolean
-    wasteUse: string
 }
 
 export interface SteamFormData {
     id: string | null
     name: string
+    complex: string
     pressure: number
     heaterMode: string
     steamUse: string
     machines: Array<SteamMachineData>
+    smokeUse: string
 }
 
 export interface SteamMachineData {
     id: string | null
     standing: string | null
     mode: string
+    amount: number
     type: string
     nominalOutput: number
-    couldSmokeUse: boolean
-    smokeUse: string
 }
 
 export interface SteamErrors {
@@ -59,14 +62,17 @@ export interface SteamErrors {
 export interface SteamMachineErrors {
     standing: string
     type: string
+    amount: string
     nominalOutput: string
 }
 
 export interface CoolingFormData {
     id: string | null
     name: string
+    complex: string
     coolerMode: string
     machines: Array<CoolingMachineData>
+    wasteUse: string
 }
 
 export interface CoolingMachineData {
@@ -75,8 +81,7 @@ export interface CoolingMachineData {
     standing: string | null
     type: string
     nominalOutput: number
-    couldWasteUse: boolean
-    wasteUse: string
+    amount: number
 }
 
 export interface CoolingErrors {
@@ -88,12 +93,15 @@ export interface CoolingMachineErrors {
     type: string
     nominalOutput: string
     standing: string
+    amount: string
 }
 
 export interface OtherFormData {
     id: string | null
     name: string
+    complex: string
     machines: Array<OtherDeviceData>
+    wasteUse: string
 }
 
 export interface OtherDeviceData {
@@ -104,8 +112,6 @@ export interface OtherDeviceData {
     amount: number
     nominalOutput: number
     hours: number
-    couldWasteUse: boolean
-    wasteUse: string
 }
 
 export interface OtherErrors {
@@ -124,10 +130,11 @@ export interface OtherDeviceErrors {
 export const CompressorModes: Array<string> = ['On/off', 'Frekvenciaváltós']
 
 export const WasteUseModes: Array<string> = [
-    'Nincs',
+    'Nincs, lehetőség sincs',
+    'Nincs, van rá lehetőség',
     'Van, fűtés',
     'Van, HMV',
-    'Van, fűtés és HMV',
+    'Van, fűtés+HMV',
 ]
 
 export const HeaterModes: Array<string> = [
@@ -159,8 +166,8 @@ export const CoolingMachineModes: Array<string> = [
 export const OtherMachineModes: Array<string> = ['On-off', 'Szabályozott']
 
 export enum TechnologyType {
-    COMPRESSED_AIR,
-    STEAM,
-    COOLING,
-    OTHER,
+    COMPRESSED_AIR = 'COMPRESSED_AIR',
+    STEAM = 'STEAM',
+    COOLING = 'COOLING',
+    OTHER = 'OTHER',
 }

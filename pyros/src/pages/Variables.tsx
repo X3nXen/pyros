@@ -43,7 +43,7 @@ export default function Variables() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
     return (

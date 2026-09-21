@@ -21,6 +21,7 @@ import {
     HEAT_CARRIER_TO_TYPE,
     HeaterCarrier,
     HeaterDescriptions,
+    HeaterRegulations,
     HeaterType,
     PurposeToCarrier,
     type HeaterFormData,
@@ -55,12 +56,14 @@ import EmitterForm from '../components/Emitter'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
 import { addHeaterLocally } from '../store/projectSlice'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function HeatingSystem() {
     const [formData, setFormData] = useState<HeatingSystemFormData>({
         id: null,
         name: '',
         standing: null,
+        complex: '',
         systemPurpose: SystemPurpose.HEAT,
         systemRegulation: 'NONE' as SystemRegulation,
         systemRegulationDesc: 'NONE' as SystemRegulationDesc,
@@ -85,6 +88,7 @@ export default function HeatingSystem() {
     const subStandings = useAppSelector((state) => state.project.subStandings)
     const mainStandings = useAppSelector((state) => state.project.mainStandings)
     const allStandings = subStandings.concat(mainStandings)
+    const complexes = useAppSelector((state) => state.project.complexes)
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
     const projectId =
@@ -115,16 +119,10 @@ export default function HeatingSystem() {
             standing: null,
             building: null,
             servicedBuilding: [],
-            serial: '',
-            manufacturor: '',
-            year: new Date().getFullYear(),
-            type: '',
+            regulation: HeaterRegulations[0],
             carrier: defaultCarrier,
             heatingType: defaultHeatingType,
             state: 'SERVICED' as HeaterDescriptions,
-            forwardHeat: 0,
-            backHeat: 0,
-            maxPower: 0,
             baseType: 'UNKNOWN' as ElectricCalcMode,
             placementType: 'UNKNOWN' as ElectricCalcInstallation,
             ambientMedium: 'UNKNOWN' as ElectricCalcMedium,
@@ -132,8 +130,6 @@ export default function HeatingSystem() {
             refrigerant: 'UNKNOWN' as ElectricCalcRefrigerant,
             heatLoss: false,
             couldHeatLoss: false,
-            oversized: false,
-            oversizeRatio: 0,
             imageFile: null,
         }
 
@@ -151,13 +147,8 @@ export default function HeatingSystem() {
             name: '',
             building: null,
             servicedBuilding: [],
-            manufacturor: '',
-            type: '',
-            year: new Date().getFullYear(),
             archetype: 'TYPE_A' as PumpTypes,
             archetypeSetting: 'SET_A' as PumpSetting,
-            serialNumber: '',
-            powerUsage: 0,
             imageFile: null,
         }
 
@@ -172,11 +163,7 @@ export default function HeatingSystem() {
             building: null,
             servicedBuilding: [],
             type: '',
-            amount: 0,
-            forwardHeat: 0,
-            backHeat: 0,
             state: '',
-            vrvRefrigerant: 'UNKNOWN' as ElectricCalcRefrigerant,
             vrvInsideType: 'CEILING' as EmitterIndoorUnitPlacement,
             insideRoom: false,
             circulation: false,
@@ -257,7 +244,6 @@ export default function HeatingSystem() {
             setFormErrors,
             projectId
         )
-        console.log(formData)
         if (result && result.success) {
             formData.heaters.forEach((e: HeaterFormData) => {
                 dispatch(
@@ -268,7 +254,7 @@ export default function HeatingSystem() {
                     })
                 )
             })
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -332,6 +318,27 @@ export default function HeatingSystem() {
                         </MenuItem>
                     ))}
                 </Select>
+            </FormControl>
+
+            <FormControl error={!!formErrors?.complex}>
+                <InputLabel id="complex-select">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData, index: number) => (
+                        <MenuItem key={'complex-' + index} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+                {formErrors?.complex && (
+                    <FormHelperText>{formErrors?.complex}</FormHelperText>
+                )}
             </FormControl>
 
             <FormControl

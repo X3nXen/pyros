@@ -28,6 +28,7 @@ export interface HeatingSystemFormData {
     id: string | null
     name: string
     standing: string | null
+    complex: string
     systemPurpose: SystemPurpose
     systemRegulation: SystemRegulation
     systemRegulationDesc: SystemRegulationDesc
@@ -39,6 +40,7 @@ export interface HeatingSystemFormData {
 export interface HeatingSystemErrors {
     name: string
     standing: string
+    complex: string
     heaters: Array<HeaterFormErrors | string>
     pumps: Array<PumpErrors | string>
     emitters: Array<EmitterErrors | string>

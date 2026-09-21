@@ -1,47 +1,58 @@
-import type { Dayjs } from "dayjs";
+import type { Dayjs } from 'dayjs'
 
-export enum EnergySources{
-    COAL = "Szén",
-    GASOLINE = "Gázolaj",
-    PETROL = "Benzin",
-    GAS = "Földgáz",
-    ELECTRICITY = "Elektromos áram",
-    REMOTE = "Távhő",
-    PAKURA = "Pakura",
-    PB = "PB Gáz",
-    PROPANE = "Propán",
-    LPG = "LPG",
-    WOOD = "Tűzifa",
-    SOLAR = "Napenergia"
+export enum EnergySources {
+    COAL = 'Szén',
+    GASOLINE = 'Gázolaj',
+    PETROL = 'Benzin',
+    GAS = 'Földgáz',
+    ELECTRICITY = 'Elektromos áram',
+    REMOTE = 'Távhő',
+    PAKURA = 'Pakura',
+    PB = 'PB Gáz',
+    PROPANE = 'Propán',
+    LPG = 'LPG',
+    WOOD = 'Tűzifa',
+    SOLAR = 'Napenergia',
 }
 
-export enum EnergyMeasurements{
-    KWH = "kWh",
-    MJ = "MJ",
-    MCUBE = "m3",
-    GJ = "GJ",
-    MWH = "MWh"
+export enum EnergyMeasurements {
+    KWH = 'kWh',
+    MJ = 'MJ',
+    MCUBE = 'm3',
+    GJ = 'GJ',
+    MWH = 'MWh',
+    L = 'liter',
+    KG = 'kg',
+    T = 'tonna',
 }
 
-export enum MeasurementTypes{
-    MAIN = "Főmérő",
-    SUB = "Almérő",
-    VIRTUAL = "Virtuális"
+export enum MeasurementTypes {
+    MAIN = 'Főmérő',
+    SUB = 'Almérő',
+    VIRTUAL = 'Virtuális',
 }
 
-export interface StandingsShort{
-    id: string;
-    name: string;
+export const StandingPurpose: Array<string> = [
+    'Épület',
+    'Tevékenység',
+    'Szállítás',
+]
+
+export interface StandingsShort {
+    id: string
+    name: string
 }
 
-export interface StandingsFormData{
-    id: string | null,
-    name: string,
-    measurementType: MeasurementTypes,
-    subTo: string | null,
-    source: EnergySources,
-    measurement: EnergyMeasurements,
-    dateFrom: Dayjs | null,
-    dateTo: Dayjs | null,
+export interface StandingsFormData {
+    id: string | null
+    name: string
+    pod: string
+    purpose: string
+    measurementType: MeasurementTypes
+    subTo: string | null
+    source: EnergySources
+    measurement: EnergyMeasurements
+    dateFrom: Dayjs | null
+    dateTo: Dayjs | null
     file: File | null
 }

@@ -73,7 +73,7 @@ class LightingController
         try {
             $db = Database::getConnection();
             $db->beginTransaction();
-            foreach ($data as $system) {
+            foreach ($data['systems'] as $system) {
                 $zoneName = $system['zone'] ?? null;
                 $size = $system['size'] ?? null;
                 $solution = $system['solution'] ?? null;
@@ -83,7 +83,10 @@ class LightingController
                 $naturalLight = $system['naturalLight'] ?? null;
                 $emergency = $system['emergency'] ?? null;
                 $standBy = $system['standBy'] ?? null;
-                if (!$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null) {
+                $standing = $system['standing'] ?? null;
+                $complex = $data['complex'] ?? null;
+                $building = $system['building'] ?? null;
+                if (!$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null || $standBy === null || $complex === null || $building === null) {
                     http_response_code(500);
                     echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
                 }
@@ -101,7 +104,7 @@ class LightingController
             standby, 
             specific_sum, 
             yearly_sum,
-            project_id) VALUES (:link, :name, :size, :solution, :dim, :usage, :regulation, :natural, :emergency, :standby, :specific, :sum, :projectId)";
+            project_id, standing, complex, building) VALUES (:link, :name, :size, :solution, :dim, :usage, :regulation, :natural, :emergency, :standby, :specific, :sum, :projectId, :standing, :complexId, :buildingId)";
                 $stmt = $db->prepare($sql);
                 $stmt->execute([
                     ':link' => $link,
@@ -116,9 +119,25 @@ class LightingController
                     ':standby' => (int) $standBy,
                     ':specific' => $calculated['specific'],
                     ':sum' => $calculated['sum'],
-                    ':projectId' => $projectId
+                    ':projectId' => $projectId,
+                    ':standing' => $standing,
+                    ':complexId' => $complex,
+                    ':buildingId' => $building
                 ]);
             }
+
+            $stmt = $db->prepare("INSERT INTO standings_to_other VALUES (:standing, :reference, 'LIGHTING')");
+            $stmt->execute([
+                ':standing' => $standing,
+                ':reference' => $db->lastInsertId()
+            ]);
+
+            $jsonConsumption = json_encode(['total' => $calculated['sum']]);
+            $stmt = $db->prepare("UPDATE standings SET consumption=:consumption WHERE id=:standingId AND measurement_type='VIRTUAL'");
+            $stmt->execute([
+                ':standingId' => $standing,
+                ':consumption' => $jsonConsumption
+            ]);
             $db->commit();
             http_response_code(200);
             echo json_encode(['status' => 'success', 'message' => 'Világítási rendszerek sikeresen elmentve']);

@@ -10,7 +10,9 @@ import {
 import {
     Box,
     Button,
+    Checkbox,
     FormControl,
+    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
@@ -22,13 +24,18 @@ import { useAppSelector } from '../store'
 import type { StandingsShort } from '../model/Standings.model'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function Compressed() {
     const [formData, setFormData] = useState<CompressedFormData>({
         id: null,
         name: '',
+        complex: '',
         pressure: 0,
         machines: [],
+        pressureReduction: false,
+        systemOptimalization: false,
+        wasteUse: WasteUseModes[0],
     })
     const [activeCompressorIndex, setActiveCompressorIndex] = useState<
         number | null
@@ -42,6 +49,7 @@ export default function Compressed() {
     ]
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
+    const complexes = useAppSelector((state) => state.project.complexes)
     const navigate = useNavigate()
 
     function handleAddCompressor() {
@@ -55,13 +63,11 @@ export default function Compressed() {
                 compressorType: '',
                 amount: 0,
                 nominalOutput: 0,
-                couldWasteUse: false,
-                wasteUse: WasteUseModes[0],
             },
         ]
 
         setFormData({ ...formData, machines: newCompressors })
-        setActiveCompressorIndex(newCompressors.length)
+        setActiveCompressorIndex(newCompressors.length - 1)
     }
 
     function handleActiveCompressorChange(
@@ -90,7 +96,7 @@ export default function Compressed() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -118,6 +124,23 @@ export default function Compressed() {
                 {!!errors && errors.name !== '' && (
                     <FormHelperText>{errors.name}</FormHelperText>
                 )}
+            </FormControl>
+            <FormControl>
+                <InputLabel id="complex-select-label">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select-label"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData) => (
+                        <MenuItem key={'complex-' + e.id} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
             </FormControl>
             <FormControl error={!!errors?.pressure}>
                 <TextField
@@ -251,7 +274,7 @@ export default function Compressed() {
                         }
                     >
                         <TextField
-                            label="Névleges teljesítmény"
+                            label="Névleges teljesítmény (kW/db)"
                             variant="standard"
                             type="number"
                             value={currentActiveCompressor.nominalOutput}
@@ -398,56 +421,56 @@ export default function Compressed() {
                                 </FormHelperText>
                             )}
                     </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-use-select">
-                            Van lehetőség hulladékhő hasznosításra
-                        </InputLabel>
-                        <Select
-                            label="Hulladékhő hasznosítás"
-                            labelId="waste-use-select"
-                            value={
-                                currentActiveCompressor.couldWasteUse ? 1 : 0
-                            }
-                            onChange={(e) =>
-                                handleActiveCompressorChange(
-                                    'couldWasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            <MenuItem key="Van" value={1}>
-                                Van
-                            </MenuItem>
-                            <MenuItem key="Nincs" value={0}>
-                                Nincs
-                            </MenuItem>
-                        </Select>
-                    </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van hulladékhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveCompressor.wasteUse}
-                            onChange={(e) =>
-                                handleActiveCompressorChange(
-                                    'wasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
 
+            <FormControlLabel
+                label="Van lehetőség a nyomás csökkentésére"
+                control={
+                    <Checkbox
+                        value={formData.pressureReduction}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                pressureReduction: e.target.checked,
+                            })
+                        }
+                    />
+                }
+            />
+            <FormControlLabel
+                label="Van lehetőség hálózati optimalizációra"
+                control={
+                    <Checkbox
+                        value={formData.systemOptimalization}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                systemOptimalization: e.target.checked,
+                            })
+                        }
+                    />
+                }
+            />
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van hulladékhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.wasteUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, wasteUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}

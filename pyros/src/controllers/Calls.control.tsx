@@ -1,7 +1,7 @@
 import type { BuildingFormData, BuildingShort } from '../model/Building.model'
 import type { ComplexFormData, ComplexShortData } from '../model/Complex.model'
 import type { HeaterFormData, HeaterShort } from '../model/Heater.model'
-import type { LightingFormData } from '../model/Lighting.model'
+import type { LightingForm } from '../model/Lighting.model'
 import type { ClickupTaskShort } from '../model/LoginData.model'
 import type { ProductFormData } from '../model/Product.model'
 import type {
@@ -25,6 +25,9 @@ import type { VentilationFormData } from '../model/Ventilation.model'
 
 export default class Calls {
     static getApiLink() {
+        if (import.meta.env.PROD) {
+            return '/pyros_be'
+        }
         return 'http://localhost:8000'
     }
 
@@ -71,17 +74,22 @@ export default class Calls {
         try {
             const formData = new FormData()
 
-            const { excelFile, file, ...restPayload } = payload
+            const { excelFile, file, dateFrom, dateTo, ...restPayload } =
+                payload
             const targetFile = excelFile || file
 
             if (targetFile) {
                 formData.append('excel', targetFile)
             }
 
-            formData.append(
-                'data',
-                JSON.stringify({ ...restPayload, project_id: projectId })
-            )
+            const cleanPayload = {
+                ...restPayload,
+                project_id: projectId,
+                dateFrom: dateFrom ? dateFrom.format('YYYY-MM-DD') : null,
+                dateTo: dateTo ? dateTo.format('YYYY-MM-DD') : null,
+            }
+
+            formData.append('data', JSON.stringify(cleanPayload))
 
             const response = await fetch(Calls.getApiLink() + '/standings', {
                 method: 'POST',
@@ -315,7 +323,7 @@ export default class Calls {
     }
 
     static async postLightingSystem(
-        payload: Array<LightingFormData>,
+        payload: LightingForm,
         projectId: string
     ): Promise<{ success: boolean; message: string }> {
         try {
@@ -696,7 +704,6 @@ export default class Calls {
                     }))
                 }
             )
-            console.log(heaters)
             return {
                 success: true,
                 payload: heaters,
@@ -710,27 +717,31 @@ export default class Calls {
         }
     }
 
-    static async getDocument(projectId: string): Promise<{
+    static async getDocument(
+        projectId: string,
+        sankeyImage?: string | null
+    ): Promise<{
         success: boolean
         payload?: Blob
         message?: string
     }> {
         try {
-            const response = await fetch(
-                Calls.getApiLink() + '/document?project_id=' + projectId,
-                {
-                    method: 'GET',
-                    headers: {
-                        Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    },
-                }
-            )
+            const response = await fetch(Calls.getApiLink() + '/document', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    sankey_image: sankeyImage || null,
+                }),
+            })
 
             if (!response.ok) {
                 throw new Error(`HTTP hiba! Státusz: ${response.status}`)
             }
 
-            // JSON helyett Blob-ként kérjük le a bináris fájlt
             const blob = await response.blob()
 
             return {
@@ -742,6 +753,60 @@ export default class Calls {
             return {
                 success: false,
                 message: 'Nem sikerült letölteni a dokumentumot.',
+            }
+        }
+    }
+
+    static async getSankeyData(projectId: string): Promise<{
+        success: boolean
+        payload?: Array<{ from: string; to: string; flow: number }>
+        message?: string
+    }> {
+        try {
+            const response = await fetch(
+                Calls.getApiLink() + '/sankey?project_id=' + projectId,
+                {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' },
+                }
+            )
+            if (!response.ok)
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            const data = await response.json()
+            return { success: true, payload: data }
+        } catch (error) {
+            console.error('Hiba a Sankey adatok lekérése során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült lekérni a Sankey adatokat.',
+            }
+        }
+    }
+
+    static async getHasMainProduct(project_id: string): Promise<{
+        success: boolean
+        payload?: { is_primary: boolean }
+        message?: string
+    }> {
+        try {
+            const response = await fetch(
+                Calls.getApiLink() +
+                    '/product?primary=true&project_id=' +
+                    project_id,
+                {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' },
+                }
+            )
+            if (!response.ok)
+                throw new Error(`HTTP hiba! Státusz: ${response.status}`)
+            const data = await response.json()
+            return { success: true, payload: data }
+        } catch (error) {
+            console.error('Hiba a főtermék státusz lekérése során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült lekérni a főtermék státuszt.',
             }
         }
     }

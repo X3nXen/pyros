@@ -24,15 +24,18 @@ import { useAppSelector } from '../store'
 import type { StandingsShort } from '../model/Standings.model'
 import FormSendProtocol from '../controllers/Forms.control'
 import { useNavigate } from 'react-router-dom'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function Steam() {
     const [formData, setFormData] = useState<SteamFormData>({
         id: null,
         name: '',
+        complex: '',
         pressure: 0,
         heaterMode: HeaterModes[0],
         steamUse: SteamUseModes[0],
         machines: [],
+        smokeUse: WasteUseModes[0],
     })
     const [loading, setLoading] = useState<boolean>(false)
     const [errors, setErrors] = useState<SteamErrors | null>(null)
@@ -42,7 +45,7 @@ export default function Steam() {
     const navigate = useNavigate()
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
-
+    const complexes = useAppSelector((state) => state.project.complexes)
     const standings = [
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
@@ -57,10 +60,9 @@ export default function Steam() {
             id: null,
             standing: null,
             mode: SteamMachineModes[0],
+            amount: 0,
             type: '',
             nominalOutput: 0,
-            couldSmokeUse: false,
-            smokeUse: WasteUseModes[0],
         }
 
         setFormData({
@@ -91,7 +93,7 @@ export default function Steam() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -119,6 +121,23 @@ export default function Steam() {
                 {!!errors && errors.name !== '' && (
                     <FormHelperText>{errors.name}</FormHelperText>
                 )}
+            </FormControl>
+            <FormControl>
+                <InputLabel id="complex-select-label">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select-label"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData) => (
+                        <MenuItem key={'complex-' + e.id} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
             </FormControl>
             <FormControl error={!!errors?.pressure}>
                 <TextField
@@ -243,11 +262,55 @@ export default function Steam() {
                                 errors.machines[
                                     activeSteamMachineIndex
                                 ] as SteamMachineErrors
+                            ).amount !== ''
+                        }
+                    >
+                        <TextField
+                            label="Mennyisége (db)"
+                            variant="standard"
+                            value={currentActiveSteamMachine.amount}
+                            type="number"
+                            onChange={(e) =>
+                                handleActiveMachineChange(
+                                    'amount',
+                                    Number(e.target.value)
+                                )
+                            }
+                        />
+                        {!!errors &&
+                            errors.machines[activeSteamMachineIndex!] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeSteamMachineIndex!
+                                ] as SteamMachineErrors
+                            ).amount !== '' && (
+                                <FormHelperText>
+                                    {
+                                        (
+                                            errors.machines[
+                                                activeSteamMachineIndex!
+                                            ] as SteamMachineErrors
+                                        ).amount
+                                    }
+                                </FormHelperText>
+                            )}
+                    </FormControl>
+                    <FormControl
+                        error={
+                            !!errors &&
+                            activeSteamMachineIndex !== null &&
+                            errors.machines[activeSteamMachineIndex] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeSteamMachineIndex
+                                ] as SteamMachineErrors
                             ).nominalOutput !== ''
                         }
                     >
                         <TextField
-                            label="Névleges teljesítmény"
+                            label="Névleges teljesítmény (kW/db)"
                             variant="standard"
                             value={currentActiveSteamMachine.nominalOutput}
                             type="number"
@@ -356,55 +419,27 @@ export default function Steam() {
                             )}
                         </Select>
                     </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-use-select">
-                            Van lehetőség füstgázhő hasznosításra
-                        </InputLabel>
-                        <Select
-                            label="Füstgázhő hasznosítás"
-                            labelId="waste-use-select"
-                            value={
-                                currentActiveSteamMachine.couldSmokeUse ? 1 : 0
-                            }
-                            onChange={(e) =>
-                                handleActiveMachineChange(
-                                    'couldSmokeUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            <MenuItem key="Van" value={1}>
-                                Van
-                            </MenuItem>
-                            <MenuItem key="Nincs" value={0}>
-                                Nincs
-                            </MenuItem>
-                        </Select>
-                    </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van füstgázhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveSteamMachine.smokeUse}
-                            onChange={(e) =>
-                                handleActiveMachineChange(
-                                    'smokeUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van füstgázhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.smokeUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, smokeUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}

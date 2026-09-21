@@ -21,6 +21,7 @@ class ClickupController
     private function handleGet()
     {
         $cu_user_id = $_SESSION['cu_id'] ?? null;
+        error_log("CU_ID: " . $_SESSION['cu_id']);
         if (!$cu_user_id)
             return [];
 

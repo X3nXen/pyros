@@ -5,13 +5,8 @@ export interface PumpFormData {
     name: string
     building: string | null
     servicedBuilding: Array<ServicedBuildingShort>
-    manufacturor: string
-    type: string
-    year: number
     archetype: PumpTypes
     archetypeSetting: PumpSetting
-    serialNumber: string
-    powerUsage: number
     imageFile: File | null
 }
 
@@ -19,10 +14,6 @@ export interface PumpErrors {
     name: string
     building: string
     servicedBuilding: string
-    manufacturor: string
-    type: string
-    serialNumber: string
-    powerUsage: string
     imageFile: string
 }
 
@@ -36,10 +27,6 @@ export enum PumpSetting {
     SET_A = 'Arányos beállítás',
     SET_B = 'Állandó térfogatáram',
     SET_C = 'Állandó emelőmagasság',
-    SET_D = '1.fokozat',
-    SET_E = '2.fokozat',
-    SET_F = '3.fokozat',
-    SET_G = '4.fokozat',
-    SET_H = 'Egyfokozatú',
-    SET_I = 'Nincs beállítva',
+    SET_D = 'Nincs beállítva',
+    SET_E = 'Fix beállítás',
 }

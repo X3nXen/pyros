@@ -13,6 +13,7 @@ import {
     EnergyMeasurements,
     EnergySources,
     MeasurementTypes,
+    StandingPurpose,
     type StandingsFormData,
     type StandingsShort,
 } from '../model/Standings.model'
@@ -35,7 +36,9 @@ export default function Standings() {
     const [formData, setFormData] = useState<StandingsFormData>({
         id: null,
         name: '',
+        pod: '',
         measurementType: 'MAIN' as MeasurementTypes.MAIN,
+        purpose: StandingPurpose[0],
         subTo: null,
         source: 'COAL' as EnergySources.COAL,
         measurement: 'MCUBE' as EnergyMeasurements.MCUBE,
@@ -64,16 +67,16 @@ export default function Standings() {
         )
         if (result && result.success) {
             const savedMeasurement: StandingsShort = {
-                id: formData.id!,
+                id: result.id!,
                 name: formData.name,
             }
 
-            if (formData.measurementType === MeasurementTypes.MAIN) {
+            if (formData.measurementType === ('MAIN' as MeasurementTypes)) {
                 dispatch(addMainStandingLocally(savedMeasurement))
             } else {
                 dispatch(addSubStandingLocally(savedMeasurement))
             }
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -111,7 +114,6 @@ export default function Standings() {
                             ...formData,
                             measurementType: e.target.value,
                         })
-                        console.log(formData)
                     }}
                 >
                     {Object.keys(MeasurementTypes).map((e: string) => {
@@ -132,6 +134,35 @@ export default function Standings() {
                     </FormHelperText>
                 )}
             </FormControl>
+            {formData.measurementType !== ('MAIN' as MeasurementTypes) ? (
+                <FormControl>
+                    <InputLabel id="standing-purpose-select">
+                        Mérés célja
+                    </InputLabel>
+                    <Select
+                        label="Mérés célja"
+                        labelId="standing-purpose-select"
+                        value={formData.purpose}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                purpose: e.target.value,
+                            })
+                        }
+                    >
+                        {StandingPurpose.map((e: string, index: number) => (
+                            <MenuItem
+                                key={index + '-standing-purpose'}
+                                value={e}
+                            >
+                                {e}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            ) : (
+                <></>
+            )}
             {formData.measurementType !== ('MAIN' as MeasurementTypes.MAIN) ? (
                 <FormControl>
                     <InputLabel id="non-main-sub-to-select">
@@ -182,6 +213,21 @@ export default function Standings() {
                     <FormHelperText>{errorMessage.source}</FormHelperText>
                 )}
             </FormControl>
+            {formData.source === EnergySources.GAS ||
+            formData.source === EnergySources.ELECTRICITY ? (
+                <FormControl>
+                    <TextField
+                        label="POD azonosító"
+                        variant="standard"
+                        value={formData.pod}
+                        onChange={(e) =>
+                            setFormData({ ...formData, pod: e.target.value })
+                        }
+                    />
+                </FormControl>
+            ) : (
+                <></>
+            )}
             <FormControl fullWidth>
                 <InputLabel id="energy-measurement-select">
                     Mértékegység
@@ -241,7 +287,7 @@ export default function Standings() {
                     },
                 }}
             />
-            {formData.measurementType !== MeasurementTypes.VIRTUAL ? (
+            {formData.measurementType !== ('VIRTUAL' as MeasurementTypes) ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                     <Button
                         component="label"
@@ -279,7 +325,7 @@ export default function Standings() {
                         <Typography
                             variant="caption"
                             color="error"
-                            sx={{ mt: -2, pl: 2 }}
+                            sx={{ mt: 1, pl: 2 }}
                         >
                             {errorMessage.file}
                         </Typography>
@@ -290,7 +336,7 @@ export default function Standings() {
                             sx={{
                                 textAlign: 'center',
                                 color: 'text.secondary',
-                                mt: -1,
+                                mt: 1,
                             }}
                         >
                             Kiválasztott fájl:{' '}

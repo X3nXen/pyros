@@ -2,274 +2,298 @@
 
 use PhpOffice\PhpWord\TemplateProcessor;
 require_once __DIR__ . "/../database.php";
+require_once __DIR__ . "/../services/AuditService.php";
+require_once __DIR__ . "/../services/EnergyPriceService.php";
 class DocumentController
 {
     public function index()
     {
         $method = $_SERVER['REQUEST_METHOD'];
 
-        if ($method === 'GET') {
-            $this->handleGet();
+        if ($method === 'POST') {
+            $this->handlePost();
         } else {
             http_response_code(405);
             echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
         }
     }
 
-    private function handleGet()
+    private function handlePost()
     {
-        $project_id = $_GET['project_id'];
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Érvénytelen JSON formátum']);
+            return;
+        }
+
+        $project_id = $data['project_id'] ?? null;
+        $base64Image = $data['sankey_image'] ?? null;
+
+        if (!$project_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'A project_id megadása kötelező']);
+            return;
+        }
+
+        $sankeyImagePath = sys_get_temp_dir() . '/sankey_' . $project_id . '.png';
+        $hasValidImage = false;
+
+        if (!empty($base64Image)) {
+            $imgData = preg_replace('#^data:image/\w+;base64,#i', '', $base64Image);
+            $decodedData = base64_decode($imgData);
+
+            if ($decodedData !== false) {
+                file_put_contents($sankeyImagePath, $decodedData);
+
+                if (@getimagesize($sankeyImagePath) !== false) {
+                    $hasValidImage = true;
+                }
+            }
+        }
         try {
             $templateProcessor = new TemplateProcessor(__DIR__ . '/audit_template.docx');
-
-            //Vállalkozás bemutatása
-
             $db = Database::getConnection();
-            $sql = "SELECT * FROM variables WHERE project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
-
-            $rawData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $jsonData = json_decode($rawData[0]['json'], true);
-
-            $templateProcessor->setValue('company_name', $jsonData['fullName']);
-            $templateProcessor->setValue('foundation_year', $jsonData['foundationYear']);
-            $templateProcessor->setValue('owner_percentage', ((bool) $jsonData['foreign'] ? 'magyar' : $jsonData['percent'] . '%-ban külföldi'));
-            $templateProcessor->setValue('company_product', $jsonData['mainActivity']);
-            $templateProcessor->setValue('company_place', $jsonData['companyPlace']);
-
-            $templateProcessor->setValue('data_year', $jsonData['dataYear']);
-            $templateProcessor->setValue('employee_count', $jsonData['employeeCount']);
-            $templateProcessor->setValue('profit', $jsonData['income']);
-
-            //Telephelyek
-
-            $sql = "SELECT id, complex_json FROM complex WHERE project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
-            $rawData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $table = new \PhpOffice\PhpWord\Element\Table([
-                'borderSize' => 0,
-                'borderColor' => 'FFFFFF',
-                'afterSpacing' => 100,
-            ]);
-
-            foreach ($rawData as $index => $field) {
-                $field_json = json_decode($field['complex_json'], true);
-
-                if (!$field_json) {
-                    continue;
-                }
-
-                $table->addRow();
-                $cell = $table->addCell(9000, ['gridSpan' => 2]);
-                $cell->addText(
-                    $field_json['postal'] . ' ' . $field_json['city'] . ', ' . $field_json['address'] . ' (' . $field_json['name'] . ')',
-                    ['bold' => true, 'size' => 11]
-                );
-
-                if (!empty($field_json['working']) && is_array($field_json['working'])) {
-                    foreach ($field_json['working'] as $working) {
-                        $table->addRow();
-
-                        $leftCell = $table->addCell(4500);
-                        $leftCell->addText('• Tevékenység: ' . $working['workType'], ['size' => 10]);
-
-                        $rightCell = $table->addCell(4500);
-                        $rightCell->addText('Munkarend: ' . $working['workHours'], ['size' => 10, 'italic' => true]);
-                    }
-                }
-
-                if ($index < count($rawData) - 1) {
-                    $table->addRow();
-                    $table->addCell(9000, ['gridSpan' => 2])->addText('');
-                }
-            }
-
-            $templateProcessor->setComplexValue('complex_data', $table);
-
-            //Fogyasztási adatok
-            $sql = "select c.name, c.pod_id, st.source, st.measurement, st.consumption, st.date_from, st.date_TO from complex c join standings_to_other s on s.type='COMPLEX' and s.reference=c.id join standings st on st.id=s.standing WHERE st.measurement_type='MAIN' AND c.project_id=:projectId";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':projectId' => $project_id
-            ]);
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $sql = "SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption, st.date_from, st.date_TO 
-        FROM complex c 
-        JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
-        JOIN standings st ON st.id=s.standing 
-        WHERE st.measurement_type='MAIN' AND c.project_id=:projectId";
-            $stmt = $db->prepare($sql);
+            $improveable_list = [
+                'building' => [],
+                'heaters' => [],
+                'hmv' => [],
+                'coolers' => [],
+                'hvac' => [],
+                'vehicle' => [],
+                'technology' => []
+            ];
+            //1-2. Vállalkozás bemutatása
+            $stmt = $db->prepare("SELECT json FROM variables WHERE project_id = :projectId");
             $stmt->execute([':projectId' => $project_id]);
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $jsonData = json_decode($stmt->fetchColumn() ?: '{}', true);
 
-            $sql = "SELECT c.id as complex_id, c.name, c.pod_id, st.source, st.measurement, st.consumption, st.date_from, st.date_TO 
-        FROM complex c 
-        JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
-        JOIN standings st ON st.id=s.standing 
-        WHERE st.measurement_type='MAIN' AND c.project_id=:projectId";
-            $stmt = $db->prepare($sql);
+            AuditService::createIntroductionChapter($jsonData, $templateProcessor);
+            $companyName = $jsonData['fullName'];
+
+            $stmt = $db->prepare("
+    SELECT id, name, measurement_type, sub_to, source, measurement, consumption, purpose 
+    FROM standings 
+    WHERE project_id = :projectId
+");
             $stmt->execute([':projectId' => $project_id]);
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $standings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $energySourcesMap = [
-                'COAL' => 'Szén',
-                'GASOLINE' => 'Gázolaj',
-                'PETROL' => 'Benzin',
-                'GAS' => 'Földgáz',
-                'ELECTRICITY' => 'Elektromos áram',
-                'REMOTE' => 'Távhő',
-                'PAKURA' => 'Pakura',
-                'PB' => 'PB Gáz',
-                'PROPANE' => 'Propán',
-                'LPG' => 'LPG',
-                'WOOD' => 'Tűzifa',
-                'SOLAR' => 'Napenergia'
-            ];
+            //1. Vezetői összefoglaló táblázata és a sankey diagram
 
-            $energyMeasurementsMap = [
-                'KWH' => 'kWh',
-                'MJ' => 'MJ',
-                'MCUBE' => 'm³',
-                'GJ' => 'GJ',
-                'MWH' => 'MWh'
-            ];
+            $carrierRows = AuditService::calculateTotalConsumptionList($standings);
 
-            $monthMap = [
-                'jan' => ['name' => 'január', 'num' => '01'],
-                'feb' => ['name' => 'február', 'num' => '02'],
-                'mar' => ['name' => 'március', 'num' => '03'],
-                'apr' => ['name' => 'április', 'num' => '04'],
-                'may' => ['name' => 'május', 'num' => '05'],
-                'jun' => ['name' => 'június', 'num' => '06'],
-                'jul' => ['name' => 'július', 'num' => '07'],
-                'aug' => ['name' => 'augusztus', 'num' => '08'],
-                'sep' => ['name' => 'szeptember', 'num' => '09'],
-                'oct' => ['name' => 'október', 'num' => '10'],
-                'nov' => ['name' => 'november', 'num' => '11'],
-                'dec' => ['name' => 'december', 'num' => '12'],
-            ];
+            AuditService::createConsumptionList($carrierRows, $templateProcessor, true);
 
-            $complexesData = [];
 
-            foreach ($data as $row) {
-                if (!empty($row['pod_id']) && !empty($row['name'])) {
-                    $complexLabel = $row['pod_id'] . ' / ' . $row['name'];
-                } else {
-                    $complexLabel = !empty($row['name']) ? $row['name'] : $row['pod_id'];
-                }
-
-                $rawSource = $row['source'];
-                $rawUnit = $row['measurement'] ?? '';
-
-                $sourceLabel = $energySourcesMap[$rawSource] ?? $rawSource;
-                $unitLabel = $energyMeasurementsMap[$rawUnit] ?? $rawUnit;
-
-                $consumptionJson = json_decode($row['consumption'], true);
-
-                if (is_array($consumptionJson)) {
-                    foreach ($consumptionJson as $year => $months) {
-                        if (!is_array($months))
-                            continue;
-
-                        foreach ($months as $monthKey => $value) {
-                            if ($value !== null && isset($monthMap[$monthKey])) {
-                                $sortKey = $year . '-' . $monthMap[$monthKey]['num'];
-                                $displayLabel = $year . '. ' . $monthMap[$monthKey]['name'];
-
-                                $finalValue = ($rawSource === 'SOLAR') ? -abs($value) : $value;
-
-                                $complexesData[$complexLabel][$sortKey]['label'] = $displayLabel;
-
-                                if (!isset($complexesData[$complexLabel][$sortKey]['items'][$rawSource])) {
-                                    $complexesData[$complexLabel][$sortKey]['items'][$rawSource] = [
-                                        'source' => $sourceLabel,
-                                        'value' => 0,
-                                        'unit' => $unitLabel
-                                    ];
-                                }
-
-                                $complexesData[$complexLabel][$sortKey]['items'][$rawSource]['value'] += $finalValue;
-                            }
-                        }
-                    }
-                }
-            }
-
-            $mainTable = new \PhpOffice\PhpWord\Element\Table([
-                'borderColor' => 'CCCCCC',
-                'borderSize' => 4,
-                'cellMarginTop' => 40,
-                'cellMarginBottom' => 40,
-                'cellMarginLeft' => 100,
-                'cellMarginRight' => 100,
-                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-            ]);
-
-            $isFirstComplex = true;
-
-            foreach ($complexesData as $complexTitle => $groupedData) {
-                if (!$isFirstComplex) {
-                    $mainTable->addRow();
-                    $breakCell = $mainTable->addCell(9000, ['gridSpan' => 3, 'borderSize' => 0]);
-                    // XML oldaltörés beszúrása
-                    $breakCell->addText('<w:br w:type="page"/>');
-                }
-                $isFirstComplex = false;
-
-                $mainTable->addRow(250, ['cantSplit' => true]);
-                $headerCell = $mainTable->addCell(9000, [
-                    'gridSpan' => 3,
-                    'bgColor' => 'D9D9D9',
-                    'valign' => 'center'
+            if ($hasValidImage) {
+                $templateProcessor->setImageValue('sankey_diagram', [
+                    'path' => $sankeyImagePath,
+                    'width' => 600,
+                    'height' => 300,
+                    'ratio' => true
                 ]);
-                $headerCell->addText('Mérési pont / Telephely: ' . $complexTitle, ['bold' => true, 'size' => 10]);
-
-                $mainTable->addRow(220, ['tblHeader' => true, 'cantSplit' => true]);
-                $mainTable->addCell(3000, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Hónap', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                $mainTable->addCell(3500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Energiahordozó', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                $mainTable->addCell(2500, ['bgColor' => 'F2F2F2', 'valign' => 'center'])->addText('Fogyasztás', ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-
-                ksort($groupedData);
-
-                foreach ($groupedData as $sortKey => $monthData) {
-                    $monthLabel = $monthData['label'];
-                    $items = array_values($monthData['items']);
-
-                    foreach ($items as $index => $item) {
-                        $mainTable->addRow(200, ['cantSplit' => true]);
-
-                        if ($index === 0) {
-                            $mainTable->addCell(3000, [
-                                'vMerge' => 'restart',
-                                'valign' => 'center'
-                            ])->addText($monthLabel, ['bold' => true, 'size' => 9.5], ['alignment' => 'center']);
-                        } else {
-                            $mainTable->addCell(3000, [
-                                'vMerge' => 'continue'
-                            ]);
-                        }
-
-                        $mainTable->addCell(3500, ['valign' => 'center'])->addText($item['source'], ['size' => 9.5]);
-
-                        $formattedValue = number_format($item['value'], 0, ',', ' ') . ' ' . $item['unit'];
-                        $mainTable->addCell(2500, ['valign' => 'center'])->addText($formattedValue, ['size' => 9.5], ['alignment' => 'right']);
-                    }
-                }
+            } else {
+                $templateProcessor->setValue('sankey_diagram', AuditService::xmlEscape('A diagram nem áll rendelkezésre.'));
+            }
+            if (file_exists($sankeyImagePath)) {
+                @unlink($sankeyImagePath);
             }
 
-            $templateProcessor->setComplexValue('standings_data_by_complex', $mainTable);
+            // 2. Vállakozás bemutatása
 
-            //mentés
+            $stmt = $db->prepare("SELECT complex_json FROM complex WHERE project_id = :projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $complexes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            AuditService::createComplexesTable($complexes, $templateProcessor);
+
+            // 3. Fogyasztási adatok
+
+            $stmt = $db->prepare("SELECT c.id as complex_id, c.name, st.source, st.measurement, st.consumption 
+                                      FROM complex c 
+                                      JOIN standings_to_other s ON s.type='COMPLEX' AND s.reference=c.id 
+                                      JOIN standings st ON st.id=s.standing 
+                                      WHERE st.measurement_type='MAIN' AND c.project_id=:projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $standingDataByComplex = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $groupedData = AuditService::processMonthlyConsumptionList($standingDataByComplex);
+
+            AuditService::createStandingByComplexSection($groupedData, $templateProcessor);
+
+            // 4. Mérési hálózatok
+
+            $stmt = $db->prepare("SELECT id, name, measurement_type, sub_to, source, measurement, consumption 
+                                      FROM standings WHERE project_id = :projectId ORDER BY id ASC");
+            $stmt->execute([':projectId' => $project_id]);
+            $allStandings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $hierarchy_data = AuditService::buildStandingHierarchy($allStandings);
+            AuditService::createStandingHierarchySection($hierarchy_data, $templateProcessor);
+
+            // 5. Költségek kalkulációja
+
+            $stmt = $db->prepare("SELECT date_from, date_to FROM standings WHERE project_id=:projectId LIMIT 1");
+            $stmt->execute([':projectId' => $project_id]);
+            $dates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            AuditService::createCurrentPricesSection($dates, $templateProcessor);
+
+            // 6. Pénzügyi környezet kalkuláció
+
+            AuditService::createInvestmentSection($jsonData, $templateProcessor);
+
+            // 7. Épületek energetikai értékelése
+            // 7.1 - Épületfizikai értékelés
+
+            $stmt = $db->prepare("SELECT b.name as building_name, b.qf, c.name as complex_name FROM buildings b join complex c on c.id = b.complex WHERE b.project_id=:projectId");
+            $stmt->execute([
+                ':projectId' => $project_id
+            ]);
+            $allBuildings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $buildingData = AuditService::buildBuildingRows($allBuildings, $improveable_list);
+            AuditService::createBuildingListingSection($buildingData, $templateProcessor);
+
+            // 7.2? - Épületek fűtése
+            $starterIndex = 2;
+            $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name as complex_name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
+            $stmt->execute([':projectId' => $project_id]);
+            $allHeating = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $heaterData = AuditService::buildHeatingListingRows($allHeating, $improveable_list);
+            AuditService::createHeatingListingSection($heaterData, $templateProcessor, $starterIndex, $companyName);
+
+            //7.3? - HMV készítés - later, when change is implemented regarding HMV systems
+            $hmvData = [];
+            AuditService::createHMVListingSection($hmvData, $templateProcessor, $starterIndex, $companyName);
+            //7.4? - Világítási rendszerek
+
+            $stmt = $db->prepare("SELECT l.name, l.specific_sum, s.consumption, s.source, c.name as complex_name, l.size, b.size as building_size, l.solution FROM lighting_systems l join standings s on l.standing = s.id join complex c on c.id = l.complex join buildings b on b.id=l.building where l.project_id =:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allLighting = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $lightingData = AuditService::buildLightingListingRows($allLighting, $improveable_list);
+            AuditService::createLightingListingSection($lightingData, $templateProcessor, $starterIndex, $companyName);
+
+            //7.5? - Hűtési rendszerek
+            $stmt = $db->prepare("SELECT h.heaters, c.name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='COOL' OR purpose='BOTH')");
+            $stmt->execute([':projectId' => $project_id]);
+            $allCooling = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $coolingData = AuditService::buildCoolingListingRows($allCooling, $improveable_list);
+            AuditService::createCoolingListingSection($coolingData, $templateProcessor, $starterIndex, $companyName);
+
+            //7.6? - Légkezelő rendszerek
+
+            $stmt = $db->prepare("SELECT v.name, c.name as complex_name, b.name as building_name, v.sfp, v.category, v.json from ventilation_systems v join complex c on c.id=v.complex join buildings b on v.building = b.id WHERE v.project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allHvac = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $hvacData = AuditService::buildHVACListingRows($allHvac, $improveable_list);
+            AuditService::createHVACListingSection($hvacData, $templateProcessor, $starterIndex, $companyName);
+
+            // 8. - Szállítás értékelése
+            $stmt = $db->prepare("SELECT 
+                                    v.name AS vehicle_name, 
+                                    c.name AS complex_name, 
+                                    v.usage_value, 
+                                    v.usage_value2, 
+                                    v.usage_metric,
+                                    v.vehicle_category,
+                                    v.motor_size,
+                                    v.hibrid,
+                                    v.fuel,
+                                    v.chargeable,
+                                    v.capacity,
+                                    s.consumption,
+                                    s.measurement_type,
+                                    s.measurement, 
+                                    s.source 
+                                  FROM vehicles v 
+                                  JOIN complex c ON v.complex_id = c.id 
+                                  LEFT JOIN standings s ON v.standing_id = s.id 
+                                  WHERE v.project_id = :projectId");
+            $stmt->execute([':projectId' => $project_id]);
+            $vehicleData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $vehicleListing = AuditService::buildVehicleListingRows($vehicleData, $improveable_list);
+            AuditService::createVehicleListingSection($vehicleListing, $templateProcessor);
+
+            // 10. Technológia értékelése
+            $stmt = $db->prepare("SELECT t.id, t.name, t.json, c.name as complex_name, t.technology_type FROM technology t join complex c on t.complex = c.id WHERE t.project_id = :projectId ORDER BY id ASC");
+            $stmt->execute([':projectId' => $project_id]);
+            $technologies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $standings = AuditService::getStandingIdsOfTechnology($technologies);
+            $standingIdsToName = [];
+            foreach ($standings as $standingId) {
+                $stmt = $db->prepare("SELECT name FROM standings WHERE id=:standingId");
+                $stmt->execute([":standingId" => $standingId]);
+                $standingName = $stmt->fetchColumn();
+                $standingIdsToName[$standingId] = $standingName;
+            }
+            $standingIdsToName = array_unique($standingIdsToName);
+
+            $grouped = AuditService::buildTechnologyListingRows($technologies, $improveable_list, $standingIdsToName);
+
+
+            AuditService::createTechnologySection($grouped, $templateProcessor, $companyName);
+
+            //11. Fogyasztások felosztása
+
+            AuditService::createConsumptionList($carrierRows, $templateProcessor, false);
+
+            // 12?. Energia teljesítmény mutató meghatározása
+
+            $stmt = $db->prepare("SELECT product_name, metric, is_primary, json FROM product WHERE project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allProduct = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $productListing = AuditService::buildProductListingRows($allProduct, $carrierRows);
+            AuditService::createProductListingSection($productListing, $templateProcessor);
+
+            // 13?. Javaslatok és források
+            AuditService::createImproveableListingSection($improveable_list, $templateProcessor);
+            /*
+
+                        // --- 2. HMV RENDSZEREK (Javított biztonságos ellenőrzéssel) ---
+                        $emittersData = !empty($allHeating) ? json_decode($allHeating[0]['emitters'] ?? '[]', true) : [];
+
+                        if (empty($emittersData)) {
+                            $templateProcessor->setValue("subheading_building_hmv", "");
+                            $templateProcessor->setValue("hmv_intro", "");
+                            $templateProcessor->setValue("hmv_subtext", "");
+                            $templateProcessor->setValue('hmv_listing', "");
+                        } else {
+                            $templateProcessor->setValue("subheading_building_hmv", "7." . $starterIndex . ". Használati melegvíz készítés");
+
+                            $hmvTable = new \PhpOffice\PhpWord\Element\Table([
+                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
+                            ]);
+                            $hmvIntro = "A(z) " . AuditService::xmlEscape($companyName) . " az alábbi használati melegvizes rendszerekkel rendelkezik:";
+                            $hmvSubtext = "A pontszám megállapításánál figyelembe vett szempontok: melegvíz készítés szabályozási előfeltételei: Időprogram és/vagy hőmérsékleti értékek.";
+                            AuditService::buildHMVTable($hmvTable, $allHeating, $improveable_list);
+
+                            $templateProcessor->setComplexValue("hmv_listing", $hmvTable);
+                            $templateProcessor->setValue("hmv_intro", $hmvIntro);
+                            $templateProcessor->setValue("hmv_subtext", $hmvSubtext);
+
+                            $starterIndex++;
+                        }
+*/
+            // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';
             $tempPath = sys_get_temp_dir() . '/' . $tempFileName;
             $templateProcessor->saveAs($tempPath);
+
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
+
             header('Content-Description: File Transfer');
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
             header('Content-Disposition: attachment; filename="generalt_dokumentacio.docx"');

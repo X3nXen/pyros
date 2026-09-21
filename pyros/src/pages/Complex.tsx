@@ -56,7 +56,6 @@ export default function Complex() {
     const [formData, setFormData] = useState<ComplexFormData>({
         id: null,
         name: '',
-        podId: '',
         address: '',
         postal: 0,
         city: '',
@@ -97,11 +96,11 @@ export default function Complex() {
 
         if (result && result.success) {
             const savedResult: ComplexShortData = {
-                id: formData.id as string,
+                id: result.id!,
                 name: formData.name,
             }
             dispatch(addComplexLocally(savedResult))
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -155,16 +154,6 @@ export default function Complex() {
                 {errorMessage?.name && (
                     <FormHelperText>{errorMessage.name}</FormHelperText>
                 )}
-            </FormControl>
-            <FormControl>
-                <TextField
-                    label="POD azonosító"
-                    variant="standard"
-                    value={formData.podId}
-                    onChange={(e) =>
-                        setFormData({ ...formData, podId: e.target.value })
-                    }
-                />
             </FormControl>
             <FormControl fullWidth error={!!errorMessage?.postal}>
                 <Autocomplete

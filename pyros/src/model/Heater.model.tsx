@@ -2,7 +2,7 @@ import { SystemPurpose } from './System.model'
 
 export enum HeaterCarrier {
     NATURAL_GAS = 'Földgáz',
-    PB_GAS = 'Pbgáz',
+    PB_GAS = 'PB-gáz',
     BIO_GAS = 'Biogáz',
     ELECTRICITY = 'Elektromos áram',
     OFF_PEAK_ELECTRICITY = 'Csúcson kívüli elektromos áram',
@@ -103,6 +103,12 @@ export enum HeaterType {
 
     OTHER = 'Egyéb',
 }
+
+export const HeaterRegulations: Array<string> = [
+    'Fix értéktartás',
+    'Központi értékről történő szabályozás',
+    'Időjárásfüggő szabályozás',
+]
 
 export const HEAT_CARRIER_TO_TYPE: Record<HeaterCarrier, HeaterType[]> = {
     [HeaterCarrier.NATURAL_GAS]: [
@@ -312,16 +318,10 @@ export interface HeaterFormData {
     standing: string | null
     building: string | null
     servicedBuilding: Array<string>
-    serial: string
-    manufacturor: string
-    year: number
-    type: string
+    regulation: string
     carrier: HeaterCarrier
     heatingType: HeaterType
     state: HeaterDescriptions
-    forwardHeat: number
-    backHeat: number
-    maxPower: number
     baseType: ElectricCalcMode
     placementType: ElectricCalcInstallation
     ambientMedium: ElectricCalcMedium
@@ -329,8 +329,6 @@ export interface HeaterFormData {
     refrigerant: ElectricCalcRefrigerant
     heatLoss: boolean
     couldHeatLoss: boolean
-    oversized: boolean
-    oversizeRatio: number
     imageFile: File | null
 }
 
@@ -339,14 +337,7 @@ export interface HeaterFormErrors {
     standing: string
     building: string
     servicedBuilding: string
-    serial: string
-    manufacturor: string
-    type: string
     heatingType: string
-    forwardHeat: string
-    backHeat: string
-    maxPower: string
-    oversizeRatio: string
     imageFile: string
 }
 

@@ -100,9 +100,10 @@ class BuildingsController
 
             $res = calculateValues($data);
             $qf = $data['qf'] ?? round($res['q_f'], 2);
-            $heatLoss = $data['heatLoss'] ?? round($res['total_loss_watt'] / 1000, 2);
+            $heatLoss = $data['heatLoss'] ?? 0;
+            $size = $data['size'];
 
-            $sql = "INSERT INTO buildings(name, json_data, calculated_values, qf, heat_loss, image_id, complex, project_id) VALUES (:name, :json_data, :calculated_values, :qf, :heat_loss, :image_id, :complex, :project_id)";
+            $sql = "INSERT INTO buildings(name, json_data, calculated_values, qf, heat_loss, image_id, complex, project_id, size) VALUES (:name, :json_data, :calculated_values, :qf, :heat_loss, :image_id, :complex, :project_id, :buildingSize)";
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 ':name' => $name,
@@ -112,7 +113,8 @@ class BuildingsController
                 ':heat_loss' => $heatLoss,
                 ':image_id' => null,
                 ':complex' => $complex,
-                ':project_id' => $projectId
+                ':project_id' => $projectId,
+                ':buildingSize' => $size
             ]);
 
             $insertedId = $db->lastInsertId();

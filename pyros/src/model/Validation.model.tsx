@@ -5,13 +5,12 @@ import type {
 } from './Building.model'
 import type { ComplexErrors, ComplexFormData } from './Complex.model'
 import type { EmitterErrors, EmitterFormData } from './Emitter.model'
-import {
-    DEVICE_FEATURES,
-    HeaterFeature,
-    type HeaterFormData,
-    type HeaterFormErrors,
-} from './Heater.model'
-import type { LightingErrors, LightingFormData } from './Lighting.model'
+import { type HeaterFormData, type HeaterFormErrors } from './Heater.model'
+import type {
+    LightingErrors,
+    LightingForm,
+    SystemErrors,
+} from './Lighting.model'
 import type { PumpErrors, PumpFormData } from './Pump.model'
 import { MeasurementTypes, type StandingsFormData } from './Standings.model'
 import type { HeatingSystemErrors, HeatingSystemFormData } from './System.model'
@@ -36,7 +35,6 @@ import type {
 import type { VehicleErrors, VehicleFormData } from './Vehicles.model'
 import {
     VentilationHeatRetrievers,
-    VentilationInsulationMaterial,
     VentilationTypes,
     type VentilationFormData,
     type VentilationFormErrors,
@@ -104,14 +102,17 @@ export function validateStandings(
             errors.dateFrom = errors.dateTo =
                 'A kezdő dátum nem lehet később, mint a végdátum!'
             hasError = true
-        } else if (payload.dateTo.diff(payload.dateFrom, 'month') < 12) {
+        } else if (payload.dateTo.diff(payload.dateFrom, 'day') < 364) {
             errors.dateFrom = errors.dateTo =
                 'A kezdő és vég dátum között legalább 12 hónapnak kell lennie!'
             hasError = true
         }
     }
 
-    if (!payload.file && payload.measurementType !== MeasurementTypes.VIRTUAL) {
+    if (
+        !payload.file &&
+        payload.measurementType !== ('VIRTUAL' as MeasurementTypes)
+    ) {
         errors.file = 'A kimutatás fájl feltöltése kötelező!'
         hasError = true
     }
@@ -287,6 +288,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
     const errors: HeatingSystemErrors = {
         name: '',
         standing: '',
+        complex: '',
         heaters: [],
         pumps: [],
         emitters: [],
@@ -304,6 +306,11 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
         hasError = true
     }
 
+    if (!payload.complex || payload.complex === '') {
+        errors.complex = 'Add meg a telephelyet!'
+        hasError = true
+    }
+
     payload.heaters.forEach((item: HeaterFormData) => {
         let localHasError = false
         const heaterElem: HeaterFormErrors = {
@@ -311,14 +318,7 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             standing: '',
             building: '',
             servicedBuilding: '',
-            serial: '',
-            manufacturor: '',
-            type: '',
             heatingType: '',
-            forwardHeat: '',
-            backHeat: '',
-            maxPower: '',
-            oversizeRatio: '',
             imageFile: '',
         }
         if (!item.name || item.name === '') {
@@ -338,49 +338,8 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
                 'Add meg a hőtermelő által kiszolgált épületeket!'
             localHasError = true
         }
-        if (!item.serial || item.serial === '') {
-            heaterElem.serial = 'Add meg a hőtermelő gyári számát!'
-            localHasError = true
-        }
-        if (!item.manufacturor || item.manufacturor === '') {
-            heaterElem.manufacturor = 'Add meg a hőtermelő gyártóját!'
-            localHasError = true
-        }
-        if (!item.type || item.type === '') {
-            heaterElem.type = 'Add meg a hőtermelő típusát!'
-            localHasError = true
-        }
         if (!item.heatingType) {
             heaterElem.heatingType = 'Válaszd ki a hőtermelés jellegét!'
-            localHasError = true
-        }
-        if (
-            item.heatingType &&
-            DEVICE_FEATURES[item.heatingType].includes(
-                HeaterFeature.SYSTEM_HEAT
-            )
-        ) {
-            if (!item.forwardHeat || item.forwardHeat === 0) {
-                heaterElem.forwardHeat = 'Add meg az előremenő hőmérsékletet!'
-                localHasError = true
-            }
-            if (!item.backHeat || item.backHeat === 0) {
-                heaterElem.backHeat = 'Add meg a visszatérő hőmérsékletet!'
-                localHasError = true
-            }
-        }
-
-        if (!item.maxPower || item.maxPower === 0) {
-            heaterElem.maxPower =
-                'Add meg a berendezés max. bevitt teljesítményét!'
-            localHasError = true
-        }
-
-        if (
-            item.oversized &&
-            (!item.oversizeRatio || item.oversizeRatio <= 0)
-        ) {
-            heaterElem.oversizeRatio = 'Add meg a túlméretezettség mértékét!'
             localHasError = true
         }
         if (!item.imageFile) {
@@ -401,10 +360,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             name: '',
             building: '',
             servicedBuilding: '',
-            manufacturor: '',
-            type: '',
-            serialNumber: '',
-            powerUsage: '',
             imageFile: '',
         }
 
@@ -425,22 +380,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
                 'Add meg a szivattyú által kiszolgált épületeket és területeket!'
             localHasError = true
         }
-        if (!item.manufacturor || item.manufacturor === '') {
-            pumpElem.manufacturor = 'Add meg a szivattyú gyártóját!'
-            localHasError = true
-        }
-        if (!item.type || item.type === '') {
-            pumpElem.type = 'Add meg a szivattyú típusát!'
-            localHasError = true
-        }
-        if (!item.serialNumber || item.serialNumber === '') {
-            pumpElem.serialNumber = 'Add meg a szivattyú gyári számát!'
-            localHasError = true
-        }
-        if (!item.powerUsage || item.powerUsage === 0) {
-            pumpElem.powerUsage = 'Add meg a szivattyú villamos energiaigényét!'
-            localHasError = true
-        }
         if (!item.imageFile) {
             pumpElem.imageFile = 'Tölts fel egy képet a szivattyúról!'
             localHasError = true
@@ -459,9 +398,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             name: '',
             building: '',
             servicedBuilding: '',
-            amount: '',
-            forwardHeat: '',
-            backHeat: '',
             imageFile: '',
         }
 
@@ -482,20 +418,6 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
                 'Add meg a hőtermelő által kiszolgált épületeket és területeket!'
             localHasError = true
         }
-        if (!item.amount || item.amount === 0) {
-            emitterElem.amount = 'Add meg a hőleadók darabszámát!'
-            localHasError = true
-        }
-        if (!item.forwardHeat || item.forwardHeat === 0) {
-            emitterElem.forwardHeat =
-                'Add meg a hőleadó rendszerében az előremenő hőmérsékletet!'
-            localHasError = true
-        }
-        if (!item.backHeat || item.backHeat === 0) {
-            emitterElem.backHeat =
-                'Add meg a hőleadó rendszerében a visszatérő hőmérsékletet!'
-            localHasError = true
-        }
         if (!item.imageFile) {
             emitterElem.imageFile = 'Tölts fel egy képet a hőleadóról!'
             localHasError = true
@@ -513,11 +435,10 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
 export function validateVentilationSystem(payload: VentilationFormData) {
     const errors: VentilationFormErrors = {
         name: '',
+        complex: '',
         building: '',
         servicedBuilding: '',
         servicedSizes: null,
-        forwardHeat: '',
-        backHeat: '',
         ventilationOther: '',
         suckRatio: '',
         suckPower: '',
@@ -533,6 +454,10 @@ export function validateVentilationSystem(payload: VentilationFormData) {
 
     if (!payload.name || payload.name === '') {
         errors.name = 'Add meg a légkezelő rendszer megnevezését!'
+        hasError = true
+    }
+    if (!payload.complex || payload.complex === '') {
+        errors.complex = 'Add meg a légkezelő rendszerhez tartozó telephelyet!'
         hasError = true
     }
 
@@ -558,15 +483,6 @@ export function validateVentilationSystem(payload: VentilationFormData) {
                 hasError = true
             }
         })
-    }
-
-    if (!payload.forwardHeat || payload.forwardHeat === 0) {
-        errors.forwardHeat = 'Add meg a rendszer előremenő hőmérsékletét!'
-        hasError = true
-    }
-    if (!payload.backHeat || payload.backHeat === 0) {
-        errors.backHeat = 'Add meg a rendszer visszatérő hőmérsékletét!'
-        hasError = true
     }
 
     if (payload.ventilatorType === VentilationTypes.OTHER) {
@@ -604,13 +520,6 @@ export function validateVentilationSystem(payload: VentilationFormData) {
         }
     }
 
-    if (payload.insulationMaterial !== VentilationInsulationMaterial.NONE) {
-        if (!payload.insulationWidth || payload.insulationWidth < 0) {
-            errors.insulationWidth = 'Add meg a szigetelés vastagságát!'
-            hasError = true
-        }
-    }
-
     if (payload.heating && (payload.heaterId === '' || !payload.heaterId)) {
         errors.heaterId = 'Add meg az utófűtés hőtermelőjét!'
         hasError = true
@@ -629,14 +538,27 @@ export function validateVentilationSystem(payload: VentilationFormData) {
     return hasError ? errors : null
 }
 
-export function validateLightingSystem(payload: Array<LightingFormData>) {
-    const errors: Array<string | LightingErrors> = []
+export function validateLightingSystem(payload: LightingForm) {
+    const errors: SystemErrors = {
+        complex: '',
+        systems: [],
+    }
     let hasError = false
-    payload.forEach((e) => {
+    if (!payload.complex || payload.complex === '') {
+        errors.complex = 'Add meg a telephelyet!'
+        hasError = true
+    }
+    payload.systems.forEach((e) => {
         let localHasError = false
         const localErrors: LightingErrors = {
+            building: '',
             zone: '',
             size: '',
+            standing: '',
+        }
+        if (!e.building || e.building === '') {
+            localErrors.building = 'Add meg az épületet!'
+            localHasError = true
         }
         if (!e.zone || e.zone === '') {
             localErrors.zone = 'Add meg a zóna nevét!'
@@ -646,11 +568,20 @@ export function validateLightingSystem(payload: Array<LightingFormData>) {
             localErrors.size = 'Add meg a zóna méretét!'
             localHasError = true
         }
+        if (!e.standing || e.standing == '') {
+            localErrors.standing = 'Add meg a hozzárendelt mérőt!'
+            localHasError = true
+        }
         if (localHasError) {
             hasError = true
-            errors.push(localErrors)
+            if (errors.systems === null) {
+                errors.systems = []
+            }
+            ;(errors.systems as Array<LightingErrors | string>).push(
+                localErrors
+            )
         } else {
-            errors.push('none')
+            ;(errors.systems as Array<LightingErrors | string>).push('none')
         }
     })
     return hasError ? errors : null
@@ -743,6 +674,7 @@ export function validateSteam(payload: SteamFormData) {
             standing: '',
             type: '',
             nominalOutput: '',
+            amount: '',
         }
 
         if (!machine.standing || machine.standing === '') {
@@ -759,6 +691,12 @@ export function validateSteam(payload: SteamFormData) {
             localHasError = true
             localErrors.nominalOutput =
                 'Add meg a gőzfejlesztő névleges teljesítményét!'
+        }
+
+        if (!machine.amount || machine.amount <= 0) {
+            localHasError = true
+            localErrors.amount =
+                'Add meg a gőzfejlesztő berendezések mennyiségét!'
         }
 
         errors.machines.push(localHasError ? localErrors : 'none')
@@ -788,6 +726,7 @@ export function validateCooling(payload: CoolingFormData) {
             standing: '',
             type: '',
             nominalOutput: '',
+            amount: '',
         }
 
         if (!machine.standing || machine.standing === '') {
@@ -804,6 +743,11 @@ export function validateCooling(payload: CoolingFormData) {
             localHasError = true
             localErrors.nominalOutput =
                 'Add meg a hűtőberendezés névleges teljesítményét!'
+        }
+
+        if (!machine.amount || machine.amount <= 0) {
+            localHasError = true
+            localErrors.amount = 'Add meg a hűtőberendezések mennyiségét!'
         }
 
         errors.machines.push(localHasError ? localErrors : 'none')
@@ -880,6 +824,7 @@ export function validateVehicle(payload: VehicleFormData) {
         subStanding: '',
         motorSize: '',
         usageValue2: '',
+        capacity: '',
     }
     let hasError = false
 
@@ -917,6 +862,14 @@ export function validateVehicle(payload: VehicleFormData) {
     ) {
         errors.usageValue2 =
             'Add meg a használati jellemző második komponensét! (tonna)'
+        hasError = true
+    }
+
+    if (
+        payload.category === 'Anyagmozgató' &&
+        (!payload.capacity || payload.capacity === 0)
+    ) {
+        errors.capacity = 'Add meg az anyagmozgató teherbírását!'
         hasError = true
     }
 

@@ -89,6 +89,7 @@ class HeatingController
             $purpose = $purposeMap[$data['systemPurpose'] ?? ''] ?? 'HEAT';
             $regulation = $data['systemRegulation'] ?? 'NONE';
             $regulationDesc = $data['systemRegulationDesc'] ?? 'NONE';
+            $complex = $data['complex'] ?? '';
 
             // Képmappa előkészítése
             $uploadDir = __DIR__ . '/../images/';
@@ -209,8 +210,8 @@ class HeatingController
             unset($emitter);
 
             // 5. Beszúrás a heating_systems táblába
-            $sqlSystem = "INSERT INTO heating_systems (name, purpose, regulation, description, heaters, pumps, emitters, project_id) 
-                          VALUES (:name, :purpose, :regulation, :description, :heaters, :pumps, :emitters, :projectId)";
+            $sqlSystem = "INSERT INTO heating_systems (name, purpose, regulation, description, heaters, pumps, emitters, project_id, complex) 
+                          VALUES (:name, :purpose, :regulation, :description, :heaters, :pumps, :emitters, :projectId, :complexId)";
             $stmtSystem = $db->prepare($sqlSystem);
             $stmtSystem->execute([
                 ':name' => $data['name'] ?? '',
@@ -220,7 +221,8 @@ class HeatingController
                 ':heaters' => json_encode($heaters, JSON_UNESCAPED_UNICODE),
                 ':pumps' => json_encode($pumps, JSON_UNESCAPED_UNICODE),
                 ':emitters' => json_encode($emitters, JSON_UNESCAPED_UNICODE),
-                ':projectId' => $projectId
+                ':projectId' => $projectId,
+                ':complexId' => $complex
             ]);
 
             $systemId = $db->lastInsertId();

@@ -24,7 +24,7 @@ import type {
     VentilationFormData,
     VentilationFormErrors,
 } from '../model/Ventilation.model'
-import type { LightingErrors, LightingFormData } from '../model/Lighting.model'
+import type { LightingForm, SystemErrors } from '../model/Lighting.model'
 import type { VehicleErrors, VehicleFormData } from '../model/Vehicles.model'
 import type { ProductFormData } from '../model/Product.model'
 import {
@@ -46,12 +46,12 @@ export default class FormSendProtocol {
         setLoading: (loading: boolean) => void,
         setErrorMessage: (msg: StandingsErrors | null) => void,
         projectId: string
-    ): Promise<{ success: boolean; reason: string | null }> {
+    ): Promise<{ success: boolean; reason: string | null; id: string }> {
         setErrorMessage(null)
         const errors = validateStandings(payload)
         if (errors) {
             setErrorMessage(errors)
-            return { success: false, reason: 'Validation error' }
+            return { success: false, reason: 'Validation error', id: '' }
         }
 
         try {
@@ -67,13 +67,12 @@ export default class FormSendProtocol {
                 reason = 'Backend call error'
             }
             setLoading(false)
-            payload.id = response.id ?? null
-            return { success: success, reason: reason }
+            return { success: success, reason: reason, id: response.id! }
         } catch (error) {
             alert('Valami hiba történt a hálózati kommunikáció során')
             console.error(error)
             setLoading(false)
-            return { success: false, reason: 'Network error' }
+            return { success: false, reason: 'Network error', id: '' }
         }
     }
 
@@ -82,12 +81,12 @@ export default class FormSendProtocol {
         setLoading: (loading: boolean) => void,
         setErrorMessage: (msg: ComplexErrors | null) => void,
         projectId: string
-    ): Promise<{ success: boolean; reason: string | null }> {
+    ): Promise<{ success: boolean; reason: string | null; id: string | null }> {
         setErrorMessage(null)
         const errors = validateComplex(payload)
         if (errors) {
             setErrorMessage(errors)
-            return { success: false, reason: 'Validation error' }
+            return { success: false, reason: 'Validation error', id: null }
         }
 
         try {
@@ -102,14 +101,13 @@ export default class FormSendProtocol {
                 success = false
                 reason = 'Backend call error'
             }
-            payload.id = response.id ?? null
             setLoading(false)
-            return { success: success, reason: reason }
+            return { success: success, reason: reason, id: response.id! }
         } catch (error) {
             alert('Valami hiba történt a hálózati kommunikáció során')
             console.error(error)
             setLoading(false)
-            return { success: false, reason: 'Network error' }
+            return { success: false, reason: 'Network error', id: null }
         }
     }
 
@@ -118,12 +116,12 @@ export default class FormSendProtocol {
         setLoading: (loading: boolean) => void,
         setErrorMessage: (msg: BuildingErrors | null) => void,
         projectId: string
-    ): Promise<{ success: boolean; reason: string | null }> {
+    ): Promise<{ success: boolean; reason: string | null; id: string | null }> {
         setErrorMessage(null)
         const errors = validateBuilding(payload)
         if (errors) {
             setErrorMessage(errors)
-            return { success: false, reason: 'Validation error' }
+            return { success: false, reason: 'Validation error', id: null }
         }
 
         try {
@@ -138,14 +136,13 @@ export default class FormSendProtocol {
                 success = false
                 reason = 'Backend call error'
             }
-            payload.id = response.id!
             setLoading(false)
-            return { success: success, reason: reason }
+            return { success: success, reason: reason, id: response.id! }
         } catch (error) {
             alert('Valami hiba történt a hálózati kommunikáció során')
             console.error(error)
             setLoading(false)
-            return { success: false, reason: 'Network error' }
+            return { success: false, reason: 'Network error', id: null }
         }
     }
 
@@ -226,9 +223,9 @@ export default class FormSendProtocol {
     }
 
     static async handleLightingSystem(
-        payload: Array<LightingFormData>,
+        payload: LightingForm,
         setLoading: (loading: boolean) => void,
-        setErrorMessage: (msg: Array<string | LightingErrors> | null) => void,
+        setErrorMessage: (msg: SystemErrors | null) => void,
         projectId: string
     ) {
         setErrorMessage(null)
@@ -272,8 +269,6 @@ export default class FormSendProtocol {
             setErrorMessage(errors)
             return { success: false, reason: 'Validation error' }
         }
-        console.log(payload)
-
         try {
             setLoading(true)
             const response = await Calls.postVehicle(payload, projectId)

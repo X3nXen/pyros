@@ -23,13 +23,16 @@ import {
 import CardListing from '../components/CardListing'
 import type { StandingsShort } from '../model/Standings.model'
 import FormSendProtocol from '../controllers/Forms.control'
+import type { ComplexShortData } from '../model/Complex.model'
 
 export default function Cooling() {
     const [formData, setFormData] = useState<CoolingFormData>({
         id: null,
         name: '',
+        complex: '',
         coolerMode: CoolerModes[0],
         machines: [],
+        wasteUse: WasteUseModes[0],
     })
     const [loading, setLoading] = useState<boolean>(false)
     const [activeCoolingMachineIndex, setActiveCoolingMachineIndex] = useState<
@@ -42,6 +45,7 @@ export default function Cooling() {
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
     ]
+    const complexes = useAppSelector((state) => state.project.complexes)
     const projectId =
         useAppSelector((state) => state.project.currentTaskId) ?? ''
 
@@ -57,8 +61,7 @@ export default function Cooling() {
             standing: null,
             type: '',
             nominalOutput: 0,
-            couldWasteUse: false,
-            wasteUse: WasteUseModes[0],
+            amount: 0,
         }
 
         setFormData({
@@ -89,7 +92,7 @@ export default function Cooling() {
             projectId
         )
         if (result && result.success) {
-            navigate('/')
+            navigate('../', { replace: true })
         }
     }
 
@@ -119,6 +122,23 @@ export default function Cooling() {
                 )}
             </FormControl>
 
+            <FormControl>
+                <InputLabel id="complex-select-label">Telephely</InputLabel>
+                <Select
+                    label="Telephely"
+                    labelId="complex-select-label"
+                    value={formData.complex}
+                    onChange={(e) =>
+                        setFormData({ ...formData, complex: e.target.value })
+                    }
+                >
+                    {complexes.map((e: ComplexShortData) => (
+                        <MenuItem key={'complex-' + e.id} value={e.id}>
+                            {e.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <FormControl>
                 <InputLabel id="cooler-mode-select">
                     Hűtőgép működési módja
@@ -205,11 +225,56 @@ export default function Cooling() {
                                 errors.machines[
                                     activeCoolingMachineIndex
                                 ] as CoolingMachineErrors
+                            ).amount !== ''
+                        }
+                    >
+                        <TextField
+                            label="Mennyiség (db)"
+                            variant="standard"
+                            type="number"
+                            value={currentActiveCoolingMachine.amount}
+                            onChange={(e) =>
+                                handleActiveCoolingMachineChange(
+                                    'amount',
+                                    Number(e.target.value)
+                                )
+                            }
+                        />
+                        {!!errors &&
+                            activeCoolingMachineIndex !== null &&
+                            errors.machines[activeCoolingMachineIndex] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeCoolingMachineIndex
+                                ] as CoolingMachineErrors
+                            ).amount !== '' && (
+                                <FormHelperText>
+                                    {
+                                        (
+                                            errors.machines[
+                                                activeCoolingMachineIndex
+                                            ] as CoolingMachineErrors
+                                        ).amount
+                                    }
+                                </FormHelperText>
+                            )}
+                    </FormControl>
+                    <FormControl
+                        error={
+                            !!errors &&
+                            activeCoolingMachineIndex !== null &&
+                            errors.machines[activeCoolingMachineIndex] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeCoolingMachineIndex
+                                ] as CoolingMachineErrors
                             ).nominalOutput !== ''
                         }
                     >
                         <TextField
-                            label="Hűtőberendezés névleges teljesítménye"
+                            label="Hűtőberendezés névleges teljesítménye (kW/db)"
                             variant="standard"
                             type="number"
                             value={currentActiveCoolingMachine.nominalOutput}
@@ -320,57 +385,28 @@ export default function Cooling() {
                                 </FormHelperText>
                             )}
                     </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-use-select">
-                            Van lehetőség hulladékhő hasznosításra
-                        </InputLabel>
-                        <Select
-                            label="Hulladékhő hasznosítás"
-                            labelId="waste-use-select"
-                            value={
-                                currentActiveCoolingMachine.couldWasteUse
-                                    ? 1
-                                    : 0
-                            }
-                            onChange={(e) =>
-                                handleActiveCoolingMachineChange(
-                                    'couldWasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            <MenuItem key="Van" value={1}>
-                                Van
-                            </MenuItem>
-                            <MenuItem key="Nincs" value={0}>
-                                Nincs
-                            </MenuItem>
-                        </Select>
-                    </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van hulladékhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveCoolingMachine.wasteUse}
-                            onChange={(e) =>
-                                handleActiveCoolingMachineChange(
-                                    'wasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
+
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van hulladékhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.wasteUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, wasteUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}
