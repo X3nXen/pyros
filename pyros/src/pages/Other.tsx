@@ -30,6 +30,7 @@ export default function Other() {
         name: '',
         complex: '',
         machines: [],
+        wasteUse: WasteUseModes[0],
     })
     const [loading, setLoading] = useState<boolean>(false)
     const [activeOtherMachineIndex, setActiveOtherMachineIndex] = useState<
@@ -59,7 +60,6 @@ export default function Other() {
             type: '',
             nominalOutput: 0,
             hours: 0,
-            wasteUse: WasteUseModes[0],
             amount: 0,
         }
 
@@ -253,7 +253,7 @@ export default function Other() {
                         }
                     >
                         <TextField
-                            label="Berendezés névleges teljesítménye"
+                            label="Berendezés névleges teljesítménye (kW/db)"
                             variant="standard"
                             type="number"
                             value={currentActiveOtherMachine.nominalOutput}
@@ -410,30 +410,28 @@ export default function Other() {
                                 </FormHelperText>
                             )}
                     </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van hulladékhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveOtherMachine.wasteUse}
-                            onChange={(e) =>
-                                handleActiveOtherMachineChange(
-                                    'wasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
+
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van hulladékhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.wasteUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, wasteUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}

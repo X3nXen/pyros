@@ -674,6 +674,7 @@ export function validateSteam(payload: SteamFormData) {
             standing: '',
             type: '',
             nominalOutput: '',
+            amount: '',
         }
 
         if (!machine.standing || machine.standing === '') {
@@ -690,6 +691,12 @@ export function validateSteam(payload: SteamFormData) {
             localHasError = true
             localErrors.nominalOutput =
                 'Add meg a gőzfejlesztő névleges teljesítményét!'
+        }
+
+        if (!machine.amount || machine.amount <= 0) {
+            localHasError = true
+            localErrors.amount =
+                'Add meg a gőzfejlesztő berendezések mennyiségét!'
         }
 
         errors.machines.push(localHasError ? localErrors : 'none')
@@ -719,6 +726,7 @@ export function validateCooling(payload: CoolingFormData) {
             standing: '',
             type: '',
             nominalOutput: '',
+            amount: '',
         }
 
         if (!machine.standing || machine.standing === '') {
@@ -735,6 +743,11 @@ export function validateCooling(payload: CoolingFormData) {
             localHasError = true
             localErrors.nominalOutput =
                 'Add meg a hűtőberendezés névleges teljesítményét!'
+        }
+
+        if (!machine.amount || machine.amount <= 0) {
+            localHasError = true
+            localErrors.amount = 'Add meg a hűtőberendezések mennyiségét!'
         }
 
         errors.machines.push(localHasError ? localErrors : 'none')

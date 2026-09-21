@@ -32,6 +32,7 @@ export default function Cooling() {
         complex: '',
         coolerMode: CoolerModes[0],
         machines: [],
+        wasteUse: WasteUseModes[0],
     })
     const [loading, setLoading] = useState<boolean>(false)
     const [activeCoolingMachineIndex, setActiveCoolingMachineIndex] = useState<
@@ -60,7 +61,7 @@ export default function Cooling() {
             standing: null,
             type: '',
             nominalOutput: 0,
-            wasteUse: WasteUseModes[0],
+            amount: 0,
         }
 
         setFormData({
@@ -224,11 +225,56 @@ export default function Cooling() {
                                 errors.machines[
                                     activeCoolingMachineIndex
                                 ] as CoolingMachineErrors
+                            ).amount !== ''
+                        }
+                    >
+                        <TextField
+                            label="Mennyiség (db)"
+                            variant="standard"
+                            type="number"
+                            value={currentActiveCoolingMachine.amount}
+                            onChange={(e) =>
+                                handleActiveCoolingMachineChange(
+                                    'amount',
+                                    Number(e.target.value)
+                                )
+                            }
+                        />
+                        {!!errors &&
+                            activeCoolingMachineIndex !== null &&
+                            errors.machines[activeCoolingMachineIndex] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeCoolingMachineIndex
+                                ] as CoolingMachineErrors
+                            ).amount !== '' && (
+                                <FormHelperText>
+                                    {
+                                        (
+                                            errors.machines[
+                                                activeCoolingMachineIndex
+                                            ] as CoolingMachineErrors
+                                        ).amount
+                                    }
+                                </FormHelperText>
+                            )}
+                    </FormControl>
+                    <FormControl
+                        error={
+                            !!errors &&
+                            activeCoolingMachineIndex !== null &&
+                            errors.machines[activeCoolingMachineIndex] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeCoolingMachineIndex
+                                ] as CoolingMachineErrors
                             ).nominalOutput !== ''
                         }
                     >
                         <TextField
-                            label="Hűtőberendezés névleges teljesítménye"
+                            label="Hűtőberendezés névleges teljesítménye (kW/db)"
                             variant="standard"
                             type="number"
                             value={currentActiveCoolingMachine.nominalOutput}
@@ -339,30 +385,28 @@ export default function Cooling() {
                                 </FormHelperText>
                             )}
                     </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van hulladékhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveCoolingMachine.wasteUse}
-                            onChange={(e) =>
-                                handleActiveCoolingMachineChange(
-                                    'wasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
+
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van hulladékhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.wasteUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, wasteUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}

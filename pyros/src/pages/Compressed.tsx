@@ -33,6 +33,9 @@ export default function Compressed() {
         complex: '',
         pressure: 0,
         machines: [],
+        pressureReduction: false,
+        systemOptimalization: false,
+        wasteUse: WasteUseModes[0],
     })
     const [activeCompressorIndex, setActiveCompressorIndex] = useState<
         number | null
@@ -60,9 +63,6 @@ export default function Compressed() {
                 compressorType: '',
                 amount: 0,
                 nominalOutput: 0,
-                pressureReduction: false,
-                systemOptimalization: false,
-                wasteUse: WasteUseModes[0],
             },
         ]
 
@@ -274,7 +274,7 @@ export default function Compressed() {
                         }
                     >
                         <TextField
-                            label="Névleges teljesítmény"
+                            label="Névleges teljesítmény (kW/db)"
                             variant="standard"
                             type="number"
                             value={currentActiveCompressor.nominalOutput}
@@ -421,63 +421,56 @@ export default function Compressed() {
                                 </FormHelperText>
                             )}
                     </FormControl>
-                    <FormControlLabel
-                        label="Van lehetőség a nyomás csökkentésére"
-                        control={
-                            <Checkbox
-                                value={
-                                    currentActiveCompressor.pressureReduction
-                                }
-                                onChange={(e) =>
-                                    handleActiveCompressorChange(
-                                        'pressureReduction',
-                                        e.target.checked
-                                    )
-                                }
-                            />
-                        }
-                    />
-                    <FormControlLabel
-                        label="Van lehetőség hálózati optimalizációra"
-                        control={
-                            <Checkbox
-                                value={
-                                    currentActiveCompressor.systemOptimalization
-                                }
-                                onChange={(e) =>
-                                    handleActiveCompressorChange(
-                                        'systemOptimalization',
-                                        e.target.checked
-                                    )
-                                }
-                            />
-                        }
-                    />
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van hulladékhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveCompressor.wasteUse}
-                            onChange={(e) =>
-                                handleActiveCompressorChange(
-                                    'wasteUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
 
+            <FormControlLabel
+                label="Van lehetőség a nyomás csökkentésére"
+                control={
+                    <Checkbox
+                        value={formData.pressureReduction}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                pressureReduction: e.target.checked,
+                            })
+                        }
+                    />
+                }
+            />
+            <FormControlLabel
+                label="Van lehetőség hálózati optimalizációra"
+                control={
+                    <Checkbox
+                        value={formData.systemOptimalization}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                systemOptimalization: e.target.checked,
+                            })
+                        }
+                    />
+                }
+            />
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van hulladékhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.wasteUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, wasteUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}

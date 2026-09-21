@@ -4,6 +4,9 @@ export interface CompressedFormData {
     complex: string
     pressure: number
     machines: Array<CompressorData>
+    pressureReduction: boolean
+    systemOptimalization: boolean
+    wasteUse: string
 }
 
 export interface CompressorFormErrors {
@@ -28,9 +31,6 @@ export interface CompressorData {
     compressorType: string
     amount: number
     nominalOutput: number
-    pressureReduction: boolean
-    systemOptimalization: boolean
-    wasteUse: string
 }
 
 export interface SteamFormData {
@@ -41,15 +41,16 @@ export interface SteamFormData {
     heaterMode: string
     steamUse: string
     machines: Array<SteamMachineData>
+    smokeUse: string
 }
 
 export interface SteamMachineData {
     id: string | null
     standing: string | null
     mode: string
+    amount: number
     type: string
     nominalOutput: number
-    smokeUse: string
 }
 
 export interface SteamErrors {
@@ -61,6 +62,7 @@ export interface SteamErrors {
 export interface SteamMachineErrors {
     standing: string
     type: string
+    amount: string
     nominalOutput: string
 }
 
@@ -70,6 +72,7 @@ export interface CoolingFormData {
     complex: string
     coolerMode: string
     machines: Array<CoolingMachineData>
+    wasteUse: string
 }
 
 export interface CoolingMachineData {
@@ -78,7 +81,7 @@ export interface CoolingMachineData {
     standing: string | null
     type: string
     nominalOutput: number
-    wasteUse: string
+    amount: number
 }
 
 export interface CoolingErrors {
@@ -90,6 +93,7 @@ export interface CoolingMachineErrors {
     type: string
     nominalOutput: string
     standing: string
+    amount: string
 }
 
 export interface OtherFormData {
@@ -97,6 +101,7 @@ export interface OtherFormData {
     name: string
     complex: string
     machines: Array<OtherDeviceData>
+    wasteUse: string
 }
 
 export interface OtherDeviceData {
@@ -107,7 +112,6 @@ export interface OtherDeviceData {
     amount: number
     nominalOutput: number
     hours: number
-    wasteUse: string
 }
 
 export interface OtherErrors {

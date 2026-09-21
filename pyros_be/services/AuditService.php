@@ -979,11 +979,221 @@ class AuditService
         $templateProcessor->cloneRowAndSetValues("vehicles_listing_row", $data);
     }
 
-    public static function createTechnologySection(array $data, TemplateProcessor $templateProcessor, int $sectionOffset)
+    public static function getStandingIdsOfTechnology(array $data)
     {
-        if (empty($data)) {
+        $standingIds = [];
+        foreach ($data as $rowData) {
+            $details = json_decode($rowData['json'], true);
+            if (!is_array($details)) {
+                continue;
+            }
+            foreach ($details['machines'] as $machine) {
+                $standingIds[] = $machine['standing'];
+            }
+        }
+        return $standingIds;
+    }
+
+    public static function buildTechnologyListingRows(array $data, array &$improveable_list, array $standingIdToName)
+    {
+        /*
+        grouped = [
+            "COMPRESSED" => [
+                ["compressed_air_name#1" => name,
+                "compressed_air_complex#1" => complex,
+                "compressed_air_pressure#1" => pressure,
+                "compressor_data" => [
+                        ["compressor_row_title#1" => "Kompresszor típusa", "compressed_air_compressor_data#1" => type],
+                        ["compressor_row_title#1" => "Mennyisége (db)", "compressed_air_compressor_data#1" => amount],
+                        ["compressor_row_title#1" => "Névleges teljesítmény (kW/db)", "compressed_air_compressor_data#1" => nominal],
+                        ["compressor_row_title#1" => "Működési mód", "compressed_air_compressor_data#1" => mode],
+                        ["compressor_row_title#1" => "Hozzá tartozó almérés", "compressed_air_compressor_data#1" => standingId],
+                ],
+                "compressed_air_pressure_reduction#1" => canPressureReduc,
+                "compressed_air_optimalisation#1" => canOptimise,
+                "compressed_air_retriever#1" => haveRetrieve,
+                "compressed_air_status#1" => status]
+            ],
+            "STEAM" => [
+                "steam_name#1" => name,
+                "steam_complex#1" => complex,
+                "steam_pressure#1" => pressure,
+                "steam_machine_data" => [
+                        ["steam_row_title#1" => "Gőzfejlesztő típusa", "steam_machine_data#1" => type],
+                        ["steam_row_title#1" => "Mennyisége (db)", "steam_machine_data#1" => amount],
+                        ["steam_row_title#1" => "Névleges teljesítmény (kW/db)", "steam_machine_data#1" => nominal],
+                        ["steam_row_title#1" => "Működési mód", "steam_machine_data#1" => mode],
+                        ["steam_row_title#1" => "Hozzá tartozó almérés", "steam_machine_data#1" => standingId],
+                    ]
+                ],
+                "steam_retriever#1" => haveRetrieve,
+                "steam_status#1" => status,
+            ],
+            "COOLING" => [
+                "tech_cooling_name#1" => name,
+                "tech_cooler_data" => [
+                        ["tech_cooling_row_title#1" => "Hűtőberendezés típusa", "tech_cooling_data#1" => type],
+                        ["tech_cooling_row_title#1" => "Mennyisége (db)", "tech_cooling_data#1" => amount],
+                        ["tech_cooling_row_title#1" => "Névleges teljesítmény (kW/db)", "tech_cooling_data#1" => nominal],
+                        ["tech_cooling_row_title#1" => "Működési mód", "tech_cooling_data#1" => mode],
+                        ["tech_cooling_row_title#1" => "Hozzá tartozó almérés", "tech_cooling_data#1" => standingId],
+                ],
+                "tech_cooling_retriever#1" => haveRetriever,
+                "tech_cooling_status#1" => status
+
+            ],
+            "OTHER" => [
+                "other_name#1" => name,
+                "other_complex#1" => complex,
+                "other_machine_data" => [
+                        ["other_row_title#1" => "Technológiai berendezés típusa", "other_row_data#1" => type],
+                        ["other_row_title#1" => "Mennyisége (db)", "other_row_data#1" => amount],
+                        ["other_row_title#1" => "Névleges hőteljesítmény (kW/db)", "other_row_data#1" => nominal],
+                        ["other_row_title#1" => "Hozzá tartozó almérés", "other_row_data#1" => standingId],
+                ],
+                "other_retriever#1" => retriever
+            ],
+            "standingIds" => [
+                'id' => name
+            ]
+        ]
+        */
+        $grouped = ["COMPRESSED" => [], "STEAM" => [], "COOLING" => [], "OTHER" => [], "STANDINGS" => []];
+        $compressed_block_index = 1;
+        $steam_block_index = 1;
+        $tech_cooling_index = 1;
+        $other_block_index = 1;
+        foreach ($data as $rowData) {
+            $details = json_decode($rowData['json'], true);
+            if (!is_array($details)) {
+                continue;
+            }
+            if ($rowData["technology_type"] == "COMPRESSED_AIR") {
+                $status = "Megfelelő";
+                if ($details['pressureReduction'] || $details['systemOptimalization'] || ($details['wasteUse'] === "Nincs, van rá lehetőség")) {
+                    $status = "Fejlesztendő";
+                    if (!isset($improveable_list['technology'])) {
+                        $improveable_list['technology'] = [];
+                    }
+                    $improveable_list['technology'][] = $rowData['name'];
+                }
+                $compressed_data = [
+                    "compressed_air_name" => self::xmlEscape($rowData['name']),
+                    "compressed_air_complex" => self::xmlEscape($rowData['complex_name']),
+                    "compressed_air_pressure" => self::xmlEscape($details['pressure']),
+                    "compressor_data" => [],
+                    "compressed_air_pressure_reduction" => self::xmlEscape($details['pressureReduction'] ? "Igen" : "Nem"),
+                    "compressed_air_optimalisation" => self::xmlEscape($details['systemOptimalization'] ? "Igen" : "Nem"),
+                    "compressed_air_retriever" => self::xmlEscape($details['wasteUse']),
+                    "compressed_air_status" => self::xmlEscape($status)
+                ];
+                foreach ($details['machines'] as $machine) {
+                    $compressed_data['compressor_data'][] = ["compressor_row_title#{$compressed_block_index}" => self::xmlEscape("Kompresszor típusa"), "compressed_air_compressor_data#{$compressed_block_index}" => self::xmlEscape($machine['compressorType'])];
+                    $compressed_data['compressor_data'][] = ["compressor_row_title#{$compressed_block_index}" => self::xmlEscape("Mennyisége (db)"), "compressed_air_compressor_data#{$compressed_block_index}" => self::xmlEscape($machine['amount'])];
+                    $compressed_data['compressor_data'][] = ["compressor_row_title#{$compressed_block_index}" => self::xmlEscape("Névleges teljesítmény (kW/db)"), "compressed_air_compressor_data#{$compressed_block_index}" => self::xmlEscape($machine['nominalOutput'])];
+                    $compressed_data['compressor_data'][] = ["compressor_row_title#{$compressed_block_index}" => self::xmlEscape("Működési mód"), "compressed_air_compressor_data#{$compressed_block_index}" => self::xmlEscape($machine["mode"])];
+                    $compressed_data['compressor_data'][] = ["compressor_row_title#{$compressed_block_index}" => self::xmlEscape("Hozzá tartozó almérés"), "compressed_air_compressor_data#{$compressed_block_index}" => self::xmlEscape($standingIdToName[$machine['standing']])];
+                    $grouped['STANDINGS'][] = $machine['standing'];
+                }
+                $compressed_block_index++;
+                $grouped['COMPRESSED'][] = $compressed_data;
+            }
+            if ($rowData['technology_type'] == "STEAM") {
+                $status = "Megfelelő";
+                if ($details['smokeUse'] == "Nincs, van rá lehetőség") {
+                    $status = "Fejlesztendő";
+                    if (!isset($improveable_list['technology'])) {
+                        $improveable_list['technology'] = [];
+                    }
+                    $improveable_list['technology'][] = $rowData['name'];
+                }
+                $steam_data = [
+                    "steam_name" => self::xmlEscape($rowData['name']),
+                    "steam_complex" => self::xmlEscape($rowData['complex_name']),
+                    "steam_pressure" => self::xmlEscape($details['pressure']),
+                    "steam_machine_data" => [],
+                    "steam_retriever" => self::xmlEscape($details['smokeUse']),
+                    "steam_status" => self::xmlEscape($status),
+                ];
+                foreach ($details['machines'] as $machine) {
+                    $steam_data['steam_machine_data'][] = ["steam_row_title#{$steam_block_index}" => self::xmlEscape("Gőzfejlesztő típusa"), "steam_machine_data#{$steam_block_index}" => self::xmlEscape($machine['type'])];
+                    $steam_data['steam_machine_data'][] = ["steam_row_title#{$steam_block_index}" => self::xmlEscape("Mennyisége (db)"), "steam_machine_data#{$steam_block_index}" => self::xmlEscape($machine['amount'])];
+                    $steam_data['steam_machine_data'][] = ["steam_row_title#{$steam_block_index}" => self::xmlEscape("Névleges teljesítmény (kW/db)"), "steam_machine_data#{$steam_block_index}" => self::xmlEscape($machine['nominalOutput'])];
+                    $steam_data['steam_machine_data'][] = ["steam_row_title#{$steam_block_index}" => self::xmlEscape("Működési mód"), "steam_machine_data#{$steam_block_index}" => self::xmlEscape($machine['mode'])];
+                    $steam_data['steam_machine_data'][] = ["steam_row_title#{$steam_block_index}" => self::xmlEscape("Hozzá tartozó almérés"), "steam_machine_data#{$steam_block_index}" => self::xmlEscape($standingIdToName[$machine['standing']])];
+                    $grouped['STANDINGS'][] = $machine['standing'];
+                }
+                $steam_block_index++;
+                $grouped['STEAM'][] = $steam_data;
+            }
+            if ($rowData['technology_type'] == "COOLING") {
+                $status = "Megfelelő";
+                if ($details['wasteUse'] === "Nincs, van rá lehetőség") {
+                    $status = "Fejlesztendő";
+                    if (!isset($improveable_list['technology'])) {
+                        $improveable_list['technology'] = [];
+                    }
+                    $improveable_list['technology'][] = $rowData['name'];
+                }
+                $cooling_data = [
+                    "tech_cooling_name" => self::xmlEscape($rowData['name']),
+                    "tech_cooler_data" => [],
+                    "tech_cooling_retriever" => self::xmlEscape($details['wasteUse']),
+                    "tech_cooling_status" => self::xmlEscape($status)
+                ];
+                foreach ($details['machines'] as $machine) {
+                    $cooling_data['tech_cooler_data'][] = ["tech_cooling_row_title#{$tech_cooling_index}" => self::xmlEscape("Hűtőberendezés típusa"), "tech_cooling_row_data#{$tech_cooling_index}" => self::xmlEscape($machine['type'])];
+                    $cooling_data['tech_cooler_data'][] = ["tech_cooling_row_title#{$tech_cooling_index}" => self::xmlEscape("Mennyisége (db)"), "tech_cooling_row_data#{$tech_cooling_index}" => self::xmlEscape($machine['amount'])];
+                    $cooling_data['tech_cooler_data'][] = ["tech_cooling_row_title#{$tech_cooling_index}" => self::xmlEscape("Névleges teljesítmény (kW/db)"), "tech_cooling_row_data#{$tech_cooling_index}" => self::xmlEscape($machine['nominalOutput'])];
+                    $cooling_data['tech_cooler_data'][] = ["tech_cooling_row_title#{$tech_cooling_index}" => self::xmlEscape("Működési mód"), "tech_cooling_row_data#{$tech_cooling_index}" => self::xmlEscape($machine['mode'])];
+                    $cooling_data['tech_cooler_data'][] = ["tech_cooling_row_title#{$tech_cooling_index}" => self::xmlEscape("Hozzá tartozó almérés"), "tech_cooling_row_data#{$tech_cooling_index}" => self::xmlEscape($standingIdToName[$machine['standing']])];
+                    $grouped['STANDINGS'][] = $machine['standing'];
+                }
+                $tech_cooling_index++;
+                $grouped['COOLING'][] = $cooling_data;
+            }
+            if ($rowData['technology_type'] == "OTHER") {
+                $status = "Megfelelő";
+                if ($details['wasteUse'] == "Nincs, van rá lehetőség") {
+                    $status = "Fejlesztendő";
+                    if (!isset($improveable_list['technology'])) {
+                        $improveable_list['technology'] = [];
+                    }
+                    $improveable_list['technology'][] = $rowData['name'];
+                }
+                $other_data = [
+                    "other_name" => self::xmlEscape($rowData['name']),
+                    "other_complex" => self::xmlEscape($rowData['complex_name']),
+                    "other_machine_data" => [],
+                    "other_retriever" => self::xmlEscape($details['wasteUse']),
+                    "other_status" => self::xmlEscape($status)
+                ];
+                foreach ($details['machines'] as $machine) {
+                    $other_data["other_machine_data"][] = ["other_row_title#{$other_block_index}" => self::xmlEscape("Technológiai berendezés típusa"), "other_row_data#{$other_block_index}" => self::xmlEscape($machine['type'])];
+                    $other_data["other_machine_data"][] = ["other_row_title#{$other_block_index}" => self::xmlEscape("Mennyisége (db)"), "other_row_data#{$other_block_index}" => self::xmlEscape($machine['amount'])];
+                    $other_data["other_machine_data"][] = ["other_row_title#{$other_block_index}" => self::xmlEscape("Névleges hőteljesítmény (kW/db)"), "other_row_data#{$other_block_index}" => self::xmlEscape($machine['nominalOutput'])];
+                    $other_data["other_machine_data"][] = ["other_row_title#{$other_block_index}" => self::xmlEscape("Hozzá tartozó almérés"), "other_row_data#{$other_block_index}" => self::xmlEscape($standingIdToName[$machine['standing']])];
+                    $grouped['STANDINGS'][] = $machine['standing'];
+                }
+                $other_block_index++;
+                $grouped['OTHER'][] = $other_data;
+            }
+        }
+        $grouped['STANDINGS'] = array_unique($grouped['STANDINGS']);
+        return $grouped;
+    }
+
+    public static function createTechnologySection(array $data, TemplateProcessor $templateProcessor, string $company_name)
+    {
+        if (empty($data['COMPRESSED']) && empty($data['STEAM']) && empty($data['COOLING']) && empty($data['OTHER'])) {
             $templateProcessor->setValue("technology_title", "");
             $templateProcessor->setValue("technology_intro", "");
+
+            $templateProcessor->setValue("compressed_air_sub", "");
+            $templateProcessor->setValue("steam_sub", "");
+            $templateProcessor->setValue("tech_cooling_sub", "");
+            $templateProcessor->setValue("other_sub", "");
+
             $templateProcessor->cloneBlock("block_compressed_air", 0, true, true);
             $templateProcessor->cloneBlock("block_steam", 0, true, true);
             $templateProcessor->cloneBlock("block_tech_cooling", 0, true, true);
@@ -994,9 +1204,91 @@ class AuditService
             $templateProcessor->setValue("technology_offset_3_index", 11);
         } else {
             $templateProcessor->setValue("technology_title", "9. Technológiai alrendszerek energetikai értékelése");
+            $templateProcessor->setValue("technology_intro", self::xmlEscape("A" . $company_name . "-nál/nél az alábbi technológiai alrendszerek kerültek kialakításra:"));
             $templateProcessor->setValue("technology_offset_index", 10);
             $templateProcessor->setValue("technology_offset_2_index", 11);
             $templateProcessor->setValue("technology_offset_3_index", 12);
+
+
+            $section = 'a)';
+            if (!empty($data['COMPRESSED'])) {
+                self::createCompressedSubsection($data['COMPRESSED'], $templateProcessor, $section);
+            }
+            if (!empty($data['STEAM'])) {
+                self::createSteamSubsection($data['STEAM'], $templateProcessor, $section);
+            }
+            if (!empty($data['COOLING'])) {
+                self::createTechCoolingSubsection($data['COOLING'], $templateProcessor, $section);
+            }
+            if (!empty($data['OTHER'])) {
+                self::createOtherSubsection($data['OTHER'], $templateProcessor, $section);
+            }
+        }
+    }
+
+    public static function createCompressedSubsection(array $data, TemplateProcessor $templateProcessor, string &$section)
+    {
+        $templateProcessor->setValue("compressed_air_sub", self::xmlEscape($section . " Sűrített levegős hálózat"));
+        $templateProcessor->cloneBlock("block_compressed_air", count($data), true, true);
+        $blockCount = 1;
+        foreach ($data as $system) {
+            $templateProcessor->cloneRowAndSetValues("compressor_row_title#{$blockCount}", $system['compressor_data']);
+            $templateProcessor->setValue("compressed_air_name#{$blockCount}", $system['compressed_air_name']);
+            $templateProcessor->setValue("compressed_air_complex#{$blockCount}", $system['compressed_air_complex']);
+            $templateProcessor->setValue("compressed_air_pressure#{$blockCount}", $system['compressed_air_pressure']);
+            $templateProcessor->setValue("compressed_air_pressure_reduction#{$blockCount}", $system['compressed_air_pressure_reduction']);
+            $templateProcessor->setValue("compressed_air_optimalisation#{$blockCount}", $system['compressed_air_optimalisation']);
+            $templateProcessor->setValue("compressed_air_retriever#{$blockCount}", $system['compressed_air_retriever']);
+            $templateProcessor->setValue("compressed_air_status#{$blockCount}", $system['compressed_air_status']);
+            $blockCount++;
+        }
+        $section = "b)";
+    }
+
+    public static function createSteamSubsection(array $data, TemplateProcessor $templateProcessor, string &$section)
+    {
+        $templateProcessor->setValue("steam_sub", self::xmlEscape($section . " Gőzrendszer"));
+        $templateProcessor->cloneBlock("block_steam", count($data), true, true);
+        $blockCount = 1;
+        foreach ($data as $system) {
+            $templateProcessor->cloneRowAndSetValues("steam_row_title#{$blockCount}", $system['steam_machine_data']);
+            $templateProcessor->setValue("steam_name#{$blockCount}", $system['steam_name']);
+            $templateProcessor->setValue("steam_complex#{$blockCount}", $system['steam_complex']);
+            $templateProcessor->setValue("steam_pressure#{$blockCount}", $system['steam_pressure']);
+            $templateProcessor->setValue("steam_retriever#{$blockCount}", $system['steam_retriever']);
+            $templateProcessor->setValue("steam_status#{$blockCount}", $system['steam_status']);
+            $blockCount++;
+        }
+        $section = "c)";
+    }
+
+    public static function createTechCoolingSubsection(array $data, TemplateProcessor $templateProcessor, string &$section)
+    {
+        $templateProcessor->setValue("tech_cooling_sub", self::xmlEscape($section . " Technológiai hűtés"));
+        $templateProcessor->cloneBlock("block_tech_cooling", count($data), true, true);
+        $blockCount = 1;
+        foreach ($data as $system) {
+            $templateProcessor->cloneRowAndSetValues("tech_cooling_row_title#{$blockCount}", $system['tech_cooler_data']);
+            $templateProcessor->setValue("tech_cooling_name#{$blockCount}", $system['tech_cooling_name']);
+            $templateProcessor->setValue("tech_cooling_retriever#{$blockCount}", $system['tech_cooling_retriever']);
+            $templateProcessor->setValue("tech_cooling_status#{$blockCount}", $system['tech_cooling_status']);
+            $blockCount++;
+        }
+        $section = "d)";
+    }
+
+    public static function createOtherSubsection(array $data, TemplateProcessor $templateProcessor, string &$section)
+    {
+        $templateProcessor->setValue("other_sub", self::xmlEscape($section . " Egyéb technológiai hőhasználat"));
+        $templateProcessor->cloneBlock("block_other", count($data), true, true);
+        $blockCount = 1;
+        foreach ($data as $system) {
+            $templateProcessor->cloneRowAndSetValues("other_row_title#{$blockCount}", $system['other_machine_data']);
+            $templateProcessor->setValue("other_name#{$blockCount}", $system['other_name']);
+            $templateProcessor->setValue("other_complex#{$blockCount}", $system['other_complex']);
+            $templateProcessor->setValue("other_retriever#{$blockCount}", $system['other_retriever']);
+            $templateProcessor->setValue("other_status#{$blockCount}", $system['other_status']);
+            $blockCount++;
         }
     }
 
@@ -1019,7 +1311,7 @@ class AuditService
             }
             $productName = self::xmlEscape($rowData['product_name']);
             $sum = $products['sum'];
-            $formattedSum = self::xmlEscape(number_format($sum, 2, ".", ",") . " " . $products['metric']);
+            $formattedSum = self::xmlEscape(number_format($sum, 2, ".", ",") . " " . $rowData['metric']);
             $grouped['rows'][] = ["product_listing_name" => $productName, "product_listing_amount" => $formattedSum];
         }
         $totalServicePower = 0.0;

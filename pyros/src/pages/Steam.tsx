@@ -35,6 +35,7 @@ export default function Steam() {
         heaterMode: HeaterModes[0],
         steamUse: SteamUseModes[0],
         machines: [],
+        smokeUse: WasteUseModes[0],
     })
     const [loading, setLoading] = useState<boolean>(false)
     const [errors, setErrors] = useState<SteamErrors | null>(null)
@@ -59,9 +60,9 @@ export default function Steam() {
             id: null,
             standing: null,
             mode: SteamMachineModes[0],
+            amount: 0,
             type: '',
             nominalOutput: 0,
-            smokeUse: WasteUseModes[0],
         }
 
         setFormData({
@@ -261,11 +262,55 @@ export default function Steam() {
                                 errors.machines[
                                     activeSteamMachineIndex
                                 ] as SteamMachineErrors
+                            ).amount !== ''
+                        }
+                    >
+                        <TextField
+                            label="Mennyisége (db)"
+                            variant="standard"
+                            value={currentActiveSteamMachine.amount}
+                            type="number"
+                            onChange={(e) =>
+                                handleActiveMachineChange(
+                                    'amount',
+                                    Number(e.target.value)
+                                )
+                            }
+                        />
+                        {!!errors &&
+                            errors.machines[activeSteamMachineIndex!] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeSteamMachineIndex!
+                                ] as SteamMachineErrors
+                            ).amount !== '' && (
+                                <FormHelperText>
+                                    {
+                                        (
+                                            errors.machines[
+                                                activeSteamMachineIndex!
+                                            ] as SteamMachineErrors
+                                        ).amount
+                                    }
+                                </FormHelperText>
+                            )}
+                    </FormControl>
+                    <FormControl
+                        error={
+                            !!errors &&
+                            activeSteamMachineIndex !== null &&
+                            errors.machines[activeSteamMachineIndex] !==
+                                'none' &&
+                            (
+                                errors.machines[
+                                    activeSteamMachineIndex
+                                ] as SteamMachineErrors
                             ).nominalOutput !== ''
                         }
                     >
                         <TextField
-                            label="Névleges teljesítmény"
+                            label="Névleges teljesítmény (kW/db)"
                             variant="standard"
                             value={currentActiveSteamMachine.nominalOutput}
                             type="number"
@@ -374,30 +419,27 @@ export default function Steam() {
                             )}
                         </Select>
                     </FormControl>
-                    <FormControl>
-                        <InputLabel id="waste-select">
-                            Van füstgázhő hasznosítás
-                        </InputLabel>
-                        <Select
-                            label="Hasznosítás"
-                            labelId="waste-select"
-                            value={currentActiveSteamMachine.smokeUse}
-                            onChange={(e) =>
-                                handleActiveMachineChange(
-                                    'smokeUse',
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {WasteUseModes.map((e: string, index: number) => (
-                                <MenuItem key={index + '-use'} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
                 </Box>
             )}
+            <FormControl>
+                <InputLabel id="waste-select">
+                    Van füstgázhő hasznosítás
+                </InputLabel>
+                <Select
+                    label="Hasznosítás"
+                    labelId="waste-select"
+                    value={formData.smokeUse}
+                    onChange={(e) =>
+                        setFormData({ ...formData, smokeUse: e.target.value })
+                    }
+                >
+                    {WasteUseModes.map((e: string, index: number) => (
+                        <MenuItem key={index + '-use'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
             <Button
                 variant="contained"
                 disabled={loading}

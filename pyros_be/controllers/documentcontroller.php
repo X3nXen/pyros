@@ -224,12 +224,23 @@ class DocumentController
             AuditService::createVehicleListingSection($vehicleListing, $templateProcessor);
 
             // 10. Technológia értékelése
-            $sectionOffset = 9;
             $stmt = $db->prepare("SELECT t.id, t.name, t.json, c.name as complex_name, t.technology_type FROM technology t join complex c on t.complex = c.id WHERE t.project_id = :projectId ORDER BY id ASC");
             $stmt->execute([':projectId' => $project_id]);
             $technologies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $standings = AuditService::getStandingIdsOfTechnology($technologies);
+            $standingIdsToName = [];
+            foreach ($standings as $standingId) {
+                $stmt = $db->prepare("SELECT name FROM standings WHERE id=:standingId");
+                $stmt->execute([":standingId" => $standingId]);
+                $standingName = $stmt->fetchColumn();
+                $standingIdsToName[$standingId] = $standingName;
+            }
+            $standingIdsToName = array_unique($standingIdsToName);
 
-            AuditService::createTechnologySection($technologies, $templateProcessor, $sectionOffset);
+            $grouped = AuditService::buildTechnologyListingRows($technologies, $improveable_list, $standingIdsToName);
+
+
+            AuditService::createTechnologySection($grouped, $templateProcessor, $companyName);
 
             //11. Fogyasztások felosztása
 
