@@ -1213,15 +1213,27 @@ class AuditService
             $section = 'a)';
             if (!empty($data['COMPRESSED'])) {
                 self::createCompressedSubsection($data['COMPRESSED'], $templateProcessor, $section);
+            } else {
+                $templateProcessor->setValue("compressed_air_sub", "");
+                $templateProcessor->cloneBlock("block_compressed_air", 0, true, true);
             }
             if (!empty($data['STEAM'])) {
                 self::createSteamSubsection($data['STEAM'], $templateProcessor, $section);
+            } else {
+                $templateProcessor->setValue("steam_sub", "");
+                $templateProcessor->cloneBlock("block_steam", 0, true, true);
             }
             if (!empty($data['COOLING'])) {
                 self::createTechCoolingSubsection($data['COOLING'], $templateProcessor, $section);
+            } else {
+                $templateProcessor->setValue("tech_cooling_sub", "");
+                $templateProcessor->cloneBlock("block_tech_cooling", 0, true, true);
             }
             if (!empty($data['OTHER'])) {
                 self::createOtherSubsection($data['OTHER'], $templateProcessor, $section);
+            } else {
+                $templateProcessor->setValue("other_sub", "");
+                $templateProcessor->cloneBlock("block_other", 0, true, true);
             }
         }
     }
