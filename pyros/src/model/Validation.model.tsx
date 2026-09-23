@@ -6,6 +6,7 @@ import type {
 import type { ComplexErrors, ComplexFormData } from './Complex.model'
 import type { EmitterErrors, EmitterFormData } from './Emitter.model'
 import { type HeaterFormData, type HeaterFormErrors } from './Heater.model'
+import type { HMVData, HMVFormErrors } from './HMV.model'
 import type {
     LightingErrors,
     LightingForm,
@@ -536,6 +537,46 @@ export function validateVentilationSystem(payload: VentilationFormData) {
     }
 
     return hasError ? errors : null
+}
+
+export function validateHMVSystem(payload: HMVData) {
+    const errors: HMVFormErrors = {
+        name: '',
+        complex: '',
+        building: '',
+        standing: '',
+        amount: '',
+        heating: '',
+    }
+    let hasError = false
+    if (!payload.name || payload.name == '') {
+        errors.name = 'Add meg a HMV rendszer nevét!'
+        hasError = true
+    }
+    if (!payload.complex || payload.complex == '') {
+        errors.complex = 'Add meg a HMV rendszer telephelyét!'
+        hasError = true
+    }
+    if (!payload.building || payload.building == '') {
+        errors.building = 'Add meg a HMV rendszerhez tartozó épületet!'
+        hasError = true
+    }
+    if (!payload.standing || payload.standing == '') {
+        errors.standing = 'Add meg a HMV rendszerhez tartozó mérést!'
+        hasError = true
+    }
+    if (!payload.heating || payload.heating == '') {
+        errors.heating = 'Add meg a HMV rendszerhez tartozó hőtermelőt!'
+        hasError = true
+    }
+    if (!payload.amount || payload.amount <= 0) {
+        errors.amount = 'Add meg a HMV tartályok mennyiségét!'
+        hasError = true
+    }
+    if (hasError) {
+        return errors
+    }
+    return null
 }
 
 export function validateLightingSystem(payload: LightingForm) {

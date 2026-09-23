@@ -47,7 +47,6 @@ import {
 import PumpForm from '../components/Pump'
 import type { ServicedBuildingShort } from '../model/Building.model'
 import {
-    EmitterHmvRegulation,
     EmitterIndoorUnitPlacement,
     type EmitterErrors,
     type EmitterFormData,
@@ -165,10 +164,6 @@ export default function HeatingSystem() {
             type: '',
             state: '',
             vrvInsideType: 'CEILING' as EmitterIndoorUnitPlacement,
-            insideRoom: false,
-            circulation: false,
-            circulatoryPumps: [],
-            hmvRegulation: 'NONE' as EmitterHmvRegulation,
             imageFile: null,
         }
 

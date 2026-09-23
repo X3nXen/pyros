@@ -160,7 +160,7 @@ class DocumentController
 
             // 7.2? - Épületek fűtése
             $starterIndex = 2;
-            $stmt = $db->prepare("SELECT h.heaters, h.emitters, c.name as complex_name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
+            $stmt = $db->prepare("SELECT h.heaters, c.name as complex_name FROM heating_systems h JOIN complex c ON h.complex=c.id WHERE h.project_id=:projectId AND (purpose='HEAT' OR purpose='BOTH')");
             $stmt->execute([':projectId' => $project_id]);
             $allHeating = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -168,7 +168,11 @@ class DocumentController
             AuditService::createHeatingListingSection($heaterData, $templateProcessor, $starterIndex, $companyName);
 
             //7.3? - HMV készítés - later, when change is implemented regarding HMV systems
-            $hmvData = [];
+            $stmt = $db->prepare("SELECT c.name as complex_name, h.name, h.regulation FROM hmv_systems h JOIN complex c ON h.complex_id=c.id WHERE h.project_id=:projectId");
+            $stmt->execute([":projectId" => $project_id]);
+            $allHMV = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $hmvData = AuditService::buildHMVListingRows($allHMV, $improveable_list);
             AuditService::createHMVListingSection($hmvData, $templateProcessor, $starterIndex, $companyName);
             //7.4? - Világítási rendszerek
 
@@ -257,34 +261,7 @@ class DocumentController
 
             // 13?. Javaslatok és források
             AuditService::createImproveableListingSection($improveable_list, $templateProcessor);
-            /*
 
-                        // --- 2. HMV RENDSZEREK (Javított biztonságos ellenőrzéssel) ---
-                        $emittersData = !empty($allHeating) ? json_decode($allHeating[0]['emitters'] ?? '[]', true) : [];
-
-                        if (empty($emittersData)) {
-                            $templateProcessor->setValue("subheading_building_hmv", "");
-                            $templateProcessor->setValue("hmv_intro", "");
-                            $templateProcessor->setValue("hmv_subtext", "");
-                            $templateProcessor->setValue('hmv_listing', "");
-                        } else {
-                            $templateProcessor->setValue("subheading_building_hmv", "7." . $starterIndex . ". Használati melegvíz készítés");
-
-                            $hmvTable = new \PhpOffice\PhpWord\Element\Table([
-                                'layout' => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-                                'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER
-                            ]);
-                            $hmvIntro = "A(z) " . AuditService::xmlEscape($companyName) . " az alábbi használati melegvizes rendszerekkel rendelkezik:";
-                            $hmvSubtext = "A pontszám megállapításánál figyelembe vett szempontok: melegvíz készítés szabályozási előfeltételei: Időprogram és/vagy hőmérsékleti értékek.";
-                            AuditService::buildHMVTable($hmvTable, $allHeating, $improveable_list);
-
-                            $templateProcessor->setComplexValue("hmv_listing", $hmvTable);
-                            $templateProcessor->setValue("hmv_intro", $hmvIntro);
-                            $templateProcessor->setValue("hmv_subtext", $hmvSubtext);
-
-                            $starterIndex++;
-                        }
-*/
             // 5. Letöltés és takarítás
             $tempFileName = 'dokumentacio_' . time() . '.docx';
             $tempPath = sys_get_temp_dir() . '/' . $tempFileName;
