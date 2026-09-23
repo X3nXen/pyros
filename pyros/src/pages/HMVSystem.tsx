@@ -79,6 +79,7 @@ export default function HMVSystem() {
             <FormControl error={!!formErrors?.name}>
                 <TextField
                     variant="standard"
+                    label="Megnevezés"
                     value={formData.name}
                     onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
@@ -171,6 +172,7 @@ export default function HMVSystem() {
                 <TextField
                     variant="standard"
                     type="number"
+                    label="Mennyiség"
                     value={formData.amount}
                     onChange={(e) =>
                         setFormData({
