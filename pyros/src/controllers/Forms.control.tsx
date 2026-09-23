@@ -6,6 +6,7 @@ import {
     validateCompressed,
     validateCooling,
     validateHeatingSystem,
+    validateHMVSystem,
     validateLightingSystem,
     validateOther,
     validateStandings,
@@ -39,6 +40,7 @@ import {
     type SteamFormData,
 } from '../model/Technology.model'
 import type { VariableData } from '../model/Variables.model'
+import type { HMVData, HMVFormErrors } from '../model/HMV.model'
 
 export default class FormSendProtocol {
     static async handleMeasurementForm(
@@ -162,6 +164,44 @@ export default class FormSendProtocol {
         try {
             setLoading(true)
             const response = await Calls.postHeatingSystem(payload, projectId)
+            let success = false
+            let reason = null
+            if (response.success) {
+                success = true
+                reason = null
+            } else {
+                success = false
+                reason = 'Backend call error'
+            }
+            setLoading(false)
+            return { success: success, reason: reason }
+        } catch (error) {
+            alert('Valami hiba történt a hálózati kommunikáció során')
+            console.error(error)
+            setLoading(false)
+            return { success: false, reason: 'Network error' }
+        }
+    }
+
+    static async handleHMVSystemForm(
+        payload: HMVData,
+        setLoading: (loading: boolean) => void,
+        setErrorMessage: (msg: HMVFormErrors | null) => void,
+        projectId: string
+    ): Promise<{
+        success: boolean
+        reason: string | null
+    }> {
+        setErrorMessage(null)
+        const errors = validateHMVSystem(payload)
+        if (errors) {
+            setErrorMessage(errors)
+            return { success: false, reason: 'Validation error' }
+        }
+
+        try {
+            setLoading(true)
+            const response = await Calls.postHMVSystem(payload, projectId)
             let success = false
             let reason = null
             if (response.success) {

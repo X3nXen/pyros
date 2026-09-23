@@ -665,6 +665,59 @@ class AuditService
         }
     }
 
+    public static function matchHMVRegulationToPoints(string $regulation)
+    {
+        $result = match ($regulation) {
+            'Nincs' => 0,
+            'Hőmérsékletre' => 33,
+            'Időprogramra' => 67,
+            'Hőmérsékletre és időprogramra' => 100
+        };
+        return $result;
+    }
+
+    public static function buildHMVListingRows(array $data, array &$improveable_list)
+    {
+        /*
+        $grouped = [
+            [
+                "hmv_listing_complex#1" => complex,
+                "hmv_listing_name#1" => name,
+                "hmv_listing_points#1" => points,
+                "hmv_listing_status#1" => status,
+                "hmv_listing_desc#1" => desc
+            ]
+            ]
+        */
+        $grouped = [];
+        foreach ($data as $rowData) {
+            $complexName = self::xmlEscape($rowData['complex_name']);
+            $name = self::xmlEscape($rowData['name']);
+            $points = self::matchHMVRegulationToPoints($rowData['regulation']);
+            $formattedPoints = self::xmlEscape($points . "%");
+            $status = null;
+            if ($points < 100) {
+                if (!isset($improveable_list['hmv'])) {
+                    $improveable_list['hmv'] = [];
+                }
+                $improveable_list['hmv'][] = $name;
+                $status = "Fejlesztendő";
+            } else {
+                $status = "Megfelelő";
+            }
+            $formattedStatus = self::xmlEscape($status);
+            $description = self::xmlEscape("Cirkuláció és szabályozás optimalizálása, ahol a pontszám alacsony");
+            $grouped[] = [
+                "hmv_listing_complex#1" => $complexName,
+                "hmv_listing_name#1" => $name,
+                "hmv_listing_points#1" => $formattedPoints,
+                "hmv_listing_status#1" => $formattedStatus,
+                "hmv_listing_desc#1" => $description
+            ];
+        }
+        return $grouped;
+    }
+
     public static function createHMVListingSection(array $data, TemplateProcessor $templateProcessor, int &$sectionIndex, string $companyName)
     {
         if (empty($data)) {
@@ -672,6 +725,18 @@ class AuditService
             $templateProcessor->setValue("hmv_intro", "");
             $templateProcessor->setValue("hmv_subtext", "");
             $templateProcessor->cloneBlock("block_hmv", 0, true, true);
+        } else {
+            $subheading_text = self::xmlEscape("7." . $sectionIndex . " HMV rendszerek");
+            $hmv_intro = self::xmlEscape("A(z) " . $companyName . " az alábbi használati melegvizes rendszerekkel rendelkezik:");
+            $hmv_subtext = self::xmlEscape("A pontszám megállapításánál figyelembe vett szempontok: melegvíz készítés szabályozási előfeltételei: Időprogram és/vagy hőmérsékleti értékek.");
+
+            $templateProcessor->setValue("subheading_building_hmv", $subheading_text);
+            $templateProcessor->setValue("hmv_intro", $hmv_intro);
+            $templateProcessor->setValue("hmv_subtext", $hmv_subtext);
+
+            $templateProcessor->cloneBlock("block_hmv", 1, true, true);
+            $templateProcessor->cloneRowAndSetValues("hmv_listing_row#1", $data);
+            $sectionIndex++;
         }
     }
 
@@ -1394,119 +1459,6 @@ class AuditService
         $templateProcessor->setValue("suggestion_d", $suggestionD);
         $templateProcessor->setValue("suggestion_e", $suggestionE);
 
-    }
-    public static function buildHMVTable(PhpOffice\PhpWord\Element\Table &$table, array &$heating_systems, &$improveable_list): void
-    {
-        $xmlEscape = function ($val) {
-            return htmlspecialchars($val ?? '', ENT_XML1, 'UTF-8');
-        };
-
-        $colWidths = [
-            'complex' => 1500,
-            'name' => 1500,
-            'points' => 1500,
-            'status' => 1500,
-            'etc' => 3000
-        ];
-
-        $headerRowStyle = [
-            'tblHeader' => true,
-            'cantSplit' => true
-        ];
-
-        $headerCellStyle = [
-            'bgColor' => 'A6A6A6',
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $headerFontStyle = [
-            'bold' => true,
-        ];
-        $headerParagraphStyle = [
-            'alignment' => 'center',
-            'spaceBefore' => 60,
-            'spaceAfter' => 60
-        ];
-
-        $table->addRow(600, $headerRowStyle);
-        $header1 = $table->addCell($colWidths['complex'], $headerCellStyle);
-        $header1->addText("Telephely", $headerFontStyle, $headerParagraphStyle);
-        $header2 = $table->addCell($colWidths['name'], $headerCellStyle);
-        $header2->addText("HMV rendszer\nmegnevezése", $headerFontStyle, $headerParagraphStyle);
-        $header3 = $table->addCell($colWidths['points'], $headerCellStyle);
-        $header3->addText("Szabályozási\nmegfelelőség", $headerFontStyle, $headerParagraphStyle);
-        $header4 = $table->addCell($colWidths['status'], $headerCellStyle);
-        $header4->addText("Besorolás", $headerFontStyle, $headerParagraphStyle);
-        $header5 = $table->addCell($colWidths['etc'], $headerCellStyle);
-        $header5->addText("Megjegyzés", $headerFontStyle, $headerParagraphStyle);
-
-        $dataCellStyle = [
-            'valign' => 'center',
-            'borderSize' => 6,
-            'borderColor' => '000000'
-        ];
-        $dataParagraphStyleCenter = [
-            'alignment' => 'center',
-            'spaceBefore' => 40,
-            'spaceAfter' => 40
-        ];
-
-        foreach ($heating_systems as $h) {
-            $heaters = json_decode($h['emitters'], true);
-            if (!is_array($heaters)) {
-                continue;
-            }
-
-            $complexNameRaw = $h['complex_name'] ?? '';
-
-            $hmvHeaters = array_filter($heaters, function ($emitter) {
-                return isset($emitter['type']) && $emitter['type'] === 'HMV';
-            });
-
-            if (empty($hmvHeaters)) {
-                continue;
-            }
-
-            $rowIndex = 0;
-            foreach ($hmvHeaters as $emitter) {
-                $table->addRow(null, ['cantSplit' => true]);
-
-                if ($rowIndex === 0) {
-                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'restart']);
-                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                    $complexCell->addText($xmlEscape($complexNameRaw), null, $dataParagraphStyleCenter);
-                } else {
-                    $complexCellStyle = array_merge($dataCellStyle, ['vMerge' => 'continue']);
-                    $complexCell = $table->addCell($colWidths['complex'], $complexCellStyle);
-                }
-
-                $emitterNameRaw = $emitter['name'] ?? '';
-                $heaterNameCell = $table->addCell($colWidths['name'], $dataCellStyle);
-                $heaterNameCell->addText($xmlEscape($emitterNameRaw), null, $dataParagraphStyleCenter);
-
-                $hmvPoints = self::HMV_REGULATION_VALUES[$emitter['hmvRegulation'] ?? ''] ?? 0;
-                $heaterTypeCell = $table->addCell($colWidths['points'], $dataCellStyle);
-                $heaterTypeCell->addText($xmlEscape($hmvPoints . "%"), null, $dataParagraphStyleCenter);
-
-                $status = $hmvPoints === 100 ? "Megfelelő" : "Fejlesztendő";
-                $etc = "Cirkuláció és szabályozás optimalizálása, ahol a pontszám alacsony";
-                if ($hmvPoints < 100) {
-                    if (!isset($improveable_list['hmv'])) {
-                        $improveable_list['hmv'] = [];
-                    }
-                    $improveable_list['hmv'][] = $complexNameRaw;
-                }
-
-                $heaterPointCell = $table->addCell($colWidths['status'], $dataCellStyle);
-                $heaterPointCell->addText($xmlEscape($status), null, $dataParagraphStyleCenter);
-
-                $heaterStatusCell = $table->addCell($colWidths['etc'], $dataCellStyle);
-                $heaterStatusCell->addText($xmlEscape($etc), null, $dataParagraphStyleCenter);
-
-                $rowIndex++;
-            }
-        }
     }
 
     public static function convertToKwh(float $value, string $unit): float

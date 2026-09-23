@@ -1,9 +1,7 @@
 import {
     Box,
     Button,
-    Checkbox,
     FormControl,
-    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
@@ -18,7 +16,6 @@ import type {
 import {
     EMITTER_PURPOSE_TO_TYPE,
     EMITTER_TYPE_TO_REGULATION,
-    EmitterHmvRegulation,
     EmitterIndoorUnitPlacement,
     type EmitterErrors,
     type EmitterFormData,
@@ -245,64 +242,6 @@ export default function EmitterForm(props: {
                         ))}
                     </Select>
                 </FormControl>
-            ) : (
-                <></>
-            )}
-            {currentEmitterType === 'HMV' ? (
-                <Box
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
-                >
-                    <FormControlLabel
-                        label="Fűtött téren belül"
-                        control={
-                            <Checkbox
-                                checked={props.currentActiveEmitter.insideRoom}
-                                onChange={() =>
-                                    props.handleActiveEmitterChange(
-                                        'insideRoom',
-                                        !props.currentActiveEmitter.insideRoom
-                                    )
-                                }
-                            />
-                        }
-                    />
-                    <FormControlLabel
-                        label="Cirkuláció van"
-                        control={
-                            <Checkbox
-                                checked={props.currentActiveEmitter.circulation}
-                                onChange={() =>
-                                    props.handleActiveEmitterChange(
-                                        'circulation',
-                                        !props.currentActiveEmitter.circulation
-                                    )
-                                }
-                            />
-                        }
-                    />
-                    <FormControl>
-                        <InputLabel id="hmv-regulation-label">
-                            HMV cirkuláció szabályzása
-                        </InputLabel>
-                        <Select
-                            label="HMV cirkuláció szabályzása"
-                            labelId="hmv-regulation-label"
-                            value={props.currentActiveEmitter.hmvRegulation}
-                            onChange={(e) =>
-                                props.handleActiveEmitterChange(
-                                    'hmvRegulation',
-                                    e.target.value as EmitterHmvRegulation
-                                )
-                            }
-                        >
-                            {Object.values(EmitterHmvRegulation).map((e) => (
-                                <MenuItem key={e} value={e}>
-                                    {e}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Box>
             ) : (
                 <></>
             )}

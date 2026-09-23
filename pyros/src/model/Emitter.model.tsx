@@ -1,12 +1,4 @@
 import type { ServicedBuildingShort } from './Building.model'
-import type { PumpFormData } from './Pump.model'
-
-export enum EmitterHmvRegulation {
-    NONE = 'Nincs',
-    TEMPERATURE = 'Hőmérsékletre',
-    SCHEDULE = 'Időprogramra',
-    BOTH = 'Hőmérsékletre és időprogramra',
-}
 
 export interface EmitterFormData {
     id: string | null
@@ -16,10 +8,6 @@ export interface EmitterFormData {
     type: string
     state: string
     vrvInsideType: EmitterIndoorUnitPlacement
-    insideRoom: boolean
-    circulation: boolean
-    circulatoryPumps: Array<PumpFormData>
-    hmvRegulation: EmitterHmvRegulation
     imageFile: File | null
 }
 
@@ -46,7 +34,6 @@ export const EMITTER_PURPOSE_TO_TYPE = {
         'Fan-Coil',
         'VRV/VRF',
         'Split beltéri',
-        'HMV',
         'Termoventilátor',
         'Egyéb',
     ],
@@ -90,11 +77,6 @@ export const EMITTER_TYPE_TO_REGULATION: Record<string, string[]> = {
         'Helyiségenkénti szabályozás lég oldalon',
         'Helyiségenkénti szabályozás időprogrammal víz oldalon',
         'Helyiségenkénti szabályozás időprogrammal lég oldalon',
-    ],
-    HMV: [
-        'Szabályozatlan',
-        'Helyiségenkénti szabályozás',
-        'Helyiségenkénti szabályozás időprogrammal',
     ],
     Termoventilátor: [
         'Szabályozatlan',

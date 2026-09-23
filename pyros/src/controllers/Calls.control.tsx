@@ -1,6 +1,7 @@
 import type { BuildingFormData, BuildingShort } from '../model/Building.model'
 import type { ComplexFormData, ComplexShortData } from '../model/Complex.model'
 import type { HeaterFormData, HeaterShort } from '../model/Heater.model'
+import type { HMVData } from '../model/HMV.model'
 import type { LightingForm } from '../model/Lighting.model'
 import type { ClickupTaskShort } from '../model/LoginData.model'
 import type { ProductFormData } from '../model/Product.model'
@@ -250,6 +251,39 @@ export default class Calls {
             const response = await fetch(Calls.getApiLink() + '/heating', {
                 method: 'POST',
                 body: formData,
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || result.status === 'error') {
+                return {
+                    success: false,
+                    message: result.message || 'Hiba történt a mentés során.',
+                }
+            }
+
+            return {
+                success: true,
+                message: result.message || 'Sikeres mentés a PHP backendre!',
+            }
+        } catch (error) {
+            console.error('Hálózati hiba a mentés során:', error)
+            return {
+                success: false,
+                message: 'Nem sikerült kapcsolódni a szerverhez.',
+            }
+        }
+    }
+
+    static async postHMVSystem(
+        payload: HMVData,
+        projectId: string
+    ): Promise<{ success: boolean; message: string }> {
+        try {
+            const formData = { ...payload, projectId: projectId }
+            const response = await fetch(Calls.getApiLink() + '/hmv', {
+                method: 'POST',
+                body: JSON.stringify(formData),
             })
 
             const result = await response.json()

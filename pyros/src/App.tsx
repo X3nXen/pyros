@@ -17,6 +17,7 @@ import Cooling from './pages/Cooling'
 import Other from './pages/Other'
 import Variables from './pages/Variables'
 import Create from './pages/Create'
+import HMVSystem from './pages/HMVSystem'
 
 function App() {
     return (
@@ -29,6 +30,7 @@ function App() {
                     <Route path="/building" element={<Building />} />
                     <Route path="/system" element={<System />} />
                     <Route path="/system/heating" element={<HeatingSystem />} />
+                    <Route path="/system/hmv" element={<HMVSystem />} />
                     <Route
                         path="/system/lighting"
                         element={<LightingSystem />}
