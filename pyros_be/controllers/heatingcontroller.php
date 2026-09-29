@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../database.php';
+require_once __DIR__ . '/../services/heatercalculation.php';
 
 class HeatingController
 {
@@ -142,10 +143,44 @@ class HeatingController
 
             // 2. Hőtermelők (Heaters) feldolgozása
             $heaters = $data['heaters'] ?? [];
-            $heaterStandings = [];
+            $standingIds = [];
+            $buildingIds = [];
+            $standingIdsToCalc = [];
+            $buildingDataToCalc = [];
+            foreach ($heaters as $heater) {
+                $standingIds[] = $heater['standing'];
+                $buildingIds[] = $heater['building'];
+            }
+            if (!empty($standingIds)) {
+                $standingIds = array_unique($standingIds);
+                $placeholders = implode(',', array_fill(0, count($standingIds), '?'));
 
+                $sql = "SELECT id FROM standings WHERE measurement_type = 'VIRTUAL' AND id IN ($placeholders)";
+
+                $stmt = $db->prepare($sql);
+                $stmt->execute(array_values($standingIds));
+                $standingIdsToCalc = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            }
+
+            if (!empty($buildingIds)) {
+                $buildingIds = array_unique($buildingIds);
+                $placeholders = implode(',', array_fill(0, count($buildingIds), '?'));
+
+                $sql = "SELECT id, qf, json_data FROM buildings WHERE id IN ($placeholders)";
+
+                $stmt = $db->prepare($sql);
+                $stmt->execute(array_values($buildingIds));
+                $buildingDataToCalc = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            $standingDataToUpload = calculateVirtualMeasurements($heaters, $standingIdsToCalc, $buildingDataToCalc);
+            foreach ($standingDataToUpload as $key => $value) {
+                $stmt = $db->prepare("UPDATE standings SET consumption = :consumptionJson where id = :standingId");
+                $stmt->execute([
+                    ":standingId" => $key,
+                    ":consumptionJson" => json_encode($value)
+                ]);
+            }
             foreach ($heaters as $index => &$heater) {
-                // Biztonságos INT azonosító generálása MySQL INT határokon belül (max 2 147 483 647)
                 if (empty($heater['id'])) {
                     $heater['id'] = mt_rand(1000000, 99999999);
                 } else {
@@ -160,14 +195,6 @@ class HeatingController
                     $heater['image_name'] = $imgResult['file_name'];
                 }
                 unset($heater['imageFile']);
-
-                // Mérőóra elmentése
-                if (!empty($heater['standing'])) {
-                    $heaterStandings[] = [
-                        'standing' => (int) $heater['standing'],
-                        'reference' => (int) $heater['id']
-                    ];
-                }
             }
             unset($heater);
 
@@ -226,30 +253,6 @@ class HeatingController
             ]);
 
             $systemId = $db->lastInsertId();
-
-            // 6. Rendszer saját mérőórájának beszúrása (SYSTEM)
-            if (!empty($data['standing'])) {
-                $sqlStanding = "INSERT INTO standings_to_other (standing, reference, type) 
-                                VALUES (:standing, :reference, 'SYSTEM')";
-                $stmtStanding = $db->prepare($sqlStanding);
-                $stmtStanding->execute([
-                    ':standing' => (int) $data['standing'],
-                    ':reference' => (int) $systemId
-                ]);
-            }
-
-            // 7. Hőtermelők mérőóráinak beszúrása (HEATER)
-            if (!empty($heaterStandings)) {
-                $sqlHeaterStanding = "INSERT INTO standings_to_other (standing, reference, type) 
-                                      VALUES (:standing, :reference, 'HEATER')";
-                $stmtHeaterStanding = $db->prepare($sqlHeaterStanding);
-                foreach ($heaterStandings as $hs) {
-                    $stmtHeaterStanding->execute([
-                        ':standing' => $hs['standing'],
-                        ':reference' => $hs['reference']
-                    ]);
-                }
-            }
 
             $db->commit();
 

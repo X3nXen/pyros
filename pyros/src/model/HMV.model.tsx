@@ -2,11 +2,12 @@ export interface HMVData {
     id: string | null
     name: string
     complex: string
-    building: string
+    zoneName: string
+    zoneUsage: string
+    servicedSize: number
     standing: string
     type: string
     amount: number
-    heating: string
     regulation: string
     circulation: boolean
     containment: boolean
@@ -15,10 +16,10 @@ export interface HMVData {
 export interface HMVFormErrors {
     name: string
     complex: string
-    building: string
+    zoneName: string
     standing: string
     amount: string
-    heating: string
+    servicedSize: string
 }
 
 export const HMVTypes = [
@@ -33,4 +34,13 @@ export const CirculationTypes = [
     'Hőmérsékletre',
     'Időprogramra',
     'Hőmérsékletre és időprogramra',
+]
+
+export const ZoneUsages = [
+    'Iroda',
+    'Lakóépület',
+    'Kereskedelmi',
+    'Oktatási',
+    'Üzem',
+    'Raktár',
 ]

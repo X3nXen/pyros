@@ -1,3 +1,4 @@
+import type { ServicedBuildingShort } from './Building.model'
 import { SystemPurpose } from './System.model'
 
 export enum HeaterCarrier {
@@ -317,7 +318,7 @@ export interface HeaterFormData {
     name: string
     standing: string | null
     building: string | null
-    servicedBuilding: Array<string>
+    servicedBuilding: Array<ServicedBuildingShort>
     regulation: string
     carrier: HeaterCarrier
     heatingType: HeaterType

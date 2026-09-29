@@ -543,10 +543,10 @@ export function validateHMVSystem(payload: HMVData) {
     const errors: HMVFormErrors = {
         name: '',
         complex: '',
-        building: '',
+        zoneName: '',
         standing: '',
         amount: '',
-        heating: '',
+        servicedSize: '',
     }
     let hasError = false
     if (!payload.name || payload.name == '') {
@@ -557,16 +557,17 @@ export function validateHMVSystem(payload: HMVData) {
         errors.complex = 'Add meg a HMV rendszer telephelyét!'
         hasError = true
     }
-    if (!payload.building || payload.building == '') {
-        errors.building = 'Add meg a HMV rendszerhez tartozó épületet!'
+    if (!payload.zoneName || payload.zoneName == '') {
+        errors.zoneName = 'Add meg a kiszolgált zóna megnevezését!'
         hasError = true
     }
     if (!payload.standing || payload.standing == '') {
         errors.standing = 'Add meg a HMV rendszerhez tartozó mérést!'
         hasError = true
     }
-    if (!payload.heating || payload.heating == '') {
-        errors.heating = 'Add meg a HMV rendszerhez tartozó hőtermelőt!'
+    if (!payload.servicedSize || payload.servicedSize <= 0) {
+        errors.servicedSize =
+            'Add meg a HMV rendszerhez által kiszolgált területet!'
         hasError = true
     }
     if (!payload.amount || payload.amount <= 0) {

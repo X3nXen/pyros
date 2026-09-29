@@ -21,6 +21,7 @@ import {
     BuildingUsages,
     CeilingLayerPreset,
     DoorWindowPreset,
+    EmitterRegulations,
     WallLayerPreset,
     type BuildingErrors,
     type BuildingFormData,
@@ -514,6 +515,28 @@ export default function Building() {
             ) : (
                 <></>
             )}
+            <FormControl>
+                <InputLabel id="heating-regulation-select">
+                    Jellemző hőleadás szabályzási módja
+                </InputLabel>
+                <Select
+                    label="Szabályzási mód"
+                    labelId="heating-regulation-select"
+                    value={formData.emitterRegulation}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            emitterRegulation: e.target.value,
+                        })
+                    }
+                >
+                    {EmitterRegulations.map((e: string, index: number) => (
+                        <MenuItem id={index + '-emitter-regulation'} value={e}>
+                            {e}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
 
             <Button
                 component="label"

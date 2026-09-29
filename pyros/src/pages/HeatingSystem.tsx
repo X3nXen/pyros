@@ -176,7 +176,14 @@ export default function HeatingSystem() {
 
     function handleActiveHeaterChange(
         field: keyof HeaterFormData,
-        value: string | number | string[] | boolean | File | null
+        value:
+            | string
+            | number
+            | string[]
+            | boolean
+            | File
+            | null
+            | ServicedBuildingShort[]
     ) {
         if (activeHeaterIndex === null) return
 
