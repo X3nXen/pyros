@@ -143,6 +143,7 @@ class HeatingController
 
             // 2. Hőtermelők (Heaters) feldolgozása
             $heaters = $data['heaters'] ?? [];
+            $pumps = $data['pumps'] ?? [];
             $standingIds = [];
             $buildingIds = [];
             $standingIdsToCalc = [];
@@ -172,7 +173,7 @@ class HeatingController
                 $stmt->execute(array_values($buildingIds));
                 $buildingDataToCalc = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
-            $standingDataToUpload = calculateVirtualMeasurements($heaters, $standingIdsToCalc, $buildingDataToCalc);
+            $standingDataToUpload = calculateVirtualMeasurements($heaters, $standingIdsToCalc, $buildingDataToCalc, $purpose, $pumps);
             foreach ($standingDataToUpload as $key => $value) {
                 $stmt = $db->prepare("UPDATE standings SET consumption = :consumptionJson where id = :standingId");
                 $stmt->execute([
@@ -199,7 +200,6 @@ class HeatingController
             unset($heater);
 
             // 3. Szivattyúk (Pumps) feldolgozása
-            $pumps = $data['pumps'] ?? [];
             foreach ($pumps as $index => &$pump) {
                 if (empty($pump['id'])) {
                     $pump['id'] = mt_rand(100000000, 199999999);

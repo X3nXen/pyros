@@ -320,6 +320,9 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             building: '',
             servicedBuilding: '',
             heatingType: '',
+            nominalOutput: '',
+            eer: '',
+            cop: '',
             imageFile: '',
         }
         if (!item.name || item.name === '') {
@@ -337,6 +340,19 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
         if (!item.servicedBuilding || item.servicedBuilding.length === 0) {
             heaterElem.servicedBuilding =
                 'Add meg a hőtermelő által kiszolgált épületeket!'
+            localHasError = true
+        }
+        if (item.nominalOutput !== null && item.nominalOutput <= 0) {
+            heaterElem.nominalOutput =
+                'Add meg a berendezés névleges teljesítményét!'
+            localHasError = true
+        }
+        if (item.eer !== null && item.eer <= 0) {
+            heaterElem.eer = 'Add meg a berendezés névleges EER értékét!'
+            localHasError = true
+        }
+        if (item.cop !== null && item.cop <= 0) {
+            heaterElem.cop = 'Add meg a berendezés névleges COP értékét!'
             localHasError = true
         }
         if (!item.heatingType) {
