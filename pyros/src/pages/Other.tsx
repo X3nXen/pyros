@@ -106,7 +106,7 @@ export default function Other() {
                 mt: 3,
             }}
         >
-            <h1>Technológiai hűtőrendszer rögzítés</h1>
+            <h1>Egyéb technológiai hőhasználat rögzítés</h1>
             <FormControl error={!!errors && errors.name !== ''}>
                 <TextField
                     label="Megnevezés"
