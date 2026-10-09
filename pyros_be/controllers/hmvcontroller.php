@@ -56,17 +56,18 @@ class HMVController
 
         $name = $data['name'] ?? null;
         $complex_id = $data['complex'] ?? null;
-        $building_id = $data['building'] ?? null;
+        $zone_name = $data['zoneName'] ?? null;
+        $zone_usage = $data['zoneUsage'] ?? null;
         $standing_id = $data['standing'] ?? null;
-        $heater_id = $data['heating'] ?? null;
         $type = $data['type'] ?? null;
         $amount = $data['amount'] ?? null;
         $regulation = $data['regulation'] ?? null;
+        $servicedSize = $data['servicedSize'] ?? null;
         $circulation = $data['circulation'] ?? false;
         $containment = $data['containment'] ?? false;
         $projectId = $data['projectId'] ?? null;
 
-        if ($name == null || $complex_id == null || $building_id == null || $standing_id == null || $heater_id == null || $type == null || $amount == null || $regulation == null || $projectId == null) {
+        if ($name == null || $complex_id == null || $zone_name == null || $standing_id == null || $type == null || $amount == null || $regulation == null || $projectId == null) {
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
@@ -86,14 +87,8 @@ class HMVController
                 ":standingId" => $standing_id
             ]);
             $standingType = $stmt->fetchColumn();
-            $stmt = $db->prepare("SELECT json_data FROM buildings WHERE id=:buildingId");
-            $stmt->execute([
-                ":buildingId" => $building_id
-            ]);
-            $jsonData = $stmt->fetchColumn();
-            $buildingData = json_decode($jsonData, true);
 
-            $qf = calculateHMVQf($buildingData['usage'], $containment, $circulation, $buildingData['size'], $type);
+            $qf = calculateHMVQf($zone_usage, $containment, $circulation, $servicedSize, $type);
 
             if ($standingType == "VIRTUAL") {
                 $consumption = json_encode(["total" => $qf]);
@@ -105,16 +100,17 @@ class HMVController
             }
 
             $stmt = $db->prepare("INSERT INTO hmv_systems(
-            name, complex_id, building_id, standing_id, type, amount, heater_id, regulation, circulation, containment, qf, project_id) 
-            VALUES (:name, :complexId, :buildingId, :standingId, :type, :amount, :heaterId, :regulation, :circulation, :containment, :qf, :projectId)");
+            name, complex_id, zone_name, zone_usage, standing_id, type, amount, serviced_size, regulation, circulation, containment, qf, project_id) 
+            VALUES (:name, :complexId, :zoneName, :zoneUsage, :standingId, :type, :amount, :servicedSize, :regulation, :circulation, :containment, :qf, :projectId)");
             $stmt->execute([
                 ":name" => $name,
                 ":complexId" => $complex_id,
-                ":buildingId" => $building_id,
+                ":zoneName" => $zone_name,
+                ":zoneUsage" => $zone_usage,
                 ":standingId" => $standing_id,
                 ":type" => $type,
                 ":amount" => $amount,
-                ":heaterId" => $heater_id,
+                ":servicedSize" => $servicedSize,
                 ":regulation" => $regulation,
                 ":circulation" => (int) $circulation,
                 ":containment" => (int) $containment,

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
     CirculationTypes,
     HMVTypes,
+    ZoneUsages,
     type HMVData,
     type HMVFormErrors,
 } from '../model/HMV.model'
@@ -20,9 +21,7 @@ import {
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import type { ComplexShortData } from '../model/Complex.model'
-import type { BuildingShort } from '../model/Building.model'
 import type { StandingsShort } from '../model/Standings.model'
-import type { HeaterShort } from '../model/Heater.model'
 import FormSendProtocol from '../controllers/Forms.control'
 
 export default function HMVSystem() {
@@ -30,11 +29,12 @@ export default function HMVSystem() {
         id: null,
         name: '',
         complex: '',
-        building: '',
+        zoneName: '',
+        zoneUsage: ZoneUsages[0],
+        servicedSize: 0,
         standing: '',
         type: HMVTypes[0],
         amount: 0,
-        heating: '',
         regulation: CirculationTypes[0],
         circulation: false,
         containment: false,
@@ -44,12 +44,10 @@ export default function HMVSystem() {
     const navigate = useNavigate()
 
     const complexes = useAppSelector((state) => state.project.complexes)
-    const buildings = useAppSelector((state) => state.project.buildings)
     const standings = [
         ...useAppSelector((state) => state.project.mainStandings),
         ...useAppSelector((state) => state.project.subStandings),
     ]
-    const heaters = useAppSelector((state) => state.project.heaters)
     const projectId = useAppSelector((state) => state.project.currentTaskId)
 
     async function handleSubmit() {
@@ -109,25 +107,53 @@ export default function HMVSystem() {
                     <FormHelperText>{formErrors.complex}</FormHelperText>
                 )}
             </FormControl>
-            <FormControl error={!!formErrors?.building}>
-                <InputLabel id="building-select">Épület</InputLabel>
-                <Select
-                    label="Épület"
-                    labelId="building-select"
-                    value={formData.building}
+            <FormControl error={!!formErrors?.zoneName}>
+                <TextField
+                    variant="standard"
+                    label="Zóna megnevezése"
+                    value={formData.zoneName}
                     onChange={(e) =>
-                        setFormData({ ...formData, building: e.target.value })
+                        setFormData({ ...formData, zoneName: e.target.value })
+                    }
+                />
+                {formErrors?.zoneName && (
+                    <FormHelperText>{formErrors.zoneName}</FormHelperText>
+                )}
+            </FormControl>
+            <FormControl error={!!formErrors?.servicedSize}>
+                <TextField
+                    label="Ellátott terület"
+                    type="number"
+                    value={formData.servicedSize}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            servicedSize: Number(e.target.value),
+                        })
+                    }
+                />
+                {formErrors?.servicedSize && (
+                    <FormHelperText>{formErrors.servicedSize}</FormHelperText>
+                )}
+            </FormControl>
+            <FormControl>
+                <InputLabel id="zone-usage-label">
+                    Zóna jellemző használata
+                </InputLabel>
+                <Select
+                    label="Zóna használata"
+                    labelId="zone-usage-label"
+                    value={formData.zoneUsage}
+                    onChange={(e) =>
+                        setFormData({ ...formData, zoneUsage: e.target.value })
                     }
                 >
-                    {buildings.map((e: BuildingShort, index: number) => (
-                        <MenuItem key={'building-' + index} value={e.id}>
-                            {e.name}
+                    {ZoneUsages.map((e: string, index: number) => (
+                        <MenuItem id={index + '-zone-usage'} value={e}>
+                            {e}
                         </MenuItem>
                     ))}
                 </Select>
-                {formErrors?.building && (
-                    <FormHelperText>{formErrors.building}</FormHelperText>
-                )}
             </FormControl>
             <FormControl error={!!formErrors?.standing}>
                 <InputLabel id="standing-select">Mérés</InputLabel>
@@ -185,45 +211,6 @@ export default function HMVSystem() {
                     <FormHelperText>{formErrors.amount}</FormHelperText>
                 )}
             </FormControl>
-            <FormControl error={!!formErrors?.heating}>
-                <InputLabel id="heating-select">Hőtermelője</InputLabel>
-                <Select
-                    label="Hőtermelője"
-                    labelId="heating-select"
-                    value={formData.heating}
-                    onChange={(e) =>
-                        setFormData({ ...formData, heating: e.target.value })
-                    }
-                >
-                    {heaters.map((e: HeaterShort, index: number) => (
-                        <MenuItem key={'heater-' + index} value={e.id!}>
-                            {e.name}
-                        </MenuItem>
-                    ))}
-                </Select>
-                {formErrors?.heating && (
-                    <FormHelperText>{formErrors.heating}</FormHelperText>
-                )}
-            </FormControl>
-            <FormControl>
-                <InputLabel id="regulation-select">
-                    Szabályozás módja
-                </InputLabel>
-                <Select
-                    label="Szabályozás"
-                    labelId="regulation-select"
-                    value={formData.regulation}
-                    onChange={(e) =>
-                        setFormData({ ...formData, regulation: e.target.value })
-                    }
-                >
-                    {CirculationTypes.map((e: string, index: number) => (
-                        <MenuItem key={'regulation-' + index} value={e}>
-                            {e}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
             <FormControlLabel
                 label="Cirkuláció van"
                 control={
@@ -238,6 +225,30 @@ export default function HMVSystem() {
                     />
                 }
             />
+            {formData.circulation && (
+                <FormControl>
+                    <InputLabel id="regulation-select">
+                        Szabályozás módja
+                    </InputLabel>
+                    <Select
+                        label="Szabályozás"
+                        labelId="regulation-select"
+                        value={formData.regulation}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                regulation: e.target.value,
+                            })
+                        }
+                    >
+                        {CirculationTypes.map((e: string, index: number) => (
+                            <MenuItem key={'regulation-' + index} value={e}>
+                                {e}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            )}
             <FormControlLabel
                 label="HMV tárolás van"
                 control={

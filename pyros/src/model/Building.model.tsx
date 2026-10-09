@@ -57,6 +57,13 @@ export enum BuildingRunning {
     PARTITIONED = 'Szakaszos',
 }
 
+export const EmitterRegulations = [
+    'Szabályozás helyiség szinten',
+    'Időjáráskövető központi szabályozás',
+    'Egyszerű központi szabályozás',
+    'Szabályozatlan hőleadás',
+]
+
 export interface BuildingFormData {
     id: string | null
     name: string
@@ -81,6 +88,7 @@ export interface BuildingFormData {
     doorWindowType: DoorWindowPreset
     qf: number | null
     heatLoss: number | null
+    emitterRegulation: string
     imageFile: File | null
 }
 
@@ -108,6 +116,7 @@ export const BuildingDefaults: BuildingFormData = {
     floorInsulation: 0,
     qf: null,
     heatLoss: null,
+    emitterRegulation: EmitterRegulations[0],
     imageFile: null,
 }
 

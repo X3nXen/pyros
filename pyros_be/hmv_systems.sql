@@ -19,22 +19,24 @@
 -- Table structure for table `hmv_systems`
 --
 
+DROP TABLE IF EXISTS `hmv_systems`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `hmv_systems` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) DEFAULT NULL,
   `complex_id` varchar(255) DEFAULT NULL,
-  `building_id` varchar(255) DEFAULT NULL,
   `standing_id` varchar(255) DEFAULT NULL,
   `type` varchar(255) DEFAULT NULL,
   `amount` int DEFAULT NULL,
-  `heater_id` varchar(255) DEFAULT NULL,
   `regulation` varchar(255) DEFAULT NULL,
   `circulation` tinyint(1) DEFAULT '0',
   `containment` tinyint(1) DEFAULT '0',
   `qf` float DEFAULT NULL,
   `project_id` varchar(255) DEFAULT NULL,
+  `serviced_size` float DEFAULT NULL,
+  `zone_name` varchar(255) DEFAULT NULL,
+  `zone_usage` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -45,6 +47,7 @@ CREATE TABLE `hmv_systems` (
 
 LOCK TABLES `hmv_systems` WRITE;
 /*!40000 ALTER TABLE `hmv_systems` DISABLE KEYS */;
+INSERT INTO `hmv_systems` VALUES (4,'Teszt hmv new','16','60','Hőszivattyús',4,'Hőmérsékletre és időprogramra',1,0,5940,'86bbhga1x',3000,'Crazy noisy bizarre zone','Iroda');
 /*!40000 ALTER TABLE `hmv_systems` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -57,4 +60,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-23 20:11:00
+-- Dump completed on 2026-09-29  3:15:37

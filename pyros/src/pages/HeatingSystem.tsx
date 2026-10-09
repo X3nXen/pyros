@@ -122,11 +122,17 @@ export default function HeatingSystem() {
             carrier: defaultCarrier,
             heatingType: defaultHeatingType,
             state: 'SERVICED' as HeaterDescriptions,
+            systemHeat: null,
+            heatingSurface: null,
             baseType: 'UNKNOWN' as ElectricCalcMode,
             placementType: 'UNKNOWN' as ElectricCalcInstallation,
             ambientMedium: 'UNKNOWN' as ElectricCalcMedium,
             heatTransfer: 'UNKNOWN' as ElectricCalcSource,
             refrigerant: 'UNKNOWN' as ElectricCalcRefrigerant,
+            nominalOutput: null,
+            eer: null,
+            usage: null,
+            cop: null,
             heatLoss: false,
             couldHeatLoss: false,
             imageFile: null,
@@ -176,7 +182,14 @@ export default function HeatingSystem() {
 
     function handleActiveHeaterChange(
         field: keyof HeaterFormData,
-        value: string | number | string[] | boolean | File | null
+        value:
+            | string
+            | number
+            | string[]
+            | boolean
+            | File
+            | null
+            | ServicedBuildingShort[]
     ) {
         if (activeHeaterIndex === null) return
 

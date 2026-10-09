@@ -320,6 +320,9 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
             building: '',
             servicedBuilding: '',
             heatingType: '',
+            nominalOutput: '',
+            eer: '',
+            cop: '',
             imageFile: '',
         }
         if (!item.name || item.name === '') {
@@ -337,6 +340,19 @@ export function validateHeatingSystem(payload: HeatingSystemFormData) {
         if (!item.servicedBuilding || item.servicedBuilding.length === 0) {
             heaterElem.servicedBuilding =
                 'Add meg a hőtermelő által kiszolgált épületeket!'
+            localHasError = true
+        }
+        if (item.nominalOutput !== null && item.nominalOutput <= 0) {
+            heaterElem.nominalOutput =
+                'Add meg a berendezés névleges teljesítményét!'
+            localHasError = true
+        }
+        if (item.eer !== null && item.eer <= 0) {
+            heaterElem.eer = 'Add meg a berendezés névleges EER értékét!'
+            localHasError = true
+        }
+        if (item.cop !== null && item.cop <= 0) {
+            heaterElem.cop = 'Add meg a berendezés névleges COP értékét!'
             localHasError = true
         }
         if (!item.heatingType) {
@@ -543,10 +559,10 @@ export function validateHMVSystem(payload: HMVData) {
     const errors: HMVFormErrors = {
         name: '',
         complex: '',
-        building: '',
+        zoneName: '',
         standing: '',
         amount: '',
-        heating: '',
+        servicedSize: '',
     }
     let hasError = false
     if (!payload.name || payload.name == '') {
@@ -557,16 +573,17 @@ export function validateHMVSystem(payload: HMVData) {
         errors.complex = 'Add meg a HMV rendszer telephelyét!'
         hasError = true
     }
-    if (!payload.building || payload.building == '') {
-        errors.building = 'Add meg a HMV rendszerhez tartozó épületet!'
+    if (!payload.zoneName || payload.zoneName == '') {
+        errors.zoneName = 'Add meg a kiszolgált zóna megnevezését!'
         hasError = true
     }
     if (!payload.standing || payload.standing == '') {
         errors.standing = 'Add meg a HMV rendszerhez tartozó mérést!'
         hasError = true
     }
-    if (!payload.heating || payload.heating == '') {
-        errors.heating = 'Add meg a HMV rendszerhez tartozó hőtermelőt!'
+    if (!payload.servicedSize || payload.servicedSize <= 0) {
+        errors.servicedSize =
+            'Add meg a HMV rendszerhez által kiszolgált területet!'
         hasError = true
     }
     if (!payload.amount || payload.amount <= 0) {

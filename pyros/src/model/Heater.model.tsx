@@ -1,3 +1,4 @@
+import type { ServicedBuildingShort } from './Building.model'
 import { SystemPurpose } from './System.model'
 
 export enum HeaterCarrier {
@@ -312,21 +313,42 @@ export enum ElectricCalcRefrigerant {
     R290 = 'R290',
 }
 
+export const ElectricCalcUsage = [
+    'Lakosság, csak 14 óra után',
+    'Lakosság, egész nap',
+    'Iroda, 8-16 között, munkanap',
+    'Iroda, egész nap',
+    'Szállodai használat (vendégszobák)',
+]
+
+export const SystemHeatType = [
+    '20 K (90/70 °C)',
+    '15 K (70/55 °C)',
+    '10 K (55/45 °C)',
+    '7 K (35/28 °C)',
+]
+
 export interface HeaterFormData {
     id: string | null
     name: string
     standing: string | null
     building: string | null
-    servicedBuilding: Array<string>
+    servicedBuilding: Array<ServicedBuildingShort>
     regulation: string
     carrier: HeaterCarrier
     heatingType: HeaterType
     state: HeaterDescriptions
+    systemHeat: string | null
+    heatingSurface: string | null
     baseType: ElectricCalcMode
     placementType: ElectricCalcInstallation
     ambientMedium: ElectricCalcMedium
     heatTransfer: ElectricCalcSource
     refrigerant: ElectricCalcRefrigerant
+    nominalOutput: number | null
+    eer: number | null
+    cop: number | null
+    usage: string | null
     heatLoss: boolean
     couldHeatLoss: boolean
     imageFile: File | null
@@ -338,52 +360,48 @@ export interface HeaterFormErrors {
     building: string
     servicedBuilding: string
     heatingType: string
+    nominalOutput: string
+    eer: string
+    cop: string
     imageFile: string
 }
 
 export enum HeaterFeature {
-    SYSTEM_HEAT = 'systemHeat',
     ELECTRIC_EFFICIENCY = 'electricEfficiency',
     REMOTE = 'remote',
+    SYSTEM_HEAT = 'systemHeat',
 }
 
-const condensationGasFeatures: HeaterFeature[] = [HeaterFeature.SYSTEM_HEAT]
-const radiantFeatures: HeaterFeature[] = [HeaterFeature.ELECTRIC_EFFICIENCY]
+const systemFeatures: HeaterFeature[] = [HeaterFeature.SYSTEM_HEAT]
 const heatPumpFeatures: HeaterFeature[] = [HeaterFeature.ELECTRIC_EFFICIENCY]
 const electricHeatPumpFeatures: HeaterFeature[] = [
-    HeaterFeature.SYSTEM_HEAT,
-    HeaterFeature.ELECTRIC_EFFICIENCY,
-]
-const electricBoilerFeatures: HeaterFeature[] = [
-    HeaterFeature.SYSTEM_HEAT,
     HeaterFeature.ELECTRIC_EFFICIENCY,
 ]
 const districtHeatingFeatures: HeaterFeature[] = [
-    HeaterFeature.SYSTEM_HEAT,
-    HeaterFeature.ELECTRIC_EFFICIENCY,
     HeaterFeature.REMOTE,
+    HeaterFeature.SYSTEM_HEAT,
 ]
 
 export const DEVICE_FEATURES: Record<HeaterType, HeaterFeature[]> = {
-    [HeaterType.CONDENSING_GAS_BOILER]: condensationGasFeatures,
-    [HeaterType.LOW_TEMP_GAS_BOILER]: condensationGasFeatures,
-    [HeaterType.CONSTANT_TEMP_GAS_BOILER]: condensationGasFeatures,
-    [HeaterType.GAS_BURNER]: condensationGasFeatures,
-    [HeaterType.INDIVIDUAL_GAS_HEATER]: [],
-    [HeaterType.RADIANT_HEATER]: radiantFeatures,
+    [HeaterType.CONDENSING_GAS_BOILER]: systemFeatures,
+    [HeaterType.LOW_TEMP_GAS_BOILER]: systemFeatures,
+    [HeaterType.CONSTANT_TEMP_GAS_BOILER]: systemFeatures,
+    [HeaterType.GAS_BURNER]: [],
+    [HeaterType.INDIVIDUAL_GAS_HEATER]: systemFeatures,
+    [HeaterType.RADIANT_HEATER]: [],
 
     [HeaterType.HEAT_PUMP_AIR_WATER]: electricHeatPumpFeatures,
     [HeaterType.HEAT_PUMP_AIR_GAS]: heatPumpFeatures,
     [HeaterType.HEAT_PUMP_GROUND]: electricHeatPumpFeatures,
     [HeaterType.HEAT_PUMP_WATER]: electricHeatPumpFeatures,
     [HeaterType.VRV_VRF]: heatPumpFeatures,
-    [HeaterType.INDIVIDUAL_ELECTRIC_HEATER]: radiantFeatures,
-    [HeaterType.ELECTRIC_BOILER]: electricBoilerFeatures,
+    [HeaterType.INDIVIDUAL_ELECTRIC_HEATER]: [],
+    [HeaterType.ELECTRIC_BOILER]: systemFeatures,
     [HeaterType.SPLIT_AC]: heatPumpFeatures,
     [HeaterType.HEAT_PUMP_GENERIC]: heatPumpFeatures,
 
-    [HeaterType.THERMO_VENTILATOR]: radiantFeatures,
-    [HeaterType.ROOFTOP]: radiantFeatures,
+    [HeaterType.THERMO_VENTILATOR]: [],
+    [HeaterType.ROOFTOP]: [],
     [HeaterType.TECH_COOLING_HP]: heatPumpFeatures,
     [HeaterType.TECH_COOLING_CHILLER]: heatPumpFeatures,
     [HeaterType.TECH_COOLING]: heatPumpFeatures,
@@ -396,15 +414,15 @@ export const DEVICE_FEATURES: Record<HeaterType, HeaterFeature[]> = {
     [HeaterType.DISTRICT_MIXING_MANUAL]: districtHeatingFeatures,
     [HeaterType.DISTRICT_HYDRAULIC_SWITCH]: districtHeatingFeatures,
 
-    [HeaterType.OIL_BURNER]: electricBoilerFeatures,
+    [HeaterType.OIL_BURNER]: [],
     [HeaterType.OIL_STOVE]: [],
-    [HeaterType.OIL_BOILER]: electricBoilerFeatures,
-    [HeaterType.COAL_BOILER]: electricBoilerFeatures,
+    [HeaterType.OIL_BOILER]: systemFeatures,
+    [HeaterType.COAL_BOILER]: systemFeatures,
     [HeaterType.STOVE]: [],
-    [HeaterType.FIREWOOD_GASIFIER_BOILER]: condensationGasFeatures,
-    [HeaterType.FIREWOOD_BOILER]: condensationGasFeatures,
+    [HeaterType.FIREWOOD_GASIFIER_BOILER]: systemFeatures,
+    [HeaterType.FIREWOOD_BOILER]: systemFeatures,
     [HeaterType.FIREPLACE]: [],
-    [HeaterType.BOILER]: electricBoilerFeatures,
+    [HeaterType.BOILER]: systemFeatures,
 
     [HeaterType.OTHER]: [],
 }

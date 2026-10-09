@@ -6,12 +6,9 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    OutlinedInput,
-    type Theme,
     FormHelperText,
     Button,
 } from '@mui/material'
-import theme from '../assets/theme'
 import {
     HeaterDescriptions,
     DEVICE_FEATURES,
@@ -27,38 +24,29 @@ import {
     HEAT_CARRIER_TO_TYPE,
     COOL_CARRIER_TO_TYPE,
     HeaterRegulations,
+    ElectricCalcUsage,
+    SystemHeatType,
 } from '../model/Heater.model'
 import type { StandingsShort } from '../model/Standings.model'
-import { type BuildingShort } from '../model/Building.model'
+import {
+    type BuildingShort,
+    type ServicedBuildingShort,
+} from '../model/Building.model'
 import { SystemPurpose } from '../model/System.model'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
-
-function getStyles(id: string, selectedIds: string[], theme: Theme) {
-    return {
-        fontWeight: selectedIds.includes(id)
-            ? theme.typography.fontWeightMedium
-            : theme.typography.fontWeightRegular,
-    }
-}
-
-const ITEM_HEIGHT = 48
-const ITEM_PADDING_TOP = 8
-const MenuProps = {
-    slotProps: {
-        paper: {
-            style: {
-                maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-                width: 250,
-            },
-        },
-    },
-}
 
 export default function HeaterForm(props: {
     currentActiveHeater: HeaterFormData
     handleActiveHeaterChange: (
         field: keyof HeaterFormData,
-        value: string | number | string[] | boolean | File | null
+        value:
+            | string
+            | number
+            | string[]
+            | boolean
+            | File
+            | null
+            | ServicedBuildingShort[]
     ) => void
     allStandings: Array<StandingsShort>
     buildings: Array<BuildingShort>
@@ -163,51 +151,37 @@ export default function HeaterForm(props: {
                     !!props.heaterErrors.servicedBuilding
                 }
             >
-                <InputLabel id="heater-serviced-label">
+                <InputLabel id="pump-serviced-label">
                     Kiszolgált épületek
                 </InputLabel>
                 <Select
-                    labelId="heater-serviced-label"
-                    id="heater-serviced-multiple"
+                    labelId="pump-serviced-label"
                     multiple
-                    value={props.currentActiveHeater.servicedBuilding || []}
-                    onChange={(e) =>
+                    value={props.currentActiveHeater.servicedBuilding.map(
+                        (s) => s.buildingId
+                    )}
+                    label="Kiszolgált épületek"
+                    onChange={(e) => {
+                        const selectedIds = e.target.value as string[]
+                        const objects: Array<ServicedBuildingShort> =
+                            props.buildings
+                                .filter((e) => selectedIds.includes(e.id))
+                                .map((e: BuildingShort) => ({
+                                    buildingId: e.id,
+                                    name: e.name,
+                                    servicedSize: 0,
+                                }))
                         props.handleActiveHeaterChange(
                             'servicedBuilding',
-                            e.target.value
+                            objects
                         )
-                    }
-                    input={<OutlinedInput label="Kiszolgált épületek" />}
-                    MenuProps={MenuProps}
-                    renderValue={(selectedIds) => {
-                        return selectedIds
-                            .map(
-                                (id) =>
-                                    props.buildings.find(
-                                        (building) => building.id === id
-                                    )?.name
-                            )
-                            .filter(Boolean)
-                            .join(', ')
                     }}
                 >
-                    {props.buildings.map((building) => {
-                        const buildingId = building.id || ''
-                        return (
-                            <MenuItem
-                                key={buildingId}
-                                value={buildingId}
-                                style={getStyles(
-                                    buildingId,
-                                    props.currentActiveHeater
-                                        .servicedBuilding || [],
-                                    theme
-                                )}
-                            >
-                                {building.name}
-                            </MenuItem>
-                        )
-                    })}
+                    {props.buildings.map((s) => (
+                        <MenuItem key={s.id as string} value={s.id as string}>
+                            {s.name}
+                        </MenuItem>
+                    ))}
                 </Select>
                 {!!props.heaterErrors &&
                     props.heaterErrors.servicedBuilding && (
@@ -216,7 +190,28 @@ export default function HeaterForm(props: {
                         </FormHelperText>
                     )}
             </FormControl>
-
+            {props.currentActiveHeater.servicedBuilding.map(
+                (e: ServicedBuildingShort) => {
+                    return (
+                        <FormControl>
+                            <TextField
+                                label={e.name + '-ben kiszolgált terület'}
+                                type="number"
+                                variant="outlined"
+                                value={e.servicedSize}
+                                onChange={(event) => {
+                                    e.servicedSize = Number(event.target.value)
+                                    props.handleActiveHeaterChange(
+                                        'servicedBuilding',
+                                        props.currentActiveHeater
+                                            .servicedBuilding
+                                    )
+                                }}
+                            />
+                        </FormControl>
+                    )
+                }
+            )}
             <FormControl>
                 <InputLabel id="heater-regulation-label">
                     Hőtermelő szabályozása
@@ -493,6 +488,199 @@ export default function HeaterForm(props: {
                                                 {v}
                                             </MenuItem>
                                         ))}
+                                    </Select>
+                                </FormControl>
+                                <FormControl
+                                    fullWidth
+                                    error={
+                                        props.heaterErrors !== null &&
+                                        !!props.heaterErrors.nominalOutput
+                                    }
+                                >
+                                    <TextField
+                                        label="Névleges teljesítmény"
+                                        variant="standard"
+                                        type="number"
+                                        value={
+                                            props.currentActiveHeater
+                                                .nominalOutput ?? 0
+                                        }
+                                        onChange={(e) =>
+                                            props.handleActiveHeaterChange(
+                                                'nominalOutput',
+                                                Number(e.target.value)
+                                            )
+                                        }
+                                    />
+                                    {!!props.heaterErrors &&
+                                        props.heaterErrors.nominalOutput && (
+                                            <FormHelperText>
+                                                {
+                                                    props.heaterErrors
+                                                        .nominalOutput
+                                                }
+                                            </FormHelperText>
+                                        )}
+                                </FormControl>
+                                {props.systemPurpose != SystemPurpose.HEAT ? (
+                                    <FormControl
+                                        error={
+                                            props.heaterErrors !== null &&
+                                            !!props.heaterErrors.eer
+                                        }
+                                    >
+                                        <TextField
+                                            label="Névleges EER"
+                                            type="number"
+                                            variant="standard"
+                                            value={
+                                                props.currentActiveHeater.eer ??
+                                                0
+                                            }
+                                            onChange={(e) =>
+                                                props.handleActiveHeaterChange(
+                                                    'eer',
+                                                    Number(e.target.value)
+                                                )
+                                            }
+                                        />
+                                        {!!props.heaterErrors &&
+                                            props.heaterErrors.eer && (
+                                                <FormHelperText>
+                                                    {props.heaterErrors.eer}
+                                                </FormHelperText>
+                                            )}
+                                    </FormControl>
+                                ) : (
+                                    <></>
+                                )}
+                                {props.systemPurpose !== SystemPurpose.COOL ? (
+                                    <FormControl
+                                        error={
+                                            props.heaterErrors !== null &&
+                                            !!props.heaterErrors.cop
+                                        }
+                                    >
+                                        <TextField
+                                            label="Névleges COP"
+                                            type="number"
+                                            variant="standard"
+                                            value={
+                                                props.currentActiveHeater.cop ??
+                                                0
+                                            }
+                                            onChange={(e) =>
+                                                props.handleActiveHeaterChange(
+                                                    'cop',
+                                                    Number(e.target.value)
+                                                )
+                                            }
+                                        />
+                                        {!!props.heaterErrors &&
+                                            props.heaterErrors.cop && (
+                                                <FormHelperText>
+                                                    {props.heaterErrors.cop}
+                                                </FormHelperText>
+                                            )}
+                                    </FormControl>
+                                ) : (
+                                    <></>
+                                )}
+                                <FormControl>
+                                    <InputLabel id="electric-usage-select">
+                                        Használat jellege
+                                    </InputLabel>
+                                    <Select
+                                        label="Használat"
+                                        labelId="electric-usage-select"
+                                        value={
+                                            props.currentActiveHeater.usage ??
+                                            ElectricCalcUsage[0]
+                                        }
+                                        onChange={(e) =>
+                                            props.handleActiveHeaterChange(
+                                                'usage',
+                                                e.target.value
+                                            )
+                                        }
+                                    >
+                                        {ElectricCalcUsage.map(
+                                            (e: string, index: number) => (
+                                                <MenuItem
+                                                    key={index + '-usage'}
+                                                    value={e}
+                                                >
+                                                    {e}
+                                                </MenuItem>
+                                            )
+                                        )}
+                                    </Select>
+                                </FormControl>
+                            </>
+                        )}
+                        {activeFeatures.includes(HeaterFeature.SYSTEM_HEAT) && (
+                            <>
+                                <FormControl>
+                                    <InputLabel id="system-heat-select">
+                                        Hőfoklépcső
+                                    </InputLabel>
+                                    <Select
+                                        label="Hőfoklépcső"
+                                        labelId="system-heat-select"
+                                        value={
+                                            props.currentActiveHeater
+                                                .systemHeat ?? SystemHeatType[0]
+                                        }
+                                        onChange={(e) =>
+                                            props.handleActiveHeaterChange(
+                                                'systemHeat',
+                                                e.target.value
+                                            )
+                                        }
+                                    >
+                                        {SystemHeatType.map(
+                                            (e: string, index: number) => (
+                                                <MenuItem
+                                                    key={index + '-system-heat'}
+                                                    value={e}
+                                                >
+                                                    {e}
+                                                </MenuItem>
+                                            )
+                                        )}
+                                    </Select>
+                                </FormControl>
+                                <FormControl>
+                                    <InputLabel id="heating-surface-select">
+                                        Fűtőfelület fajtája
+                                    </InputLabel>
+                                    <Select
+                                        label="Fűtőfelület"
+                                        labelId="heating-surface-select"
+                                        value={
+                                            props.currentActiveHeater
+                                                .heatingSurface ??
+                                            'Szabad fűtőfelület'
+                                        }
+                                        onChange={(e) =>
+                                            props.handleActiveHeaterChange(
+                                                'heatingSurface',
+                                                e.target.value
+                                            )
+                                        }
+                                    >
+                                        <MenuItem
+                                            key="1-heating-surface"
+                                            value="Szabad fűtőfelület"
+                                        >
+                                            Szabad fűtőfelület
+                                        </MenuItem>
+                                        <MenuItem
+                                            key="2-heating-surface"
+                                            value="Beágyazott fűtőfelület"
+                                        >
+                                            Beágyazott fűtőfelület
+                                        </MenuItem>
                                     </Select>
                                 </FormControl>
                             </>
