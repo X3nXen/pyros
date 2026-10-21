@@ -15,13 +15,35 @@ class StandingsController
                 break;
 
             case 'POST':
-                $this->handlePost();
+                $this->distinguishPost();
                 break;
 
             default:
                 http_response_code(405);
                 echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
                 break;
+        }
+    }
+
+    private function distinguishPost()
+    {
+        $data = null;
+        if (isset($_POST['data'])) {
+            $data = json_decode($_POST['data'], true);
+        } else if (!empty($_POST)) {
+            $data = $_POST;
+        } else {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+        }
+        if (!isset($data['method'])) {
+            $this->handlePost($data);
+        } else {
+            if ($data['method'] == "EDIT") {
+
+            } else {
+                $this->handlePost($data);
+            }
         }
     }
 
@@ -72,18 +94,92 @@ class StandingsController
         }
     }
 
-    private function handlePost()
+    private function handlePut($data)
     {
-        $data = null;
-        if (isset($_POST['data'])) {
-            $data = json_decode($_POST['data'], true);
-        } else if (!empty($_POST)) {
-            $data = $_POST;
-        } else {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Érvénytelen adatok!']);
+            return;
         }
 
+        $id = $data['id'] ?? null;
+        $name = $data['name'] ?? null;
+        $measurementType = $data['measurementType'] ?? null;
+        $subTo = !empty($data['subTo']) ? (int) $data['subTo'] : null;
+        $source = $data['source'] ?? null;
+        $measurement = $data['measurement'] ?? null;
+
+        $dateFrom = !empty($data['dateFrom']) ? date('Y-m-d', strtotime($data['dateFrom'])) : null;
+        $dateTo = !empty($data['dateTo']) ? date('Y-m-d', strtotime($data['dateTo'])) : null;
+        $purpose = match ($data['purpose']) {
+            'Épület' => 'BUILDING',
+            'Tevékenység' => 'SERVICE',
+            'Szállítás' => 'CARRY',
+            default => 'SERVICE'
+        };
+
+        if (!$id || !$name || !$measurementType || !$source || !$measurement) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
+            return;
+        }
+
+        try {
+            $consumptionJson = null;
+            $fileKey = isset($_FILES['excel']) ? 'excel' : (isset($_FILES['file']) ? 'file' : null);
+
+            if ($fileKey && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
+                if (!$dateFrom || !$dateTo) {
+                    http_response_code(422);
+                    echo json_encode(['status' => 'error', 'message' => 'Excel feldolgozásához a kezdő és záró dátum megadása kötelező!']);
+                    return;
+                }
+
+                $consumptionArray = parseStandingsExcel($_FILES[$fileKey]['tmp_name'], $dateFrom, $dateTo);
+                $consumptionJson = json_encode($consumptionArray, JSON_UNESCAPED_UNICODE);
+            } else {
+                $consumptionJson = json_encode([], JSON_UNESCAPED_UNICODE);
+            }
+
+            $db = Database::getConnection();
+
+            $sql = "UPDATE standings SET 
+                name=:name, measurement_type=:measurement_type, sub_to=:sub_to, source=:source, measurement=:measurement, date_from=:date_from, date_to=:date_to, consumption=:consumption, purpose=:purpose, pod=:podId WHERE id=:id
+            ";
+            $stmt = $db->prepare($sql);
+
+            $stmt->execute([
+                ':name' => $name,
+                ':measurement_type' => $measurementType,
+                ':sub_to' => $subTo,
+                ':source' => $source,
+                ':measurement' => $measurement,
+                ':date_from' => $dateFrom,
+                ':date_to' => $dateTo,
+                ':consumption' => $consumptionJson,
+                ':purpose' => $purpose,
+                ':podId' => $data['pod'] ?? null,
+                ':id' => $id
+            ]);
+
+            http_response_code(201);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Mérőóra sikeresen elmentve!',
+                'id' => $db->lastInsertId()
+            ]);
+
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Hiba történt: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    private function handlePost($data)
+    {
         if (!$data) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Érvénytelen adatok!']);

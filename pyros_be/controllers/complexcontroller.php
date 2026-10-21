@@ -14,7 +14,7 @@ class ComplexController
                 break;
 
             case 'POST':
-                $this->handlePost();
+                $this->distinguishPost();
                 break;
 
             default:
@@ -59,11 +59,76 @@ class ComplexController
         }
     }
 
-    private function handlePost()
+    private function distinguishPost()
     {
         $rawInput = file_get_contents('php://input');
         $data = json_decode($rawInput, true);
+        if (!isset($data['method'])) {
+            $this->handlePost($data);
+        } else {
+            if ($data['method'] == "EDIT") {
+                $this->handlePut($data);
+            } else {
+                $this->handlePost($data);
+            }
+        }
+    }
 
+    private function handlePut($data)
+    {
+        $id = $data['id'] ?? null;
+        $name = $data['name'] ?? null;
+        $address = $data['address'] ?? null;
+        $postal = $data['postal'] ?? null;
+        $city = $data['city'] ?? null;
+        $parcelNumber = $data['parcelNumber'] ?? null;
+        $projectId = $data['project_id'] ?? null;
+        $podId = $data['podId'] ?? null;
+
+        $standingIds = $data['meterStandings'] ?? [];
+
+        if (!$id || !$projectId || !$name || !$address || !$postal || !$city || !$parcelNumber || count($standingIds) === 0) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
+            return;
+        }
+
+        $db = null;
+
+        try {
+            $db = Database::getConnection();
+
+            $sql = "UPDATE complex SET name=:name, address=:address, postal=:postal, city=:city, parcelNumber=:parcelNumber, complex_json=:complexJson WHERE id=:id";
+
+            $stmt = $db->prepare($sql);
+
+            $stmt->execute([
+                ':name' => $name,
+                ':address' => $address,
+                ':postal' => $postal,
+                ':city' => $city,
+                ':parcelNumber' => $parcelNumber,
+                ':complexJson' => json_encode($data),
+                ':id' => $id
+            ]);
+
+            http_response_code(201);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Telephely sikeresen elmentve!',
+                'id' => $id
+            ]);
+
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Adatbázis hiba: ' . $e->getMessage()
+            ]);
+        }
+    }
+    private function handlePost($data)
+    {
         $name = $data['name'] ?? null;
         $address = $data['address'] ?? null;
         $postal = $data['postal'] ?? null;

@@ -19,13 +19,36 @@ class ProductController
                 break;
 
             case 'POST':
-                $this->handlePost();
+                $this->distinguishPost();
                 break;
 
             default:
                 http_response_code(405);
                 echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
                 break;
+        }
+    }
+
+    private function distinguishPost()
+    {
+        $data = null;
+        if (isset($_POST['data'])) {
+            $data = json_decode($_POST['data'], true);
+        } else if (!empty($_POST)) {
+            $data = $_POST;
+        } else {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+        }
+
+        if (!isset($data['method'])) {
+            $this->handlePost($data);
+        } else {
+            if ($data['method'] == "EDIT") {
+                $this->handlePut($data);
+            } else {
+                $this->handlePost($data);
+            }
         }
     }
 
@@ -91,18 +114,65 @@ class ProductController
         }
     }
 
-    private function handlePost()
+    private function handlePut($data)
     {
-        $data = null;
-        if (isset($_POST['data'])) {
-            $data = json_decode($_POST['data'], true);
-        } else if (!empty($_POST)) {
-            $data = $_POST;
-        } else {
-            $rawInput = file_get_contents('php://input');
-            $data = json_decode($rawInput, true);
+        if (!$data) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Érvénytelen adatok!']);
+            return;
         }
 
+        $metric = $data['metric'] ?? null;
+        $id = $data['id'] ?? null;
+        $isPrimary = $data['isPrimary'] ?? false;
+
+        if (!$metric || !$id) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Hiányzó adatok!']);
+            return;
+        }
+
+        try {
+            $productionJson = json_encode([], JSON_UNESCAPED_UNICODE);
+
+            $fileKey = isset($_FILES['excel']) ? 'excel' : (isset($_FILES['file']) ? 'file' : null);
+
+            if ($fileKey && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
+                $parsed = parseProductExcel($_FILES[$fileKey]['tmp_name']);
+
+                $productName = $data['name'] ?? $parsed['product_name'] ?? "Termék";
+                $productionJson = json_encode($parsed['json'], JSON_UNESCAPED_UNICODE);
+            }
+
+            $db = Database::getConnection();
+
+            $sql = "UPDATE product SET product_name=:product_name, metric=:metric, json=:json, is_primary=:isPrimary WHERE id=:id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':product_name' => $productName,
+                ':metric' => $metric,
+                ':json' => $productionJson,
+                ':isPrimary' => (int) $isPrimary,
+                ':id' => $id
+            ]);
+
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Termék sikeresen elmentve!',
+                'id' => $id
+            ]);
+
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Hiba történt: ' . $e->getMessage()
+            ]);
+        }
+    }
+    private function handlePost($data)
+    {
         $projectId = $data['project_id'] ?? null;
         if (!$projectId) {
             http_response_code(500);
@@ -133,7 +203,6 @@ class ProductController
             $fileKey = isset($_FILES['excel']) ? 'excel' : (isset($_FILES['file']) ? 'file' : null);
 
             if ($fileKey && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
-                // Kizárólag az Excel fájl elérési útját adjuk át
                 $parsed = parseProductExcel($_FILES[$fileKey]['tmp_name']);
 
                 $productName = $data['name'] ?? $parsed['product_name'] ?? "Termék";

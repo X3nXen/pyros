@@ -17,7 +17,7 @@ class LightingController
                 break;
 
             case 'POST':
-                $this->handlePost();
+                $this->distinguishPost();
                 break;
 
             default:
@@ -54,11 +54,127 @@ class LightingController
         }
     }
 
-    private function handlePost()
+    private function distinguishPost()
     {
         $rawInput = file_get_contents('php://input');
         $data = json_decode($rawInput, true);
+        if (!isset($data['method'])) {
+            $this->handlePost($data);
+        } else {
+            if ($data['method'] == "EDIT") {
 
+            } else {
+                $this->handlePost($data);
+            }
+        }
+    }
+
+    private function handlePut($data)
+    {
+        $db = null;
+        if (!$data) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Nincs megadott adat'
+            ]);
+        }
+
+        $ids = [];
+
+        try {
+            $db = Database::getConnection();
+            $db->beginTransaction();
+            foreach ($data['systems'] as $system) {
+                $id = $system['id'] ?? null;
+                $zoneName = $system['zone'] ?? null;
+                $size = $system['size'] ?? null;
+                $solution = $system['solution'] ?? null;
+                $dim = $system['dim'] ?? null;
+                $zoneUsage = $system['zoneUsage'] ?? null;
+                $regulation = $system['regulation'] ?? null;
+                $naturalLight = $system['naturalLight'] ?? null;
+                $emergency = $system['emergency'] ?? null;
+                $standBy = $system['standBy'] ?? null;
+                $standing = $system['standing'] ?? null;
+                $complex = $data['complex'] ?? null;
+                $building = $system['building'] ?? null;
+                if (!$id || !$zoneName || !$size || !$solution || !$dim || !$zoneUsage || !$regulation || !$naturalLight || $emergency === null || $standBy === null || $standBy === null || $complex === null || $building === null) {
+                    http_response_code(500);
+                    echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
+                }
+
+                $calculated = calculateValues($system);
+                $sql = "UPDATE lighting_systems SET 
+                    name=:name, 
+                    size=:size, 
+                    solution=:solution, 
+                    dim=:dim, 
+                    zone_usage=:usage, 
+                    regulation=:regulation, 
+                    natural_light=:natural,
+                    emergency=:emergency,
+                    standby=:standby,
+                    specific_sum=:specific,
+                    yearly_sum=:sum,
+                    standing=:standing,
+                    complex=:complex,
+                    building=:building WHERE id=:id";
+                $stmt = $db->prepare($sql);
+                $stmt->execute([
+                    ':name' => $zoneName,
+                    ':size' => $size,
+                    ':solution' => $solution,
+                    ':dim' => $dim,
+                    ':usage' => $zoneUsage,
+                    ':regulation' => $regulation,
+                    ':natural' => $naturalLight,
+                    ':emergency' => (int) $emergency,
+                    ':standby' => (int) $standBy,
+                    ':specific' => $calculated['specific'],
+                    ':sum' => $calculated['sum'],
+                    ':standing' => $standing,
+                    ':complexId' => $complex,
+                    ':buildingId' => $building,
+                    ':id' => $id
+                ]);
+                $stmt = $db->prepare("SELECT consumption FROM standings WHERE id=:standingId");
+                $stmt->execute([
+                    ':standingId' => $standing
+                ]);
+                $consumption = json_decode($stmt->fetchColumn());
+                if (!$consumption || $consumption == null) {
+                    $consumption = [];
+                }
+                if (!isset($consumption['total'])) {
+                    $consumption['total'] = 0;
+                }
+                $consumption['total'] += $calculated['sum'];
+                $jsonConsumption = json_encode($consumption);
+                $stmt = $db->prepare("UPDATE standings SET consumption=:consumption WHERE id=:standingId AND measurement_type='VIRTUAL'");
+                $stmt->execute([
+                    ':standingId' => $standing,
+                    ':consumption' => $jsonConsumption
+                ]);
+            }
+
+            $db->commit();
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'message' => 'Világítási rendszerek sikeresen elmentve']);
+        } catch (Exception $error) {
+            if (isset($db) && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Adatbázis hiba: ' . $error->getMessage()
+            ]);
+        }
+    }
+
+    private function handlePost($data)
+    {
         $db = null;
         $link = guidv4();
         $projectId = $data['project_id'] ?? null;
@@ -124,20 +240,26 @@ class LightingController
                     ':complexId' => $complex,
                     ':buildingId' => $building
                 ]);
+                $stmt = $db->prepare("SELECT consumption FROM standings WHERE id=:standingId");
+                $stmt->execute([
+                    ':standingId' => $standing
+                ]);
+                $consumption = json_decode($stmt->fetchColumn());
+                if (!$consumption || $consumption == null) {
+                    $consumption = [];
+                }
+                if (!isset($consumption['total'])) {
+                    $consumption['total'] = 0;
+                }
+                $consumption['total'] += $calculated['sum'];
+                $jsonConsumption = json_encode($consumption);
+                $stmt = $db->prepare("UPDATE standings SET consumption=:consumption WHERE id=:standingId AND measurement_type='VIRTUAL'");
+                $stmt->execute([
+                    ':standingId' => $standing,
+                    ':consumption' => $jsonConsumption
+                ]);
             }
 
-            $stmt = $db->prepare("INSERT INTO standings_to_other VALUES (:standing, :reference, 'LIGHTING')");
-            $stmt->execute([
-                ':standing' => $standing,
-                ':reference' => $db->lastInsertId()
-            ]);
-
-            $jsonConsumption = json_encode(['total' => $calculated['sum']]);
-            $stmt = $db->prepare("UPDATE standings SET consumption=:consumption WHERE id=:standingId AND measurement_type='VIRTUAL'");
-            $stmt->execute([
-                ':standingId' => $standing,
-                ':consumption' => $jsonConsumption
-            ]);
             $db->commit();
             http_response_code(200);
             echo json_encode(['status' => 'success', 'message' => 'Világítási rendszerek sikeresen elmentve']);

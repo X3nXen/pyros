@@ -13,13 +13,28 @@ class TechnologyController
                 break;
 
             case 'POST':
-                $this->handlePost();
+                $this->distinguishPost();
                 break;
 
             default:
                 http_response_code(405);
                 echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
                 break;
+        }
+    }
+
+    private function distinguishPost()
+    {
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+        if (!isset($data['method'])) {
+            $this->handlePost($data);
+        } else {
+            if ($data['method'] == "EDIT") {
+                $this->handlePut($data);
+            } else {
+                $this->handlePost($data);
+            }
         }
     }
 
@@ -50,11 +65,57 @@ class TechnologyController
         }
     }
 
-    private function handlePost()
+    private function handlePut($data)
     {
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
+        if (!$data) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);
+        }
+        $id = $data['id'] ?? null;
+        if (!$id) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Hiányzó adatok!'
+            ]);
+        }
 
+        try {
+            $db = Database::getConnection();
+
+            if (!empty($data['machines'])) {
+                foreach ($data['machines'] as &$machine) {
+                    $machineId = guidv4();
+                    $machine['id'] = $machineId;
+                    $valuePlaceholders[] = '(?, ?, ?)';
+                    $params[] = $machine['standing'];
+                    $params[] = $machineId;
+                    $params[] = 'TECHNOLOGY';
+                }
+            }
+            $sql = "UPDATE technology SET name=:name, json=:json, technology_type=:technology_type, complex=:complexId WHERE id=:id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':name' => $data['name'],
+                ':json' => json_encode($data),
+                ':technology_type' => $data['technologyType'],
+                ':complexId' => $data['complex'],
+                ':id' => $id
+            ]);
+
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'message' => 'Sikeres mentés!']);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Adatbázis elérési hiba: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    private function handlePost($data)
+    {
         if (!$data) {
             http_response_code(500);
             echo json_encode(['status' => 'error', 'message' => 'Hiányzó kötelező mezők!']);

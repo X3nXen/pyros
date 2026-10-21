@@ -15,13 +15,29 @@ class HMVController
                 break;
 
             case 'POST':
-                $this->handlePost();
+                $this->distinguishPost();
                 break;
 
             default:
                 http_response_code(405);
                 echo json_encode(['error' => 'A kért HTTP metódus nem támogatott']);
                 break;
+        }
+    }
+
+    private function distinguishPost()
+    {
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+
+        if (!isset($data['method'])) {
+            $this->handlePost($data);
+        } else {
+            if ($data['method'] == "EDIT") {
+                $this->handlePut($data);
+            } else {
+                $this->handlePost($data);
+            }
         }
     }
 
@@ -49,11 +65,93 @@ class HMVController
         }
     }
 
-    private function handlePost()
+    private function handlePut($data)
     {
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
+        $name = $data['name'] ?? null;
+        $complex_id = $data['complex'] ?? null;
+        $zone_name = $data['zoneName'] ?? null;
+        $zone_usage = $data['zoneUsage'] ?? null;
+        $standing_id = $data['standing'] ?? null;
+        $type = $data['type'] ?? null;
+        $amount = $data['amount'] ?? null;
+        $regulation = $data['regulation'] ?? null;
+        $servicedSize = $data['servicedSize'] ?? null;
+        $circulation = $data['circulation'] ?? false;
+        $containment = $data['containment'] ?? false;
+        $id = $data['id'] ?? null;
+        if (!$id || $name == null || $complex_id == null || $zone_name == null || $standing_id == null || $type == null || $amount == null || $regulation == null) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Hiányzó adat'
+            ]);
+        }
 
+        $db = null;
+        $qf = 0;
+
+        try {
+            $db = Database::getConnection();
+            $db->beginTransaction();
+
+            $stmt = $db->prepare("SELECT measurement_type FROM standings WHERE id=:standingId");
+            $stmt->execute([
+                ":standingId" => $standing_id
+            ]);
+            $standingType = $stmt->fetchColumn();
+
+            $qf = calculateHMVQf($zone_usage, $containment, $circulation, $servicedSize, $type);
+
+            if ($standingType == "VIRTUAL") {
+                $consumption = json_encode(["total" => $qf]);
+                $stmt = $db->prepare("UPDATE standings SET consumption=:consumption_json WHERE id=:standing_id");
+                $stmt->execute([
+                    ":consumption_json" => $consumption,
+                    ":standing_id" => $standing_id
+                ]);
+            }
+
+            $stmt = $db->prepare("UPDATE hmv_systems SET name=:name, complex_id=:complexId, zone_name=:zoneName, zone_usage=:zoneUsage, standing_id=:standingId, type=:type, amount=:amount, serviced_size=:servicedSize, regulation=:regulation, circulation=:circulation, containment=:containment, qf=:qf WHERE id=:id");
+
+            $stmt->execute([
+                ":name" => $name,
+                ":complexId" => $complex_id,
+                ":zoneName" => $zone_name,
+                ":zoneUsage" => $zone_usage,
+                ":standingId" => $standing_id,
+                ":type" => $type,
+                ":amount" => $amount,
+                ":servicedSize" => $servicedSize,
+                ":regulation" => $regulation,
+                ":circulation" => (int) $circulation,
+                ":containment" => (int) $containment,
+                ":qf" => $qf,
+                ":id" => $id
+            ]);
+
+            $db->commit();
+
+            http_response_code(201);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'HMV rendszer sikeresen elmentve!',
+            ]);
+
+
+        } catch (PDOException $e) {
+            if (isset($db) && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Adatbázis hiba: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    private function handlePost($data)
+    {
         $name = $data['name'] ?? null;
         $complex_id = $data['complex'] ?? null;
         $zone_name = $data['zoneName'] ?? null;
