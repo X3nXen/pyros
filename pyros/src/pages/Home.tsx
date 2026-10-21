@@ -16,6 +16,7 @@ import {
     fetchClickupData,
     fetchProjectData,
 } from '../store/projectSlice'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 
 export default function Home() {
     const dispatch = useAppDispatch()
@@ -59,26 +60,48 @@ export default function Home() {
                 </Box>
             ) : (
                 <>
-                    <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-                        <InputLabel id="clickup-select-label">
-                            Aktív ClickUp Projekt
-                        </InputLabel>
-                        <Select
-                            labelId="clickup-select-label"
-                            value={currentTaskId || ''}
-                            label="Aktív ClickUp Projekt"
-                            onChange={handleTaskChange}
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                        }}
+                    >
+                        <FormControl
+                            fullWidth
+                            variant="outlined"
+                            sx={{ mb: 2 }}
                         >
-                            <MenuItem value="">
-                                <em>-- Válassz egy projektet --</em>
-                            </MenuItem>
-                            {clickupTasks.map((task) => (
-                                <MenuItem key={task.id} value={task.id}>
-                                    {task.name}
+                            <InputLabel id="clickup-select-label">
+                                Aktív ClickUp Projekt
+                            </InputLabel>
+                            <Select
+                                labelId="clickup-select-label"
+                                value={currentTaskId || ''}
+                                label="Aktív ClickUp Projekt"
+                                onChange={handleTaskChange}
+                            >
+                                <MenuItem value="">
+                                    <em>-- Válassz egy projektet --</em>
                                 </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                                {clickupTasks.map((task) => (
+                                    <MenuItem key={task.id} value={task.id}>
+                                        {task.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Button
+                            variant="outlined"
+                            component={Link}
+                            to="/overview"
+                            disabled={!currentTaskId}
+                        >
+                            <VisibilityIcon />
+                        </Button>
+                    </Box>
 
                     <Button
                         variant="contained"

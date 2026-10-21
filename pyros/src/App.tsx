@@ -18,6 +18,7 @@ import Other from './pages/Other'
 import Variables from './pages/Variables'
 import Create from './pages/Create'
 import HMVSystem from './pages/HMVSystem'
+import Overview from './pages/Overview'
 
 function App() {
     return (
@@ -51,6 +52,7 @@ function App() {
                     <Route path="/technology/other" element={<Other />} />
                     <Route path="/variables" element={<Variables />} />
                     <Route path="/create" element={<Create />} />
+                    <Route path="/overview" element={<Overview />} />
                 </Route>
             </Routes>
         </BrowserRouter>

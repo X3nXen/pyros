@@ -5,6 +5,7 @@ import type { HMVData } from '../model/HMV.model'
 import type { LightingForm } from '../model/Lighting.model'
 import type { ClickupTaskShort } from '../model/LoginData.model'
 import type { ProductFormData } from '../model/Product.model'
+import type { ShortFormCollection } from '../model/ShortFormCards.model'
 import type {
     StandingsFormData,
     StandingsShort,
@@ -841,6 +842,28 @@ export default class Calls {
             return {
                 success: false,
                 message: 'Nem sikerült lekérni a főtermék státuszt.',
+            }
+        }
+    }
+
+    static async getAllData(
+        project_id: string
+    ): Promise<{ success: boolean; payload: ShortFormCollection | string }> {
+        try {
+            const response = await fetch(
+                Calls.getApiLink() + '/collect?project_id=' + project_id,
+                { method: 'GET', headers: { Accept: 'application/json' } }
+            )
+            const data = await response.json()
+            if (!response.ok) {
+                return { success: false, payload: data['message'] }
+            }
+            return { success: true, payload: data['message'] }
+        } catch (error) {
+            console.error('Hiba az adatok lekérése során: ', error)
+            return {
+                success: false,
+                payload: 'Hiba az adatok lekérése során: ' + error,
             }
         }
     }
