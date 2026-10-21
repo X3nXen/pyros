@@ -97,6 +97,12 @@ export default function Steam() {
         }
     }
 
+    function handleDelete(index: number) {
+        const newCompressors = [...formData.machines]
+        newCompressors.splice(index, 1)
+        setFormData({ ...formData, machines: newCompressors })
+    }
+
     return (
         <Box
             sx={{
@@ -202,6 +208,7 @@ export default function Steam() {
                 activeIndex={activeSteamMachineIndex}
                 onAdd={handleAddSteamMachine}
                 onSelect={(index) => setActiveSteamMachineIndex(index)}
+                onDelete={handleDelete}
                 getName={(item) =>
                     formData.machines.indexOf(item) + 1 + '. gőzfejlesztő'
                 }
