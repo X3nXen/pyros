@@ -95,6 +95,12 @@ export default function Other() {
         }
     }
 
+    function handleDelete(index: number) {
+        const newCompressors = [...formData.machines]
+        newCompressors.splice(index, 1)
+        setFormData({ ...formData, machines: newCompressors })
+    }
+
     return (
         <Box
             sx={{
@@ -143,6 +149,7 @@ export default function Other() {
                 activeIndex={activeOtherMachineIndex}
                 onSelect={(index) => setActiveOtherMachineIndex(index)}
                 onAdd={handleAddOtherMachine}
+                onDelete={handleDelete}
                 getName={(item) =>
                     formData.machines.indexOf(item) + 1 + '. berendezés'
                 }

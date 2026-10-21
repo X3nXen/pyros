@@ -66,6 +66,12 @@ export default function LightingSystem() {
         setActiveLightingIndex(newLightingSystem.length)
     }
 
+    function handleDelete(index: number) {
+        const newLightingSystem = [...formData.systems]
+        newLightingSystem.splice(index, 1)
+        setFormData({ ...formData, systems: newLightingSystem })
+    }
+
     const standings = useAppSelector((state) => state.project.subStandings)
     const buildings = useAppSelector((state) => state.project.buildings)
 
@@ -139,6 +145,7 @@ export default function LightingSystem() {
                 activeIndex={activeLightingIndex}
                 onSelect={(index) => setActiveLightingIndex(index)}
                 onAdd={handleAddLightingSystem}
+                onDelete={handleDelete}
                 getName={(lightingSystem) => lightingSystem.zone}
             />
 

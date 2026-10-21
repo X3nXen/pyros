@@ -84,6 +84,12 @@ export default function Cooling() {
         setFormData({ ...formData, machines: newMachines })
     }
 
+    function handleDelete(index: number) {
+        const newCompressors = [...formData.machines]
+        newCompressors.splice(index, 1)
+        setFormData({ ...formData, machines: newCompressors })
+    }
+
     async function handleSubmit() {
         const result = await FormSendProtocol.handleCooling(
             formData,
@@ -164,6 +170,7 @@ export default function Cooling() {
                 activeIndex={activeCoolingMachineIndex}
                 onSelect={(index) => setActiveCoolingMachineIndex(index)}
                 onAdd={handleAddCoolingMachine}
+                onDelete={handleDelete}
                 getName={(item) =>
                     formData.machines.indexOf(item) + 1 + '. hűtőberendezés'
                 }

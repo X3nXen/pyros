@@ -100,6 +100,12 @@ export default function Compressed() {
         }
     }
 
+    function handleDelete(index: number) {
+        const newCompressors = [...formData.machines]
+        newCompressors.splice(index, 1)
+        setFormData({ ...formData, machines: newCompressors })
+    }
+
     return (
         <Box
             sx={{
@@ -165,6 +171,7 @@ export default function Compressed() {
                 activeIndex={activeCompressorIndex}
                 onSelect={(index) => setActiveCompressorIndex(index)}
                 onAdd={handleAddCompressor}
+                onDelete={handleDelete}
                 getName={(item) =>
                     formData.machines.indexOf(item) + 1 + '. kompresszor'
                 }

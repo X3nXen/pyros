@@ -127,6 +127,12 @@ export default function Complex() {
         setFormData({ ...formData, working: newWorking })
     }
 
+    function handleDelete(index: number) {
+        const newWorking = [...formData.working]
+        newWorking.splice(index, 1)
+        setFormData({ ...formData, working: newWorking })
+    }
+
     const currentActiveWorking =
         activeIndex !== null ? formData.working[activeIndex] : null
 
@@ -267,6 +273,7 @@ export default function Complex() {
                 activeIndex={activeIndex}
                 onSelect={(index) => setActiveIndex(index)}
                 onAdd={addWorkingHours}
+                onDelete={handleDelete}
                 getName={(e) =>
                     'Munkatevékenység ' + (formData.working.indexOf(e) + 1)
                 }

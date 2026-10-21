@@ -266,6 +266,24 @@ export default function HeatingSystem() {
         }
     }
 
+    function handleHeaterDelete(index: number) {
+        const newHeaterData = [...formData.heaters]
+        newHeaterData.splice(index, 1)
+        setFormData({ ...formData, heaters: newHeaterData })
+    }
+
+    function handlePumpDelete(index: number) {
+        const newPumpData = [...formData.pumps]
+        newPumpData.splice(index, 1)
+        setFormData({ ...formData, pumps: newPumpData })
+    }
+
+    function handleEmitterDelete(index: number) {
+        const newEmitterData = [...formData.emitters]
+        newEmitterData.splice(index, 1)
+        setFormData({ ...formData, emitters: newEmitterData })
+    }
+
     const currentActiveHeater =
         activeHeaterIndex !== null ? formData.heaters[activeHeaterIndex] : null
     const currentActivePump =
@@ -441,6 +459,7 @@ export default function HeatingSystem() {
                 activeIndex={activeHeaterIndex}
                 onSelect={(index) => setActiveHeaterIndex(index)}
                 onAdd={handleAddHeater}
+                onDelete={handleHeaterDelete}
                 getName={(heater) => heater.name}
             />
 
@@ -474,6 +493,7 @@ export default function HeatingSystem() {
                 activeIndex={activePumpIndex}
                 onSelect={(index) => setActivePumpIndex(index)}
                 onAdd={handleAddPump}
+                onDelete={handlePumpDelete}
                 getName={(pump) => pump.name}
             />
 
@@ -504,6 +524,7 @@ export default function HeatingSystem() {
                 activeIndex={activePumpIndex}
                 onSelect={(index) => setActiveEmitterIndex(index)}
                 onAdd={handleAddEmitter}
+                onDelete={handleEmitterDelete}
                 getName={(emitter) => emitter.name}
             />
 
